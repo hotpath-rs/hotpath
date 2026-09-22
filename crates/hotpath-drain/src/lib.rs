@@ -1,21 +1,34 @@
 //! Lock-free event transport between instrumented threads and background workers.
 //!
-//! Each producing thread owns a chunked SPSC queue: it appends events into
-//! fixed-size chunks with plain stores and publishes them with a single
+//! Each producing thread owns a ring of fixed-size chunks: it appends events
+//! into the tail chunk with plain stores and publishes them with a single
 //! `Release` store of the chunk's `len` - no mutex, no RMW atomic on the hot
-//! path. Chunks form a linked list, so the queue is unbounded.
+//! path. When the tail chunk fills up, the producer moves to the next chunk in
+//! the ring if the consumer has already drained it, and splices in a freshly
+//! allocated chunk only when every chunk still holds unconsumed events. The
+//! ring therefore grows to the peak number of chunks in flight between two
+//! sweeps and then stops allocating: steady state is allocation-free.
 //!
 //! A single consumer per registry (the subsystem's background worker) sweeps
 //! all registered queues periodically: it `Acquire`-loads each chunk's `len`,
-//! reads the published prefix, and frees fully consumed chunks. Producer and
-//! consumer touch disjoint slot ranges by construction, so a queue is safe to
-//! drain at any moment - including queues of threads parked at shutdown,
-//! which is what guarantees a complete final report.
+//! reads the published prefix, resets fully consumed chunks and advances its
+//! `head` past them. Producer and consumer touch disjoint chunks by
+//! construction, so a queue is safe to drain at any moment - including queues
+//! of threads parked at shutdown, which is what guarantees a complete final
+//! report.
 //!
 //! Safety invariants:
-//! - Only the owning thread writes slots and the `len`/`next` of its tail chunk.
-//! - The consumer only reads slots below the published `len` and only frees a
-//!   chunk after fully consuming it and observing its `next` pointer.
+//! - The ring is split in two arcs: `head..=tail` (live, holds published or
+//!   in-progress events) and the rest (free, fully consumed). Only the owning
+//!   thread writes slots and the `len`/`next` of its tail chunk, and only it
+//!   rewrites `next` links inside the free arc when growing the ring.
+//! - The consumer only reads slots below the published `len`, only writes
+//!   `len` (resetting it to 0) after moving every event out of a full chunk,
+//!   and only advances `head` after that reset.
+//! - The producer reuses a chunk only after observing (`Acquire`) that `head`
+//!   has moved past it, which orders the consumer's last reads and its reset
+//!   before the producer's next writes. A stale `head` can only make the
+//!   producer allocate unnecessarily, never reuse a live chunk.
 //! - Single consumer per registry, enforced by the registry's internal mutex
 //!   (locked only at thread registration and during sweeps - never on the
 //!   event hot path).
@@ -35,26 +48,30 @@ const MAX_CHUNKS_PER_SWEEP: usize = 1024;
 
 struct Chunk<M> {
     slots: [UnsafeCell<MaybeUninit<M>>; CHUNK_SIZE],
-    /// Number of initialized slots; the producer publishes with `Release`.
+    /// Number of initialized slots; the producer publishes with `Release`,
+    /// the consumer resets to 0 once it has moved every slot out.
     len: AtomicUsize,
-    /// Set once by the producer when the chunk is full; never unset.
+    /// Ring link. Written by the producer when the chunk is allocated and
+    /// when a new chunk is spliced in after it; never null.
     next: AtomicPtr<Chunk<M>>,
 }
 
 impl<M> Chunk<M> {
-    fn new_raw() -> *mut Chunk<M> {
+    fn new_raw(next: *mut Chunk<M>) -> *mut Chunk<M> {
         Box::into_raw(Box::new(Chunk {
             slots: [const { UnsafeCell::new(MaybeUninit::uninit()) }; CHUNK_SIZE],
             len: AtomicUsize::new(0),
-            next: AtomicPtr::new(ptr::null_mut()),
+            next: AtomicPtr::new(next),
         }))
     }
 }
 
-/// One thread's event queue: a linked list of chunks. The owning thread
-/// appends via its [`EventProducer`]; the registry's consumer drains.
+/// One thread's event queue: a ring of chunks. The owning thread appends via
+/// its [`EventProducer`]; the registry's consumer drains.
 pub struct EventQueue<M> {
-    /// Oldest chunk with unconsumed events. Consumer-owned after creation.
+    /// Oldest chunk with unconsumed events. Written by the consumer with
+    /// `Release`; read by the producer once per chunk to decide whether the
+    /// next chunk in the ring can be reused.
     head: AtomicPtr<Chunk<M>>,
     /// Consumed slot count within `head`. Consumer-only.
     consumed: AtomicUsize,
@@ -66,8 +83,8 @@ pub struct EventQueue<M> {
 // SAFETY: the auto impls are lost to the raw chunk pointers. Sending or
 // sharing the queue only moves `M` values across threads (hence `M: Send`);
 // concurrent access is sound because producer and consumer touch disjoint
-// slot ranges, synchronized by the `Release`/`Acquire` handoff on `len`
-// (see module-level safety invariants).
+// chunks, synchronized by the `Release`/`Acquire` handoffs on `len` and
+// `head` (see module-level safety invariants).
 unsafe impl<M: Send> Send for EventQueue<M> {}
 // SAFETY: same reasoning as `Send` above.
 unsafe impl<M: Send> Sync for EventQueue<M> {}
@@ -87,10 +104,8 @@ impl<M> EventQueue<M> {
         let mut chunks_walked = 0;
         let mut reached_tail = true;
         loop {
-            // SAFETY: `chunk_ptr` is either `head` (never null, freed only by
-            // this single consumer after advancing past it) or a non-null
-            // `next` observed below; the chunk stays alive until this loop
-            // frees it.
+            // SAFETY: `chunk_ptr` is `head` or a `next` reached from it; every
+            // chunk in the ring stays allocated until `EventQueue::drop`.
             let chunk = unsafe { &*chunk_ptr };
             let len = chunk.len.load(Ordering::Acquire);
             for i in consumed..len {
@@ -102,28 +117,25 @@ impl<M> EventQueue<M> {
             }
             consumed = len;
             if len == CHUNK_SIZE {
-                let next = chunk.next.load(Ordering::Acquire);
-                if !next.is_null() {
-                    if chunks_walked >= max_chunks {
-                        reached_tail = false;
-                        break;
-                    }
-                    // SAFETY: `chunk_ptr` came from `Box::into_raw` in
-                    // `Chunk::new_raw`. The chunk is full (`len == CHUNK_SIZE`)
-                    // and fully consumed, and the producer moved on to `next`,
-                    // so neither side will touch it again; all `M` values were
-                    // moved out above, so dropping the box frees only
-                    // `MaybeUninit` storage.
-                    unsafe { drop(Box::from_raw(chunk_ptr)) };
-                    chunk_ptr = next;
-                    consumed = 0;
-                    chunks_walked += 1;
-                    continue;
+                if chunks_walked >= max_chunks {
+                    reached_tail = false;
+                    break;
                 }
+                // The producer links the next chunk before publishing this
+                // one as full, so `next` is the chunk it moved on to.
+                let next = chunk.next.load(Ordering::Acquire);
+                // Every slot was moved out above; mark the chunk free for the
+                // producer and leave it behind. The `Release` store of `head`
+                // orders both the reads and this reset before any reuse.
+                chunk.len.store(0, Ordering::Relaxed);
+                chunk_ptr = next;
+                consumed = 0;
+                chunks_walked += 1;
+                self.head.store(chunk_ptr, Ordering::Release);
+                continue;
             }
             break;
         }
-        self.head.store(chunk_ptr, Ordering::Relaxed);
         self.consumed.store(consumed, Ordering::Relaxed);
         reached_tail
     }
@@ -132,12 +144,15 @@ impl<M> EventQueue<M> {
 impl<M> Drop for EventQueue<M> {
     fn drop(&mut self) {
         // Reached only after the producer is gone (closed) and the registry
-        // released its Arc, so exclusive access is guaranteed.
-        let mut chunk_ptr = *self.head.get_mut();
+        // released its Arc, so exclusive access is guaranteed. Live chunks
+        // (from `head` to the tail) hold `consumed..len` events to drop; free
+        // chunks have `len == 0`. Walk the ring once.
+        let start = *self.head.get_mut();
+        let mut chunk_ptr = start;
         let mut consumed = *self.consumed.get_mut();
-        while !chunk_ptr.is_null() {
-            // SAFETY: `&mut self` proves exclusive access; every chunk from
-            // `head` onward is live and owned by this queue.
+        loop {
+            // SAFETY: `&mut self` proves exclusive access; every chunk in the
+            // ring is live and owned by this queue.
             let chunk = unsafe { &mut *chunk_ptr };
             let len = *chunk.len.get_mut();
             for i in consumed..len {
@@ -152,6 +167,9 @@ impl<M> Drop for EventQueue<M> {
             // `Chunk::new_raw` and nothing can reference it after this drop
             // (exclusive access via `&mut self`).
             unsafe { drop(Box::from_raw(chunk_ptr)) };
+            if next == start {
+                break;
+            }
             chunk_ptr = next;
         }
     }
@@ -166,7 +184,8 @@ pub struct EventProducer<M> {
 
 impl<M> EventProducer<M> {
     /// Appends one event: a plain slot store plus a `Release` publish of the
-    /// new length. Allocates a fresh chunk every `CHUNK_SIZE` events.
+    /// new length. Every `CHUNK_SIZE` events it moves to the next chunk of
+    /// the ring, allocating only when the ring is full.
     #[inline]
     #[cfg_attr(
         feature = "hotpath-meta",
@@ -176,24 +195,49 @@ impl<M> EventProducer<M> {
         let tail = self.tail.get();
         let i = self.len.get();
         // SAFETY: `tail` is the producer-owned live tail chunk (the consumer
-        // never frees a chunk whose `next` it has not observed, and `next` is
-        // set only after this chunk is full). Slot `i` is above the published
-        // `len`, so the consumer cannot be reading it; the `Release` store of
-        // `len` publishes the write.
-        unsafe {
-            (*tail).slots[i].get().write(MaybeUninit::new(m));
-            (*tail).len.store(i + 1, Ordering::Release);
-        }
+        // never advances past a chunk whose `len` it has not observed as
+        // `CHUNK_SIZE`). Slot `i` is above the published `len`, so the
+        // consumer cannot be reading it; the `Release` store of `len` below
+        // publishes the write.
+        unsafe { (*tail).slots[i].get().write(MaybeUninit::new(m)) };
         if i + 1 == CHUNK_SIZE {
-            let new = Chunk::new_raw();
-            // SAFETY: `tail` is still live (see above); only the producer
-            // writes `next`, and only once, when the chunk is full.
-            unsafe { (*tail).next.store(new, Ordering::Release) };
-            self.tail.set(new);
+            let next = self.next_chunk(tail);
+            // SAFETY: `tail` is still live (see above); publishing the full
+            // length is the last write to it before the consumer may take it.
+            unsafe { (*tail).len.store(CHUNK_SIZE, Ordering::Release) };
+            self.tail.set(next);
             self.len.set(0);
         } else {
+            // SAFETY: as above.
+            unsafe { (*tail).len.store(i + 1, Ordering::Release) };
             self.len.set(i + 1);
         }
+    }
+
+    /// Picks the chunk that follows the full `tail`: the next ring slot if
+    /// the consumer has left it, otherwise a fresh chunk spliced in after
+    /// `tail`. Must run before `tail` is published as full so the consumer
+    /// finds the link in place.
+    #[cold]
+    fn next_chunk(&self, tail: *mut Chunk<M>) -> *mut Chunk<M> {
+        // SAFETY: `tail` is live and its `next` link was written by this
+        // thread; the ring is never broken, so `candidate` is a live chunk.
+        let candidate = unsafe { (*tail).next.load(Ordering::Relaxed) };
+        let head = self.queue.head.load(Ordering::Acquire);
+        if candidate != head {
+            // Free: the consumer advanced `head` past it (that `Release` store
+            // is what the `Acquire` above synchronized with) after resetting
+            // its `len` to 0, so no reads of it are pending.
+            return candidate;
+        }
+        // Full ring: every chunk from `head` around to `tail` holds events
+        // the consumer has not taken yet. Grow by one chunk after `tail`.
+        let new = Chunk::new_raw(candidate);
+        // SAFETY: only the producer writes `tail.next`, and the consumer reads
+        // it only after `tail.len` is published as full, which happens after
+        // this store.
+        unsafe { (*tail).next.store(new, Ordering::Release) };
+        new
     }
 }
 
@@ -235,13 +279,16 @@ impl<M: Send> EventQueueRegistry<M> {
         self.active.store(active, Ordering::Release);
     }
 
-    /// Creates and registers a queue for the calling thread.
+    /// Creates and registers a queue for the calling thread. The ring starts
+    /// as a single self-linked chunk and grows on demand.
     #[cfg_attr(
         feature = "hotpath-meta",
         hotpath_meta::measure(impl_type = "EventQueueRegistry")
     )]
     pub fn register(&self) -> EventProducer<M> {
-        let first = Chunk::new_raw();
+        let first = Chunk::new_raw(ptr::null_mut());
+        // SAFETY: `first` was just allocated and is not shared yet.
+        unsafe { (*first).next.store(first, Ordering::Relaxed) };
         let queue = Arc::new(EventQueue {
             head: AtomicPtr::new(first),
             consumed: AtomicUsize::new(0),
