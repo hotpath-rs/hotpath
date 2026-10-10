@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 use crate::instant::Instant;
 use crate::lib_on::functions::async_bridge::AsyncCallBridge;
-use crate::lib_on::functions::exclusive::{self, ExclusiveFrame};
+use crate::lib_on::functions::exclusive::{self, AsyncCall, ExclusiveFrame};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AllocMetric {
@@ -218,7 +218,7 @@ pub struct MeasurementGuardAsync {
     tid: u64,
     start: Option<Instant>,
     skipped: bool,
-    bridge: Option<Arc<AsyncCallBridge>>,
+    call: AsyncCall,
 }
 
 impl MeasurementGuardAsync {
@@ -229,13 +229,16 @@ impl MeasurementGuardAsync {
         skipped: bool,
         bridge: Option<Arc<AsyncCallBridge>>,
     ) -> Self {
+        let start = sampled_start(wrapper, skipped);
+        let mut call = AsyncCall::new(bridge);
+        call.started(start);
         Self {
             name,
             wrapper,
             tid: crate::tid::current_tid(),
-            start: sampled_start(wrapper, skipped),
+            start,
             skipped,
-            bridge,
+            call,
         }
     }
 }
@@ -249,12 +252,12 @@ impl Drop for MeasurementGuardAsync {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
-        let duration_ns = exclusive::async_duration_ns(self.bridge.as_deref(), self.start, end);
+        let duration_ns = self.call.duration_ns(self.start, end);
         let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
         let (bytes_total, count_total) = self
-            .bridge
-            .as_ref()
-            .map_or((None, None), |bridge| bridge.alloc_snapshot());
+            .call
+            .bridge()
+            .map_or((None, None), AsyncCallBridge::alloc_snapshot);
 
         send_alloc_measurement(
             self.name,
@@ -395,7 +398,7 @@ pub(crate) struct MeasurementGuardAsyncWithLog {
     start: Option<Instant>,
     finished: bool,
     skipped: bool,
-    bridge: Option<Arc<AsyncCallBridge>>,
+    call: AsyncCall,
 }
 
 impl MeasurementGuardAsyncWithLog {
@@ -406,14 +409,17 @@ impl MeasurementGuardAsyncWithLog {
         skipped: bool,
         bridge: Option<Arc<AsyncCallBridge>>,
     ) -> Self {
+        let start = sampled_start(wrapper, skipped);
+        let mut call = AsyncCall::new(bridge);
+        call.started(start);
         Self {
             name,
             wrapper,
             tid: crate::tid::current_tid(),
-            start: sampled_start(wrapper, skipped),
+            start,
             finished: false,
             skipped,
-            bridge,
+            call,
         }
     }
 
@@ -426,13 +432,13 @@ impl MeasurementGuardAsyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
-        let duration_ns = exclusive::async_duration_ns(self.bridge.as_deref(), self.start, end);
+        let duration_ns = self.call.duration_ns(self.start, end);
         let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
         let result_str = crate::output_on::format_debug_truncated(result);
         let (bytes_total, count_total) = self
-            .bridge
-            .as_ref()
-            .map_or((None, None), |bridge| bridge.alloc_snapshot());
+            .call
+            .bridge()
+            .map_or((None, None), AsyncCallBridge::alloc_snapshot);
 
         send_alloc_measurement_with_log(
             self.name,
@@ -456,12 +462,12 @@ impl Drop for MeasurementGuardAsyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
-        let duration_ns = exclusive::async_duration_ns(self.bridge.as_deref(), self.start, end);
+        let duration_ns = self.call.duration_ns(self.start, end);
         let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
         let (bytes_total, count_total) = self
-            .bridge
-            .as_ref()
-            .map_or((None, None), |bridge| bridge.alloc_snapshot());
+            .call
+            .bridge()
+            .map_or((None, None), AsyncCallBridge::alloc_snapshot);
 
         send_alloc_measurement_with_log(
             self.name,

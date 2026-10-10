@@ -2,17 +2,18 @@ use std::sync::Arc;
 
 use crate::instant::Instant;
 use crate::lib_on::functions::async_bridge::AsyncCallBridge;
-use crate::lib_on::functions::exclusive::{self, ExclusiveFrame};
+use crate::lib_on::functions::exclusive::{self, AsyncCall, ExclusiveFrame};
 
 use crate::output_on::format_debug_truncated;
 
 /// What a guard needs to report its duration in exclusive mode
-/// (`HOTPATH_TIME_EXCLUSIVE`); both payloads are `None` in inclusive mode.
+/// (`HOTPATH_TIME_EXCLUSIVE`).
 enum CallTime {
-    /// Sync function or block: a frame on the thread that built the guard.
+    /// Sync function or block: a frame on the thread that built the guard,
+    /// `None` in inclusive mode.
     Sync(Option<ExclusiveFrame>),
-    /// Async function: the body's polls report through the bridge.
-    Async(Option<Arc<AsyncCallBridge>>),
+    /// Async function: the body's polls report through the call's bridge.
+    Async(AsyncCall),
 }
 
 impl CallTime {
@@ -23,6 +24,15 @@ impl CallTime {
         } else {
             ExclusiveFrame::enter()
         })
+    }
+
+    /// Called once the guard knows its start time.
+    #[inline]
+    fn started(mut self, start: Option<Instant>) -> Self {
+        if let Self::Async(call) = &mut self {
+            call.started(start);
+        }
+        self
     }
 
     #[inline]
@@ -36,7 +46,7 @@ impl CallTime {
             Self::Sync(frame) => {
                 exclusive::sync_duration_ns(frame.take(), start, end, cross_thread)
             }
-            Self::Async(bridge) => exclusive::async_duration_ns(bridge.as_deref(), start, end),
+            Self::Async(call) => call.duration_ns(start, end),
         }
     }
 }
@@ -84,7 +94,13 @@ impl MeasurementGuard {
         skipped: bool,
         bridge: Option<Arc<AsyncCallBridge>>,
     ) -> Self {
-        Self::build(name, wrapper, skipped, false, CallTime::Async(bridge))
+        Self::build(
+            name,
+            wrapper,
+            skipped,
+            false,
+            CallTime::Async(AsyncCall::new(bridge)),
+        )
     }
 
     /// Sync-only constructor: registers `name` on the thread-local caller
@@ -113,9 +129,10 @@ impl MeasurementGuard {
         if caller_scoped {
             crate::lib_on::caller_stack::push_caller(name);
         }
+        let start = sampled_start(wrapper, skipped);
         Self {
             name,
-            start: sampled_start(wrapper, skipped),
+            start,
             wrapper,
             tid: if skipped {
                 0
@@ -124,7 +141,7 @@ impl MeasurementGuard {
             },
             skipped,
             caller_scoped,
-            call_time,
+            call_time: call_time.started(start),
         }
     }
 }
@@ -177,7 +194,13 @@ impl MeasurementGuardWithLog {
         skipped: bool,
         bridge: Option<Arc<AsyncCallBridge>>,
     ) -> Self {
-        Self::build(name, wrapper, skipped, false, CallTime::Async(bridge))
+        Self::build(
+            name,
+            wrapper,
+            skipped,
+            false,
+            CallTime::Async(AsyncCall::new(bridge)),
+        )
     }
 
     /// Sync-only constructor: registers `name` on the thread-local caller
@@ -205,9 +228,10 @@ impl MeasurementGuardWithLog {
         if caller_scoped {
             crate::lib_on::caller_stack::push_caller(name);
         }
+        let start = sampled_start(wrapper, skipped);
         Self {
             name,
-            start: sampled_start(wrapper, skipped),
+            start,
             wrapper,
             tid: if skipped {
                 0
@@ -217,7 +241,7 @@ impl MeasurementGuardWithLog {
             finished: false,
             skipped,
             caller_scoped,
-            call_time,
+            call_time: call_time.started(start),
         }
     }
 

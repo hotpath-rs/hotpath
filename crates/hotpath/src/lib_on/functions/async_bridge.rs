@@ -1,4 +1,12 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+
+/// Measured async children of a call that started and have not returned yet.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ChildrenInFlight {
+    pub(crate) count: u32,
+    /// When `count` last left zero, in nanoseconds since the profiling start.
+    pub(crate) since_ns: u64,
+}
 
 /// Per-call totals of a measured async function, fed by the poll wrapper
 /// (`futures::wrapper`) around every poll of the body and read by the async
@@ -9,9 +17,11 @@ pub(crate) struct AsyncCallBridge {
     bytes_total: AtomicU64,
     #[cfg(feature = "hotpath-alloc")]
     count_total: AtomicU64,
-    /// Summed inclusive durations of the measured calls that returned during
-    /// the body's polls (`HOTPATH_TIME_EXCLUSIVE`).
+    /// Time covered by the measured calls that returned during the body's
+    /// polls (`HOTPATH_TIME_EXCLUSIVE`).
     children_ns: AtomicU64,
+    in_flight_count: AtomicU32,
+    in_flight_since_ns: AtomicU64,
 }
 
 impl AsyncCallBridge {
@@ -35,16 +45,35 @@ impl AsyncCallBridge {
         )
     }
 
-    /// Polls of one future never overlap, so a load + store pair is enough.
     #[inline]
-    pub(crate) fn add_children_ns(&self, ns: u64) {
-        let total = self.children_ns.load(Ordering::Relaxed);
-        self.children_ns
-            .store(total.saturating_add(ns), Ordering::Relaxed);
+    pub(crate) fn children_in_flight(&self) -> ChildrenInFlight {
+        ChildrenInFlight {
+            count: self.in_flight_count.load(Ordering::Relaxed),
+            since_ns: self.in_flight_since_ns.load(Ordering::Relaxed),
+        }
     }
 
+    /// Stores what one poll collected. Polls of one future never overlap, so
+    /// plain loads and stores are enough.
     #[inline]
-    pub(crate) fn children_ns(&self) -> u64 {
-        self.children_ns.load(Ordering::Relaxed)
+    pub(crate) fn poll_finished(&self, children_ns: u64, in_flight: ChildrenInFlight) {
+        let total = self.children_ns.load(Ordering::Relaxed);
+        self.children_ns
+            .store(total.saturating_add(children_ns), Ordering::Relaxed);
+        self.in_flight_count
+            .store(in_flight.count, Ordering::Relaxed);
+        self.in_flight_since_ns
+            .store(in_flight.since_ns, Ordering::Relaxed);
+    }
+
+    /// Time covered by children up to `end_ns`, the end of the call. Children
+    /// still in flight then (the call was cancelled) cover it to the end.
+    #[inline]
+    pub(crate) fn children_covered_ns(&self, end_ns: u64) -> u64 {
+        crate::lib_on::functions::exclusive::covered_ns(
+            self.children_ns.load(Ordering::Relaxed),
+            self.children_in_flight(),
+            || end_ns,
+        )
     }
 }

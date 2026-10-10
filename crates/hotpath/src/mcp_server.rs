@@ -151,7 +151,7 @@ impl HotPathMcpServer {
 
 Returns a JSON object with:
 - profiling_mode, time_elapsed, total_elapsed_ns, caller_name
-- description: whether durations are inclusive (default) or exclusive of nested measured calls (HOTPATH_TIME_EXCLUSIVE=true; concurrently awaited async calls overlap, so a parent can then report zero)
+- description: whether durations are inclusive (default) or exclusive of nested measured calls (HOTPATH_TIME_EXCLUSIVE=true; concurrently awaited async calls overlap, so rows can add up to more than the elapsed time)
 - percentiles: configured percentile list (e.g. [95.0, 99.0])
 - data: functions sorted by total time, each with:
   - id: function id, input for function_timing_logs

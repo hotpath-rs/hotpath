@@ -3,25 +3,27 @@
 //! spent in nested measured functions.
 //!
 //! Every guard already knows its inclusive duration, so no extra clock reads
-//! are needed: exclusive = inclusive - sum of the direct children's inclusive
-//! durations. The per-thread accumulator below holds that sum for the
-//! innermost open frame, and each frame keeps its parent's sum while it is
-//! open, so the frame stack lives in the guards themselves and has no depth
-//! limit.
+//! are needed: exclusive = inclusive - time covered by direct children. The
+//! per-thread state below belongs to the innermost open frame, and each frame
+//! keeps its parent's state while it is open, so the frame stack lives in the
+//! guards themselves and has no depth limit.
 //!
-//! An async function uses the same definition on wall-clock time, so time
-//! suspended at an `.await` counts as its own unless a measured child was
-//! running. Its children are collected per poll: every poll of a measured async
-//! body is a frame, and the sums go through the call's `AsyncCallBridge`
-//! because consecutive polls can run on different threads. Children awaited
-//! concurrently overlap, so their sum can exceed the parent's duration, which
-//! then reports zero.
+//! Sync children run one after another, so their durations are summed. An
+//! async function uses the same definition on wall-clock time (time suspended
+//! at an `.await` is its own unless a measured child was running), but async
+//! children can run concurrently and overlap. They are therefore covered as a
+//! union: the stretch from the first async child in flight to the last one
+//! returning counts once, in whatever frame they run (the polls of an async
+//! parent, or a sync function driving a runtime). Every poll of a measured
+//! async body is a frame, and the state moves through the call's
+//! `AsyncCallBridge` between polls because consecutive polls can run on
+//! different threads.
 
 use std::cell::Cell;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use crate::instant::Instant;
-use crate::lib_on::functions::async_bridge::AsyncCallBridge;
+use crate::lib_on::functions::async_bridge::{AsyncCallBridge, ChildrenInFlight};
 
 pub(crate) static TIME_EXCLUSIVE: LazyLock<bool> =
     LazyLock::new(|| crate::shared::env_flag("HOTPATH_TIME_EXCLUSIVE"));
@@ -29,16 +31,88 @@ pub(crate) static TIME_EXCLUSIVE: LazyLock<bool> =
 pub(crate) const DESCRIPTION: &str =
     "Exclusive execution time of functions (excluding nested measured calls).";
 
-thread_local! {
-    /// Summed inclusive durations of the children that already returned to the
-    /// innermost open frame on this thread.
-    static CHILDREN_NS: Cell<u64> = const { Cell::new(0) };
+/// Identity of a frame, for an async child to find the frame it started in.
+/// Only compared.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FrameId {
+    /// Outside of any frame.
+    Thread,
+    /// A sync frame, numbered per thread.
+    Sync(u64),
+    /// A poll of the async call that owns the bridge at this address.
+    Poll(usize),
 }
 
-/// An open frame. Holds the enclosing frame's children sum, which the
-/// thread-local stops tracking while this frame is the innermost one.
+#[derive(Clone, Copy)]
+struct FrameState {
+    id: FrameId,
+    /// Time covered by the children that already returned to this frame.
+    children_ns: u64,
+    in_flight: ChildrenInFlight,
+}
+
+impl FrameState {
+    #[inline]
+    fn new(id: FrameId, in_flight: ChildrenInFlight) -> Self {
+        Self {
+            id,
+            children_ns: 0,
+            in_flight,
+        }
+    }
+
+    /// A sync child returned. Async children in flight already cover it.
+    #[inline]
+    fn sync_child_returned(mut self, inclusive_ns: u64) -> Self {
+        if self.in_flight.count == 0 {
+            self.children_ns = self.children_ns.saturating_add(inclusive_ns);
+        }
+        self
+    }
+
+    /// Time covered by children up to `end_ns`, the end of the frame's call.
+    /// Async children still in flight then cover it to the end.
+    #[inline]
+    fn covered_ns(&self, end_ns: impl FnOnce() -> u64) -> u64 {
+        covered_ns(self.children_ns, self.in_flight, end_ns)
+    }
+}
+
+#[inline]
+pub(crate) fn covered_ns(
+    children_ns: u64,
+    in_flight: ChildrenInFlight,
+    end_ns: impl FnOnce() -> u64,
+) -> u64 {
+    if in_flight.count == 0 {
+        return children_ns;
+    }
+    children_ns.saturating_add(end_ns().saturating_sub(in_flight.since_ns))
+}
+
+struct ThreadFrames {
+    /// State of the innermost open frame on this thread.
+    innermost: Cell<FrameState>,
+    next_sync_id: Cell<u64>,
+}
+
+thread_local! {
+    static FRAMES: ThreadFrames = const {
+        ThreadFrames {
+            innermost: Cell::new(FrameState {
+                id: FrameId::Thread,
+                children_ns: 0,
+                in_flight: ChildrenInFlight { count: 0, since_ns: 0 },
+            }),
+            next_sync_id: Cell::new(0),
+        }
+    };
+}
+
+/// An open frame. Holds the enclosing frame's state, which the thread-local
+/// stops tracking while this frame is the innermost one.
 pub(crate) struct ExclusiveFrame {
-    parent_children_ns: u64,
+    parent: FrameState,
 }
 
 impl ExclusiveFrame {
@@ -49,9 +123,28 @@ impl ExclusiveFrame {
         if !*TIME_EXCLUSIVE {
             return None;
         }
-        CHILDREN_NS
-            .try_with(|children| Self {
-                parent_children_ns: children.replace(0),
+        FRAMES
+            .try_with(|frames| {
+                let id = frames.next_sync_id.get();
+                frames.next_sync_id.set(id.wrapping_add(1));
+                Self {
+                    parent: frames.innermost.replace(FrameState::new(
+                        FrameId::Sync(id),
+                        ChildrenInFlight::default(),
+                    )),
+                }
+            })
+            .ok()
+    }
+
+    #[inline]
+    fn enter_poll(bridge: &AsyncCallBridge) -> Option<Self> {
+        let id = FrameId::Poll(std::ptr::from_ref(bridge) as usize);
+        FRAMES
+            .try_with(|frames| Self {
+                parent: frames
+                    .innermost
+                    .replace(FrameState::new(id, bridge.children_in_flight())),
             })
             .ok()
     }
@@ -59,23 +152,24 @@ impl ExclusiveFrame {
     /// Closes the frame on the thread that opened it: hands `inclusive_ns` up
     /// to the enclosing frame and returns this frame's exclusive time.
     #[inline]
-    fn exit(&self, inclusive_ns: u64) -> Option<u64> {
-        CHILDREN_NS
-            .try_with(|children| {
-                let own_children_ns =
-                    children.replace(self.parent_children_ns.saturating_add(inclusive_ns));
-                inclusive_ns.saturating_sub(own_children_ns)
+    fn exit(&self, inclusive_ns: u64, end: Instant) -> Option<u64> {
+        FRAMES
+            .try_with(|frames| {
+                let own = frames
+                    .innermost
+                    .replace(self.parent.sync_child_returned(inclusive_ns));
+                let covered_ns = own.covered_ns(|| crate::lib_on::elapsed_since_start_ns(end));
+                inclusive_ns.saturating_sub(covered_ns)
             })
             .ok()
     }
 
-    /// Closes a poll frame and returns the children it collected. Nothing is
-    /// handed up: the async call reports its whole duration when its guard
-    /// drops.
+    /// Closes a poll frame and returns its state. Nothing is handed up: the
+    /// async call reports to its parent when its guard is built and dropped.
     #[inline]
-    fn exit_poll(&self) -> Option<u64> {
-        CHILDREN_NS
-            .try_with(|children| children.replace(self.parent_children_ns))
+    fn exit_poll(&self) -> Option<FrameState> {
+        FRAMES
+            .try_with(|frames| frames.innermost.replace(self.parent))
             .ok()
     }
 }
@@ -97,32 +191,94 @@ pub(crate) fn sync_duration_ns(
     if cross_thread {
         return None;
     }
-    let self_ns = frame?.exit(inclusive_ns.unwrap_or(0))?;
+    let self_ns = frame?.exit(inclusive_ns.unwrap_or(0), end)?;
     inclusive_ns.map(|_| self_ns)
 }
 
-/// Duration an async guard reports. The guard drops inside its parent's poll
-/// (on whichever thread runs it), so in exclusive mode it hands its inclusive
-/// duration to the innermost frame there and subtracts the children its own
-/// polls collected in the bridge.
-#[inline]
-pub(crate) fn async_duration_ns(
-    bridge: Option<&AsyncCallBridge>,
-    start: Option<Instant>,
-    end: Instant,
-) -> Option<u64> {
-    let inclusive_ns = end.duration_since(start?).as_nanos() as u64;
-    if !*TIME_EXCLUSIVE {
-        return Some(inclusive_ns);
-    }
-    let _ =
-        CHILDREN_NS.try_with(|children| children.set(children.get().saturating_add(inclusive_ns)));
-    let children_ns = bridge.map_or(0, AsyncCallBridge::children_ns);
-    Some(inclusive_ns.saturating_sub(children_ns))
+/// The exclusive-time side of an async guard. The guard is built and dropped
+/// inside its parent's polls (on whichever threads run them), so it never
+/// opens a frame of its own: it tells the innermost frame when it starts and
+/// ends, and subtracts what its own polls collected in the bridge.
+pub(crate) struct AsyncCall {
+    bridge: Option<Arc<AsyncCallBridge>>,
+    /// The frame the call started in. `None` until `started`, and for calls
+    /// that are not timed.
+    parent: Option<FrameId>,
 }
 
-/// Frame around one poll of a measured async body: collects the children that
-/// returned during the poll. Closes on drop, so a panicking poll still
+impl AsyncCall {
+    #[inline]
+    pub(crate) fn new(bridge: Option<Arc<AsyncCallBridge>>) -> Self {
+        Self {
+            bridge,
+            parent: None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn bridge(&self) -> Option<&AsyncCallBridge> {
+        self.bridge.as_deref()
+    }
+
+    /// Registers the call with the innermost frame. `start` is the guard's
+    /// start time, `None` when the call is not timed.
+    #[inline]
+    pub(crate) fn started(&mut self, start: Option<Instant>) {
+        let Some(start) = start else { return };
+        if !*TIME_EXCLUSIVE {
+            return;
+        }
+        self.parent = FRAMES
+            .try_with(|frames| {
+                let mut state = frames.innermost.get();
+                if state.in_flight.count == 0 {
+                    state.in_flight.since_ns = crate::lib_on::elapsed_since_start_ns(start);
+                }
+                state.in_flight.count += 1;
+                frames.innermost.set(state);
+                state.id
+            })
+            .ok();
+    }
+
+    /// Duration the guard reports.
+    #[inline]
+    pub(crate) fn duration_ns(&self, start: Option<Instant>, end: Instant) -> Option<u64> {
+        let inclusive_ns = end.duration_since(start?).as_nanos() as u64;
+        if !*TIME_EXCLUSIVE {
+            return Some(inclusive_ns);
+        }
+        let end_ns = crate::lib_on::elapsed_since_start_ns(end);
+        self.ended(end_ns);
+        let covered_ns = self
+            .bridge()
+            .map_or(0, |bridge| bridge.children_covered_ns(end_ns));
+        Some(inclusive_ns.saturating_sub(covered_ns))
+    }
+
+    /// Reports the end of the call to the frame it started in. A guard
+    /// dropped anywhere else (its future was moved out of the parent) reports
+    /// nothing, rather than corrupting an unrelated frame.
+    #[inline]
+    fn ended(&self, end_ns: u64) {
+        let Some(parent) = self.parent else { return };
+        let _ = FRAMES.try_with(|frames| {
+            let mut state = frames.innermost.get();
+            if state.id != parent || state.in_flight.count == 0 {
+                return;
+            }
+            state.in_flight.count -= 1;
+            if state.in_flight.count == 0 {
+                let stretch_ns = end_ns.saturating_sub(state.in_flight.since_ns);
+                state.children_ns = state.children_ns.saturating_add(stretch_ns);
+            }
+            frames.innermost.set(state);
+        });
+    }
+}
+
+/// Frame around one poll of a measured async body: collects the time covered
+/// by children during the poll. Closes on drop, so a panicking poll still
 /// restores the enclosing frame.
 pub(crate) struct PollFrame<'a> {
     frame: ExclusiveFrame,
@@ -135,7 +291,10 @@ impl<'a> PollFrame<'a> {
     #[inline]
     pub(crate) fn enter(bridge: Option<&'a AsyncCallBridge>) -> Option<Self> {
         let bridge = bridge?;
-        let frame = ExclusiveFrame::enter()?;
+        if !*TIME_EXCLUSIVE {
+            return None;
+        }
+        let frame = ExclusiveFrame::enter_poll(bridge)?;
         Some(Self { frame, bridge })
     }
 }
@@ -143,8 +302,9 @@ impl<'a> PollFrame<'a> {
 impl Drop for PollFrame<'_> {
     #[inline]
     fn drop(&mut self) {
-        if let Some(children_ns) = self.frame.exit_poll() {
-            self.bridge.add_children_ns(children_ns);
+        if let Some(state) = self.frame.exit_poll() {
+            self.bridge
+                .poll_finished(state.children_ns, state.in_flight);
         }
     }
 }
