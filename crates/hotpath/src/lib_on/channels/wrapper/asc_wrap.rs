@@ -24,7 +24,7 @@
 //!
 //! Returns [`Sender`]/[`Receiver`], re-exported as `hotpath::wrap::async_channel::{Sender, Receiver}`.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use async_channel::{
@@ -32,30 +32,8 @@ use async_channel::{
     TrySendError,
 };
 
-use crate::channels::{
-    register_channel, sample_stamp, send_channel_event, ChannelEvent, ChannelType, Instant,
-    InstrumentChannelWrap, InstrumentChannelWrapLog,
-};
-
-type Payload<T> = (u64, Option<Instant>, T);
-
-/// `send_ts` is stamped before the (possibly awaited) send, so it is always `<= now`.
-#[inline]
-fn delay_nanos(send_ts: Instant, now: Instant) -> u64 {
-    now.duration_since(send_ts).as_nanos() as u64
-}
-
-/// A `Some` payload stamp means the message is sampled: stamp `now`, compute the delay.
-#[inline]
-fn recv_stamp(send_ts: Option<Instant>) -> (Option<Instant>, Option<u64>) {
-    match send_ts {
-        Some(ts) => {
-            let now = Instant::now();
-            (Some(now), Some(delay_nanos(ts, now)))
-        }
-        None => (None, None),
-    }
-}
+use crate::channels::wrapper::{LogFn, Payload, RecvSide, SendSide, WrapChannel};
+use crate::channels::ChannelType;
 
 /// Instrumented async-channel [`async_channel::Sender`] wrapper.
 ///
@@ -63,63 +41,36 @@ fn recv_stamp(send_ts: Option<Instant>) -> (Option<Instant>, Option<u64>) {
 /// When the last clone is dropped, a `Closed` event is emitted.
 pub struct Sender<T> {
     inner: InnerSender<Payload<T>>,
-    id: u32,
-    sender_count: Arc<AtomicUsize>,
-    /// Monotonic message-id source, shared across all `Sender` clones so ids stay
-    /// globally unique across producers.
-    next_id: Arc<AtomicU64>,
-    closed: Arc<AtomicBool>,
-    log_fn: Option<fn(&T) -> String>,
+    side: SendSide<T>,
 }
 
 impl<T> Sender<T> {
-    fn emit_sent(&self, msg_id: u64, sent_at: Option<Instant>, log: Option<String>) {
-        send_channel_event(ChannelEvent::WrapMessageSent {
-            id: self.id,
-            msg_id,
-            log,
-            timestamp: crate::channels::anchor_first_msg(msg_id, sent_at),
-            queue_len: self.inner.len(),
-        });
-    }
-
     pub async fn send(&self, msg: T) -> Result<(), SendError<T>> {
-        let log = self.log_fn.map(|f| f(&msg));
-        let msg_id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        // Stamp before publishing: a consumer could receive and timestamp the message the
-        // instant `inner.send` enqueues it, so stamping after would race the receive and
-        // read recv < send. Here send_ts <= recv_ts by construction.
-        let sent_at = sample_stamp();
+        let (payload, stamp) = self.side.prepare(msg);
         self.inner
-            .send((msg_id, sent_at, msg))
+            .send(payload)
             .await
             .map_err(|e| SendError(e.into_inner().2))?;
-        self.emit_sent(msg_id, sent_at, log);
+        self.side.sent(stamp, self.inner.len());
         Ok(())
     }
 
     pub fn send_blocking(&self, msg: T) -> Result<(), SendError<T>> {
-        let log = self.log_fn.map(|f| f(&msg));
-        let msg_id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let sent_at = sample_stamp();
+        let (payload, stamp) = self.side.prepare(msg);
         self.inner
-            .send_blocking((msg_id, sent_at, msg))
+            .send_blocking(payload)
             .map_err(|e| SendError(e.into_inner().2))?;
-        self.emit_sent(msg_id, sent_at, log);
+        self.side.sent(stamp, self.inner.len());
         Ok(())
     }
 
     pub fn try_send(&self, msg: T) -> Result<(), TrySendError<T>> {
-        let log = self.log_fn.map(|f| f(&msg));
-        let msg_id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let sent_at = sample_stamp();
-        self.inner
-            .try_send((msg_id, sent_at, msg))
-            .map_err(|e| match e {
-                TrySendError::Full((_, _, msg)) => TrySendError::Full(msg),
-                TrySendError::Closed((_, _, msg)) => TrySendError::Closed(msg),
-            })?;
-        self.emit_sent(msg_id, sent_at, log);
+        let (payload, stamp) = self.side.prepare(msg);
+        self.inner.try_send(payload).map_err(|e| match e {
+            TrySendError::Full((_, _, msg)) => TrySendError::Full(msg),
+            TrySendError::Closed((_, _, msg)) => TrySendError::Closed(msg),
+        })?;
+        self.side.sent(stamp, self.inner.len());
         Ok(())
     }
 
@@ -142,23 +93,16 @@ impl<T> Sender<T> {
 
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Self {
-        self.sender_count.fetch_add(1, Ordering::Relaxed);
         Self {
             inner: self.inner.clone(),
-            id: self.id,
-            sender_count: Arc::clone(&self.sender_count),
-            next_id: Arc::clone(&self.next_id),
-            closed: Arc::clone(&self.closed),
-            log_fn: self.log_fn,
+            side: self.side.clone_handle(),
         }
     }
 }
 
 impl<T> Drop for Sender<T> {
     fn drop(&mut self) {
-        if self.sender_count.fetch_sub(1, Ordering::AcqRel) == 1 {
-            crate::channels::mark_closed(&self.closed, self.id, self.inner.len());
-        }
+        self.side.drop_handle(|| self.inner.len());
     }
 }
 
@@ -169,43 +113,26 @@ impl<T> Drop for Sender<T> {
 /// receivers disconnects the channel.
 pub struct Receiver<T> {
     inner: InnerReceiver<Payload<T>>,
-    id: u32,
+    side: RecvSide,
     receiver_count: Arc<AtomicUsize>,
-    closed: Arc<AtomicBool>,
 }
 
 impl<T> Receiver<T> {
-    fn on_received(&self, msg_id: u64, now: Option<Instant>, delay_nanos: Option<u64>) {
-        send_channel_event(ChannelEvent::WrapMessageReceived {
-            id: self.id,
-            msg_id,
-            timestamp: now,
-            queue_len: self.inner.len(),
-            delay_nanos,
-        });
+    fn received(&self, (msg_id, send_ts, msg): Payload<T>) -> T {
+        self.side.received(msg_id, send_ts, self.inner.len());
+        msg
     }
 
     pub async fn recv(&self) -> Result<T, RecvError> {
-        // `send_ts` rides in the envelope; the delay (`now - send_ts`) is the exact
-        // send->receive latency, recorded straight into the processing-time histogram.
-        let (msg_id, send_ts, msg) = self.inner.recv().await?;
-        let (now, delay) = recv_stamp(send_ts);
-        self.on_received(msg_id, now, delay);
-        Ok(msg)
+        Ok(self.received(self.inner.recv().await?))
     }
 
     pub fn recv_blocking(&self) -> Result<T, RecvError> {
-        let (msg_id, send_ts, msg) = self.inner.recv_blocking()?;
-        let (now, delay) = recv_stamp(send_ts);
-        self.on_received(msg_id, now, delay);
-        Ok(msg)
+        Ok(self.received(self.inner.recv_blocking()?))
     }
 
     pub fn try_recv(&self) -> Result<T, TryRecvError> {
-        let (msg_id, send_ts, msg) = self.inner.try_recv()?;
-        let (now, delay) = recv_stamp(send_ts);
-        self.on_received(msg_id, now, delay);
-        Ok(msg)
+        Ok(self.received(self.inner.try_recv()?))
     }
 
     pub fn len(&self) -> usize {
@@ -230,9 +157,8 @@ impl<T> Clone for Receiver<T> {
         self.receiver_count.fetch_add(1, Ordering::Relaxed);
         Self {
             inner: self.inner.clone(),
-            id: self.id,
+            side: self.side.clone(),
             receiver_count: Arc::clone(&self.receiver_count),
-            closed: Arc::clone(&self.closed),
         }
     }
 }
@@ -240,15 +166,8 @@ impl<T> Clone for Receiver<T> {
 impl<T> Drop for Receiver<T> {
     fn drop(&mut self) {
         if self.receiver_count.fetch_sub(1, Ordering::AcqRel) == 1 {
-            crate::channels::mark_closed(&self.closed, self.id, self.inner.len());
+            self.side.mark_closed(self.inner.len());
         }
-    }
-}
-
-fn channel_type<T>(tx: &InnerSender<T>) -> ChannelType {
-    match tx.capacity() {
-        Some(capacity) => ChannelType::Bounded(capacity),
-        None => ChannelType::Unbounded,
     }
 }
 
@@ -256,74 +175,42 @@ fn build<T>(
     inner: (InnerSender<T>, InnerReceiver<T>),
     source: &'static str,
     label: Option<String>,
-    log_fn: Option<fn(&T) -> String>,
+    log_fn: Option<LogFn<T>>,
     iter: bool,
 ) -> (Sender<T>, Receiver<T>) {
-    let (orig_tx, _orig_rx) = inner;
-    let ch_type = channel_type(&orig_tx);
-    let id = register_channel::<T>(source, label, ch_type, iter);
-    let closed = Arc::new(AtomicBool::new(false));
-    // Aggregated instances share one msg-id sequence so ids stay unique
-    // within the entry; iter-mode instances keep a local counter.
-    let next_id = if iter {
-        Arc::new(AtomicU64::new(0))
-    } else {
-        crate::channels::entry_msg_counter(id)
-    };
-
-    // Rebuild the inner channel to carry `(msg_id, send_ts, T)`. The caller's original
-    // channel is discarded (the wrapper is inline-only, see module docs); only its
+    // Rebuild the inner channel to carry the payload. The caller's original channel
+    // is discarded (the wrapper is inline-only, see module docs); only its
     // kind/capacity is copied.
-    let (tx, rx) = match ch_type {
-        ChannelType::Bounded(cap) => async_channel::bounded::<Payload<T>>(cap),
-        ChannelType::Unbounded => async_channel::unbounded::<Payload<T>>(),
-        ChannelType::Oneshot => async_channel::bounded::<Payload<T>>(1),
-        // `channel_type` above only returns Bounded or Unbounded.
-        ChannelType::Pending => unreachable!(),
+    let (channel_type, (tx, rx)) = match inner.0.capacity() {
+        Some(capacity) => (
+            ChannelType::Bounded(capacity),
+            async_channel::bounded::<Payload<T>>(capacity),
+        ),
+        None => (
+            ChannelType::Unbounded,
+            async_channel::unbounded::<Payload<T>>(),
+        ),
     };
-
-    let sender = Sender {
-        inner: tx,
-        id,
-        sender_count: Arc::new(AtomicUsize::new(1)),
-        next_id,
-        closed: Arc::clone(&closed),
-        log_fn,
-    };
+    let side = SendSide::register(source, label, channel_type, log_fn, iter);
     let receiver = Receiver {
         inner: rx,
-        id,
+        side: side.recv_side(),
         receiver_count: Arc::new(AtomicUsize::new(1)),
-        closed,
     };
-    (sender, receiver)
+    (Sender { inner: tx, side }, receiver)
 }
 
-impl<T: Send + 'static> InstrumentChannelWrap for (InnerSender<T>, InnerReceiver<T>) {
+impl<T: Send + 'static> WrapChannel for (InnerSender<T>, InnerReceiver<T>) {
+    type Msg = T;
     type Output = (Sender<T>, Receiver<T>);
-    fn instrument_wrap(
+    fn wrap(
         self,
         source: &'static str,
         label: Option<String>,
         _capacity: Option<usize>,
+        log_fn: Option<LogFn<T>>,
         iter: bool,
     ) -> Self::Output {
-        build(self, source, label, None, iter)
-    }
-}
-
-impl<T: Send + std::fmt::Debug + 'static> InstrumentChannelWrapLog
-    for (InnerSender<T>, InnerReceiver<T>)
-{
-    type Output = (Sender<T>, Receiver<T>);
-    fn instrument_wrap_log(
-        self,
-        source: &'static str,
-        label: Option<String>,
-        _capacity: Option<usize>,
-        iter: bool,
-    ) -> Self::Output {
-        let log_fn: fn(&T) -> String = |m| crate::output_on::format_debug_truncated(m);
-        build(self, source, label, Some(log_fn), iter)
+        build(self, source, label, log_fn, iter)
     }
 }
