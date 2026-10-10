@@ -159,7 +159,7 @@ Returns a JSON object with:
   - calls: number of invocations; sampled_calls: invocations that were timed
   - avg and one key per configured percentile (e.g. "p95"): formatted durations of the timed calls
   - total: formatted total duration; exact when sampled_calls == calls, otherwise extrapolated as avg * calls under time sampling
-  - percent_total: total as a share of the profiled program's total time (the #[main] wrapper, or the sum of all function totals when the wrapper is excluded or in exclusive mode); extrapolated like total
+  - percent_total: total as a share of the profiled program's total time (the #[main] wrapper, the elapsed time in exclusive mode, or the sum of all function totals when the wrapper is excluded); extrapolated like total
   - avg, total, percentiles and percent_total are "-" when no call was timed (sampled_calls == 0)
   - location: source file, line and column (when known)
 - total_count / included_count: entries measured vs entries returned in data (the list was truncated by the display limit when they differ)

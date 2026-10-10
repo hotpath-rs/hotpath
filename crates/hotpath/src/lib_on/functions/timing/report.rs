@@ -17,14 +17,16 @@ pub(crate) fn build_functions_list(
 
     let time_exclusive = *crate::lib_on::functions::exclusive::TIME_EXCLUSIVE;
 
-    // Exclusive times of all rows (wrapper included) partition the measured
-    // time, so their sum is the reference and the rows add up to 100%.
-    let reference_total = if exclude_wrapper || time_exclusive {
+    let reference_total = if exclude_wrapper {
         stats
             .values()
-            .filter(|s| s.has_data && !(exclude_wrapper && s.wrapper))
+            .filter(|s| !s.wrapper && s.has_data)
             .map(|s| s.display_total_ns())
             .sum::<u64>()
+    } else if time_exclusive {
+        // The wrapper row holds only its own time here, so the elapsed time
+        // stands in for its inclusive total.
+        config.total_elapsed.as_nanos() as u64
     } else {
         // The wrapper guard is exempt from time sampling, so its total is exact.
         let wrapper_total = stats
