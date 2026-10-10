@@ -178,6 +178,19 @@ fn main() {
 
 If `hotpath` feature is disabled, the code inside block will still execute.
 
+## Exclusive time mode
+
+By default, function timing is **inclusive**: a function's duration covers everything that happens between its entry and exit, including nested measured functions. A parent therefore always reports at least as much time as its children, and a recursive function counts its nested levels again on every level.
+
+Set `HOTPATH_TIME_EXCLUSIVE=true` to switch to **exclusive** (self) time, where each function reports its own time without the time spent in the measured functions it calls. Time spent in functions that are not measured (or are filtered out by `HOTPATH_FOCUS`) stays with the nearest measured caller. In this mode the `% Total` column is relative to the sum of all rows, so the rows add up to 100%, and recursive functions are counted correctly.
+
+Things to keep in mind:
+
+- **Async functions report busy time.** The exclusive time of an async function is summed over the polls of its body, so time suspended at an `.await` (timers, I/O, waiting for another task) is not counted. A sync function's exclusive time still includes blocking calls like `std::thread::sleep`.
+- **Function time sampling is disabled.** A call that is not timed has no duration to subtract from its caller, so `HOTPATH_TIME_SAMPLING_RATE` and `HOTPATH_FUNCTIONS_TIME_SAMPLING_RATE` are ignored for functions (a warning is printed). Other resource types keep their sampling rates.
+- **Guards dropped on another thread report no duration.** This only affects `measure_block!` blocks that span an `.await` in a task that migrates between threads. Such blocks are also approximate on a single thread, because measured polls of other tasks interleaved on that thread are subtracted from them.
+- `future!` wrappers are not functions: time spent polling them stays in the enclosing function's exclusive time.
+
 ## Memory and allocations profiling
 
 In addition to time-based profiling, `hotpath` can track memory allocations. This feature uses a custom global allocator from [allocation-counter crate](https://github.com/fornwall/allocation-counter) to intercept all memory allocations and provides detailed statistics about memory usage per function.

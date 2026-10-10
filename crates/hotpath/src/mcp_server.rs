@@ -151,6 +151,7 @@ impl HotPathMcpServer {
 
 Returns a JSON object with:
 - profiling_mode, time_elapsed, total_elapsed_ns, caller_name
+- description: whether durations are inclusive (default) or exclusive of nested measured calls (HOTPATH_TIME_EXCLUSIVE=true; async functions then report busy time summed over polls, without time suspended at .await)
 - percentiles: configured percentile list (e.g. [95.0, 99.0])
 - data: functions sorted by total time, each with:
   - id: function id, input for function_timing_logs
@@ -158,7 +159,7 @@ Returns a JSON object with:
   - calls: number of invocations; sampled_calls: invocations that were timed
   - avg and one key per configured percentile (e.g. "p95"): formatted durations of the timed calls
   - total: formatted total duration; exact when sampled_calls == calls, otherwise extrapolated as avg * calls under time sampling
-  - percent_total: total as a share of the profiled program's total time (the #[main] wrapper, or the sum of all function totals when the wrapper is excluded); extrapolated like total
+  - percent_total: total as a share of the profiled program's total time (the #[main] wrapper, or the sum of all function totals when the wrapper is excluded or in exclusive mode); extrapolated like total
   - avg, total, percentiles and percent_total are "-" when no call was timed (sampled_calls == 0)
   - location: source file, line and column (when known)
 - total_count / included_count: entries measured vs entries returned in data (the list was truncated by the display limit when they differ)

@@ -193,10 +193,14 @@ pub(crate) fn build_functions_list_timing(
     let exclude_wrapper = *crate::functions::EXCLUDE_WRAPPER;
     let precision = Precision::for_cloud(config.cloud);
 
-    let reference_total = if exclude_wrapper {
+    let time_exclusive = *crate::lib_on::functions::exclusive::TIME_EXCLUSIVE;
+
+    // Exclusive times of all rows (wrapper included) partition the measured
+    // time, so their sum is the reference and the rows add up to 100%.
+    let reference_total = if exclude_wrapper || time_exclusive {
         stats
             .values()
-            .filter(|s| !s.wrapper && s.has_data)
+            .filter(|s| s.has_data && !(exclude_wrapper && s.wrapper))
             .map(|s| s.display_total_duration_ns())
             .sum::<u64>()
     } else {
@@ -284,7 +288,11 @@ pub(crate) fn build_functions_list_timing(
         time_elapsed: precision.duration(total_elapsed_ns),
         total_elapsed_ns: current_elapsed_ns,
         total_allocated: None,
-        description: "Function execution time metrics.".to_string(),
+        description: if time_exclusive {
+            crate::lib_on::functions::exclusive::DESCRIPTION.to_string()
+        } else {
+            "Function execution time metrics.".to_string()
+        },
         caller_name: config.caller_name.to_string(),
         percentiles: config.percentiles.clone(),
         data,

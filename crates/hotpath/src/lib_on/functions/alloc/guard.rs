@@ -1,30 +1,9 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::sync::LazyLock;
 
 use crate::instant::Instant;
-
-#[derive(Debug, Default)]
-pub(crate) struct AsyncAllocBridge {
-    bytes_total: AtomicU64,
-    count_total: AtomicU64,
-}
-
-impl AsyncAllocBridge {
-    #[inline]
-    pub(crate) fn add(&self, bytes: u64, count: u64) {
-        self.bytes_total.fetch_add(bytes, Ordering::Relaxed);
-        self.count_total.fetch_add(count, Ordering::Relaxed);
-    }
-
-    #[inline]
-    pub(crate) fn snapshot(&self) -> (Option<u64>, Option<u64>) {
-        (
-            Some(self.bytes_total.load(Ordering::Relaxed)),
-            Some(self.count_total.load(Ordering::Relaxed)),
-        )
-    }
-}
+use crate::lib_on::functions::async_bridge::AsyncCallBridge;
+use crate::lib_on::functions::exclusive::{self, ExclusiveFrame};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AllocMetric {
@@ -152,6 +131,8 @@ pub struct MeasurementGuardSync {
     start: Option<Instant>,
     skipped: bool,
     caller_scoped: bool,
+    /// Open exclusive-time frame (`HOTPATH_TIME_EXCLUSIVE` only).
+    frame: Option<ExclusiveFrame>,
 }
 
 impl MeasurementGuardSync {
@@ -170,6 +151,11 @@ impl MeasurementGuardSync {
     #[inline]
     fn build(name: &'static str, wrapper: bool, skipped: bool, caller_scoped: bool) -> Self {
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
+        let frame = if skipped {
+            None
+        } else {
+            ExclusiveFrame::enter()
+        };
         if !skipped {
             push_alloc_stack();
         }
@@ -184,6 +170,7 @@ impl MeasurementGuardSync {
             start: sampled_start(wrapper, skipped),
             skipped,
             caller_scoped,
+            frame,
         }
     }
 }
@@ -197,11 +184,10 @@ impl Drop for MeasurementGuardSync {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
-        let duration_ns = self
-            .start
-            .map(|start| end.duration_since(start).as_nanos() as u64);
-        let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
         let cross_thread = crate::tid::current_tid() != self.tid;
+        let duration_ns =
+            exclusive::sync_duration_ns(self.frame.take(), self.start, end, cross_thread);
+        let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
 
         if self.caller_scoped && !cross_thread {
             crate::lib_on::caller_stack::pop_caller();
@@ -232,16 +218,16 @@ pub struct MeasurementGuardAsync {
     tid: u64,
     start: Option<Instant>,
     skipped: bool,
-    alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+    bridge: Option<Arc<AsyncCallBridge>>,
 }
 
 impl MeasurementGuardAsync {
     #[inline]
-    pub(crate) fn new(
+    pub(crate) fn new_async(
         name: &'static str,
         wrapper: bool,
         skipped: bool,
-        alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+        bridge: Option<Arc<AsyncCallBridge>>,
     ) -> Self {
         Self {
             name,
@@ -249,7 +235,7 @@ impl MeasurementGuardAsync {
             tid: crate::tid::current_tid(),
             start: sampled_start(wrapper, skipped),
             skipped,
-            alloc_bridge,
+            bridge,
         }
     }
 }
@@ -263,14 +249,12 @@ impl Drop for MeasurementGuardAsync {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
-        let duration_ns = self
-            .start
-            .map(|start| end.duration_since(start).as_nanos() as u64);
+        let duration_ns = exclusive::async_duration_ns(self.bridge.as_deref(), self.start, end);
         let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
         let (bytes_total, count_total) = self
-            .alloc_bridge
+            .bridge
             .as_ref()
-            .map_or((None, None), |bridge| bridge.snapshot());
+            .map_or((None, None), |bridge| bridge.alloc_snapshot());
 
         send_alloc_measurement(
             self.name,
@@ -293,6 +277,8 @@ pub(crate) struct MeasurementGuardSyncWithLog {
     finished: bool,
     skipped: bool,
     caller_scoped: bool,
+    /// Open exclusive-time frame (`HOTPATH_TIME_EXCLUSIVE` only).
+    frame: Option<ExclusiveFrame>,
 }
 
 impl MeasurementGuardSyncWithLog {
@@ -302,6 +288,11 @@ impl MeasurementGuardSyncWithLog {
     pub(crate) fn new_caller_scoped(name: &'static str, wrapper: bool, skipped: bool) -> Self {
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let caller_scoped = !wrapper && !skipped;
+        let frame = if skipped {
+            None
+        } else {
+            ExclusiveFrame::enter()
+        };
         if !skipped {
             push_alloc_stack();
         }
@@ -317,6 +308,7 @@ impl MeasurementGuardSyncWithLog {
             finished: false,
             skipped,
             caller_scoped,
+            frame,
         }
     }
 
@@ -329,12 +321,11 @@ impl MeasurementGuardSyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
-        let duration_ns = self
-            .start
-            .map(|start| end.duration_since(start).as_nanos() as u64);
+        let cross_thread = crate::tid::current_tid() != self.tid;
+        let duration_ns =
+            exclusive::sync_duration_ns(self.frame.take(), self.start, end, cross_thread);
         let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
         let result_str = crate::output_on::format_debug_truncated(result);
-        let cross_thread = crate::tid::current_tid() != self.tid;
 
         if self.caller_scoped && !cross_thread {
             crate::lib_on::caller_stack::pop_caller();
@@ -368,11 +359,10 @@ impl Drop for MeasurementGuardSyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
-        let duration_ns = self
-            .start
-            .map(|start| end.duration_since(start).as_nanos() as u64);
-        let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
         let cross_thread = crate::tid::current_tid() != self.tid;
+        let duration_ns =
+            exclusive::sync_duration_ns(self.frame.take(), self.start, end, cross_thread);
+        let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
 
         if self.caller_scoped && !cross_thread {
             crate::lib_on::caller_stack::pop_caller();
@@ -405,16 +395,16 @@ pub(crate) struct MeasurementGuardAsyncWithLog {
     start: Option<Instant>,
     finished: bool,
     skipped: bool,
-    alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+    bridge: Option<Arc<AsyncCallBridge>>,
 }
 
 impl MeasurementGuardAsyncWithLog {
     #[inline]
-    pub(crate) fn new(
+    pub(crate) fn new_async(
         name: &'static str,
         wrapper: bool,
         skipped: bool,
-        alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+        bridge: Option<Arc<AsyncCallBridge>>,
     ) -> Self {
         Self {
             name,
@@ -423,7 +413,7 @@ impl MeasurementGuardAsyncWithLog {
             start: sampled_start(wrapper, skipped),
             finished: false,
             skipped,
-            alloc_bridge,
+            bridge,
         }
     }
 
@@ -436,15 +426,13 @@ impl MeasurementGuardAsyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
-        let duration_ns = self
-            .start
-            .map(|start| end.duration_since(start).as_nanos() as u64);
+        let duration_ns = exclusive::async_duration_ns(self.bridge.as_deref(), self.start, end);
         let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
         let result_str = crate::output_on::format_debug_truncated(result);
         let (bytes_total, count_total) = self
-            .alloc_bridge
+            .bridge
             .as_ref()
-            .map_or((None, None), |bridge| bridge.snapshot());
+            .map_or((None, None), |bridge| bridge.alloc_snapshot());
 
         send_alloc_measurement_with_log(
             self.name,
@@ -468,14 +456,12 @@ impl Drop for MeasurementGuardAsyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
-        let duration_ns = self
-            .start
-            .map(|start| end.duration_since(start).as_nanos() as u64);
+        let duration_ns = exclusive::async_duration_ns(self.bridge.as_deref(), self.start, end);
         let elapsed_since_start_ns = crate::lib_on::elapsed_since_start_ns(end);
         let (bytes_total, count_total) = self
-            .alloc_bridge
+            .bridge
             .as_ref()
-            .map_or((None, None), |bridge| bridge.snapshot());
+            .map_or((None, None), |bridge| bridge.alloc_snapshot());
 
         send_alloc_measurement_with_log(
             self.name,

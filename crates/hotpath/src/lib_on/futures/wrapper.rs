@@ -2,7 +2,8 @@
 
 use crate::output_on::format_debug_truncated;
 
-use crate::functions::AsyncAllocBridge;
+use crate::functions::exclusive::PollFrame;
+use crate::functions::AsyncCallBridge;
 use crate::lib_on::futures::{
     ensure_futures_state, get_or_create_future_id, send_future_event, FutureEvent, PollResult,
     FUTURE_CALL_ID_COUNTER,
@@ -34,6 +35,27 @@ fn measure_poll_alloc<R>(poll_fn: impl FnOnce() -> R) -> (R, Option<u64>, Option
     (poll_fn(), None, None)
 }
 
+/// Runs one poll of a wrapped future inside its per-poll scopes: exclusive
+/// time frame and allocation totals (both reported through `bridge`, set for
+/// measured async function bodies) and the caller stack entry.
+#[inline]
+fn poll_scoped<R>(
+    caller_scope: Option<&'static str>,
+    bridge: Option<&AsyncCallBridge>,
+    poll_fn: impl FnOnce() -> R,
+) -> (R, Option<u64>, Option<u64>) {
+    let self_time = PollFrame::enter(bridge);
+    let (result, poll_alloc_bytes, poll_alloc_count) = measure_poll_alloc(|| {
+        let _caller_scope = CallerScopeGuard::enter(caller_scope);
+        poll_fn()
+    });
+    drop(self_time);
+    if let (Some(bytes), Some(count), Some(bridge)) = (poll_alloc_bytes, poll_alloc_count, bridge) {
+        bridge.add_alloc(bytes, count);
+    }
+    (result, poll_alloc_bytes, poll_alloc_count)
+}
+
 pin_project! {
     /// A wrapper around a future that tracks lifecycle events.
     ///
@@ -53,7 +75,7 @@ pin_project! {
         completed: bool,
         visible: bool,
         timed: bool,
-        alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+        call_bridge: Option<Arc<AsyncCallBridge>>,
         // Function name registered on the thread-local caller stack for
         // exactly the duration of each inner poll (SQL/HTTP source
         // attribution). Set for measured async function bodies, None for
@@ -79,7 +101,7 @@ impl<F: Future> InstrumentedFuture<F> {
         inner: F,
         location: &'static str,
         label: Option<String>,
-        alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+        call_bridge: Option<Arc<AsyncCallBridge>>,
         visible: bool,
         caller_scope: Option<&'static str>,
     ) -> Self {
@@ -119,7 +141,7 @@ impl<F: Future> InstrumentedFuture<F> {
             completed: false,
             visible,
             timed,
-            alloc_bridge,
+            call_bridge,
             caller_scope,
         }
     }
@@ -155,17 +177,10 @@ impl<F: Future> Future for InstrumentedFuture<F> {
 
         // Don't instrument future unless visible, only collect alloc data
         if !visible {
-            let (result, poll_alloc_bytes, poll_alloc_count) = measure_poll_alloc(|| {
-                let _caller_scope = CallerScopeGuard::enter(*this.caller_scope);
-                this.inner.poll(cx)
-            });
-            if let (Some(bytes), Some(count), Some(bridge)) = (
-                poll_alloc_bytes,
-                poll_alloc_count,
-                this.alloc_bridge.as_ref(),
-            ) {
-                bridge.add(bytes, count);
-            }
+            let (result, _, _) =
+                poll_scoped(*this.caller_scope, this.call_bridge.as_deref(), || {
+                    this.inner.poll(cx)
+                });
             if result.is_ready() {
                 *this.completed = true;
             }
@@ -176,19 +191,12 @@ impl<F: Future> Future for InstrumentedFuture<F> {
         let call_id = *this.call_id;
 
         let start = (*this.timed).then(Instant::now);
-        let (result, poll_alloc_bytes, poll_alloc_count) = measure_poll_alloc(|| {
-            let _caller_scope = CallerScopeGuard::enter(*this.caller_scope);
-            this.inner.poll(cx)
-        });
+        let (result, poll_alloc_bytes, poll_alloc_count) =
+            poll_scoped(*this.caller_scope, this.call_bridge.as_deref(), || {
+                this.inner.poll(cx)
+            });
         let poll_duration_ns =
             start.map(|start| Instant::now().duration_since(start).as_nanos() as u64);
-        if let (Some(bytes), Some(count), Some(bridge)) = (
-            poll_alloc_bytes,
-            poll_alloc_count,
-            this.alloc_bridge.as_ref(),
-        ) {
-            bridge.add(bytes, count);
-        }
 
         let poll_result = match &result {
             Poll::Pending => PollResult::Pending,
@@ -240,7 +248,7 @@ pin_project! {
         completed: bool,
         visible: bool,
         timed: bool,
-        alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+        call_bridge: Option<Arc<AsyncCallBridge>>,
         // See `InstrumentedFuture::caller_scope`.
         caller_scope: Option<&'static str>,
     }
@@ -263,7 +271,7 @@ impl<F: Future> InstrumentedFutureLog<F> {
         inner: F,
         location: &'static str,
         label: Option<String>,
-        alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+        call_bridge: Option<Arc<AsyncCallBridge>>,
         visible: bool,
         caller_scope: Option<&'static str>,
     ) -> Self {
@@ -303,7 +311,7 @@ impl<F: Future> InstrumentedFutureLog<F> {
             completed: false,
             visible,
             timed,
-            alloc_bridge,
+            call_bridge,
             caller_scope,
         }
     }
@@ -320,17 +328,10 @@ where
         let visible = *this.visible;
 
         if !visible {
-            let (result, poll_alloc_bytes, poll_alloc_count) = measure_poll_alloc(|| {
-                let _caller_scope = CallerScopeGuard::enter(*this.caller_scope);
-                this.inner.poll(cx)
-            });
-            if let (Some(bytes), Some(count), Some(bridge)) = (
-                poll_alloc_bytes,
-                poll_alloc_count,
-                this.alloc_bridge.as_ref(),
-            ) {
-                bridge.add(bytes, count);
-            }
+            let (result, _, _) =
+                poll_scoped(*this.caller_scope, this.call_bridge.as_deref(), || {
+                    this.inner.poll(cx)
+                });
             if result.is_ready() {
                 *this.completed = true;
             }
@@ -341,19 +342,12 @@ where
         let call_id = *this.call_id;
 
         let start = (*this.timed).then(Instant::now);
-        let (result, poll_alloc_bytes, poll_alloc_count) = measure_poll_alloc(|| {
-            let _caller_scope = CallerScopeGuard::enter(*this.caller_scope);
-            this.inner.poll(cx)
-        });
+        let (result, poll_alloc_bytes, poll_alloc_count) =
+            poll_scoped(*this.caller_scope, this.call_bridge.as_deref(), || {
+                this.inner.poll(cx)
+            });
         let poll_duration_ns =
             start.map(|start| Instant::now().duration_since(start).as_nanos() as u64);
-        if let (Some(bytes), Some(count), Some(bridge)) = (
-            poll_alloc_bytes,
-            poll_alloc_count,
-            this.alloc_bridge.as_ref(),
-        ) {
-            bridge.add(bytes, count);
-        }
 
         let (poll_result, log_message) = match &result {
             Poll::Pending => (PollResult::Pending, None),

@@ -191,10 +191,18 @@ pub(crate) fn init_time_sampling_rate(config: &TimeSamplingConfig) {
             .or(config.global)
             .and_then(Sampler::from_rate)
     };
-    FUNCTIONS_SAMPLING.set(resolve(
-        "HOTPATH_FUNCTIONS_TIME_SAMPLING_RATE",
-        config.functions,
-    ));
+    let functions = resolve("HOTPATH_FUNCTIONS_TIME_SAMPLING_RATE", config.functions);
+    // An untimed child has no duration to subtract, so its time would land in
+    // its parent's exclusive time.
+    if *crate::lib_on::functions::exclusive::TIME_EXCLUSIVE && functions.is_some() {
+        eprintln!(
+            "[hotpath] HOTPATH_TIME_EXCLUSIVE needs every function call timed, \
+             ignoring the functions time sampling rate"
+        );
+        FUNCTIONS_SAMPLING.set(None);
+    } else {
+        FUNCTIONS_SAMPLING.set(functions);
+    }
     MUTEXES_SAMPLING.set(resolve(
         "HOTPATH_MUTEXES_TIME_SAMPLING_RATE",
         config.mutexes,
