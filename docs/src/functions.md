@@ -188,7 +188,7 @@ Things to keep in mind:
 
 - **Async functions report busy time.** The exclusive time of an async function is summed over the polls of its body, so time suspended at an `.await` (timers, I/O, waiting for another task) is not counted. A sync function's exclusive time still includes blocking calls like `std::thread::sleep`.
 - **Function time sampling is disabled.** A call that is not timed has no duration to subtract from its caller, so `HOTPATH_TIME_SAMPLING_RATE` and `HOTPATH_FUNCTIONS_TIME_SAMPLING_RATE` are ignored for functions (a warning is printed). Other resource types keep their sampling rates.
-- **Guards dropped on another thread report no duration.** This only affects `measure_block!` blocks that span an `.await` in a task that migrates between threads. Such blocks are also approximate on a single thread, because measured polls of other tasks interleaved on that thread are subtracted from them.
+- **Guards dropped on another thread report no duration.** This affects `measure_block!` blocks that span an `.await` in a task that migrates between threads, and the `#[hotpath::main]` wrapper row when a [timeout](./configuration.md) ends profiling from a background thread (the `% Total` column is then relative to the measured functions only). Such blocks are also approximate on a single thread, because measured polls of other tasks interleaved on that thread are subtracted from them.
 - `future!` wrappers are not functions: time spent polling them stays in the enclosing function's exclusive time.
 
 ## Memory and allocations profiling

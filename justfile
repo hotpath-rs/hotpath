@@ -15,6 +15,7 @@ test_all:
     cargo test --features hotpath --test guards -- --nocapture --test-threads=1
     cargo test --features hotpath --test user_metadata -- --nocapture --test-threads=1
     cargo test --features hotpath --test functions_timing -- --nocapture --test-threads=1
+    cargo test --features hotpath --test functions_timing_exclusive -- --nocapture --test-threads=1
     cargo test --features hotpath --test locations -- --nocapture --test-threads=1
     cargo test --features hotpath --test unique_labels -- --nocapture --test-threads=1
     cargo test --features hotpath --test cdylib -- --nocapture --test-threads=1

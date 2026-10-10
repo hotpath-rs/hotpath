@@ -40,6 +40,9 @@ jobs:
       - name: Run functions_timing tests
         run: |
           cargo test --features hotpath --test functions_timing -- --nocapture --test-threads=1
+      - name: Run functions_timing_exclusive tests
+        run: |
+          cargo test --features hotpath --test functions_timing_exclusive -- --nocapture --test-threads=1
       - name: Run functions_alloc tests
         run: |
           cargo test --features hotpath --test functions_alloc -- --nocapture --test-threads=1

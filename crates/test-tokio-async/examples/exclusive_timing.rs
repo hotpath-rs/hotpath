@@ -7,6 +7,8 @@
 
 use std::time::{Duration, Instant};
 
+/// Spins instead of sleeping: sleeps overshoot by tens of milliseconds on
+/// loaded CI runners, which would blur the own/nested time splits.
 fn busy(ms: u64) {
     let start = Instant::now();
     while start.elapsed() < Duration::from_millis(ms) {
@@ -14,24 +16,20 @@ fn busy(ms: u64) {
     }
 }
 
-fn sleep(ms: u64) {
-    std::thread::sleep(Duration::from_millis(ms));
-}
-
 #[hotpath::measure]
 fn sync_child() {
-    sleep(100);
+    busy(100);
 }
 
 #[hotpath::measure]
 fn sync_parent() {
-    sleep(50);
+    busy(50);
     sync_child();
 }
 
 #[hotpath::measure]
 fn recursive(depth: u32) {
-    sleep(20);
+    busy(20);
     if depth > 1 {
         recursive(depth - 1);
     }
@@ -39,18 +37,18 @@ fn recursive(depth: u32) {
 
 #[hotpath::measure]
 fn focus_leaf() {
-    sleep(60);
+    busy(60);
 }
 
 #[hotpath::measure]
 fn focus_mid() {
-    sleep(30);
+    busy(30);
     focus_leaf();
 }
 
 #[hotpath::measure]
 fn focus_outer() {
-    sleep(30);
+    busy(30);
     focus_mid();
 }
 
