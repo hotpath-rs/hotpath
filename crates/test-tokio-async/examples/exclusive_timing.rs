@@ -69,6 +69,17 @@ async fn async_sleeper() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 }
 
+#[hotpath::measure]
+async fn join_child() {
+    tokio::time::sleep(Duration::from_millis(100)).await;
+}
+
+/// Awaits both children at once, so their durations overlap.
+#[hotpath::measure]
+async fn join_parent() {
+    tokio::join!(join_child(), join_child());
+}
+
 #[tokio::main(flavor = "current_thread")]
 #[hotpath::main(format = "json")]
 async fn main() {
@@ -77,4 +88,5 @@ async fn main() {
     focus_outer();
     async_parent().await;
     async_sleeper().await;
+    join_parent().await;
 }

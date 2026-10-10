@@ -97,16 +97,22 @@ pub mod tests {
 
             assert!(ms("focus_outer") < ms("focus_leaf"), "{features}");
 
-            // Async exclusive time is busy time summed over polls: the nested
-            // call is subtracted and time suspended at `.await` never counts.
+            // Async exclusive time is wall-clock time minus nested calls, so
+            // time suspended at `.await` stays with the function.
             assert!(ms("async_parent") >= 50.0, "{features}: {functions:?}");
             assert!(ms("async_child") >= 100.0, "{features}: {functions:?}");
             assert!(ms("async_parent") < ms("async_child"), "{features}");
-            assert!(ms("async_sleeper") < 50.0, "{features}: {functions:?}");
+            assert!(ms("async_sleeper") >= 100.0, "{features}: {functions:?}");
+
+            // Concurrently awaited children overlap: together they outlast
+            // their parent, which is left with no time of its own.
+            assert!(ms("join_child") >= 200.0, "{features}: {functions:?}");
+            assert!(ms("join_parent") < 20.0, "{features}: {functions:?}");
 
             // `% Total` is relative to the elapsed time. Everything here runs
             // on the main thread, where exclusive times (wrapper included)
-            // partition that time.
+            // partition that time, except for the overlapping `join_child`
+            // calls that are counted twice.
             let percent_sum: f64 = functions
                 .data
                 .iter()
@@ -119,7 +125,7 @@ pub mod tests {
                 })
                 .sum();
             assert!(
-                (90.0..=101.0).contains(&percent_sum),
+                (100.0..=125.0).contains(&percent_sum),
                 "{features}: rows add up to {percent_sum}%: {functions:?}"
             );
         }

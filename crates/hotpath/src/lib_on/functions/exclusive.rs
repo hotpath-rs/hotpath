@@ -9,11 +9,13 @@
 //! open, so the frame stack lives in the guards themselves and has no depth
 //! limit.
 //!
-//! Async functions cannot use wall-clock subtraction (concurrently awaited
-//! children overlap), so every poll of a measured async body is a frame of its
-//! own and the call reports the sum of its polls' exclusive times. That makes
-//! an async function's exclusive time busy time: time suspended at an `.await`
-//! is not counted.
+//! An async function uses the same definition on wall-clock time, so time
+//! suspended at an `.await` counts as its own unless a measured child was
+//! running. Its children are collected per poll: every poll of a measured async
+//! body is a frame, and the sums go through the call's `AsyncCallBridge`
+//! because consecutive polls can run on different threads. Children awaited
+//! concurrently overlap, so their sum can exceed the parent's duration, which
+//! then reports zero.
 
 use std::cell::Cell;
 use std::sync::LazyLock;
@@ -66,6 +68,16 @@ impl ExclusiveFrame {
             })
             .ok()
     }
+
+    /// Closes a poll frame and returns the children it collected. Nothing is
+    /// handed up: the async call reports its whole duration when its guard
+    /// drops.
+    #[inline]
+    fn exit_poll(&self) -> Option<u64> {
+        CHILDREN_NS
+            .try_with(|children| children.replace(self.parent_children_ns))
+            .ok()
+    }
 }
 
 /// Duration a sync guard reports. In exclusive mode a guard dropped on another
@@ -89,26 +101,31 @@ pub(crate) fn sync_duration_ns(
     inclusive_ns.map(|_| self_ns)
 }
 
-/// Duration an async guard reports. The guard drops inside its parent's poll,
-/// so in exclusive mode it must not touch the thread-local frames and only
-/// reads what the body's polls added to the bridge.
+/// Duration an async guard reports. The guard drops inside its parent's poll
+/// (on whichever thread runs it), so in exclusive mode it hands its inclusive
+/// duration to the innermost frame there and subtracts the children its own
+/// polls collected in the bridge.
 #[inline]
 pub(crate) fn async_duration_ns(
     bridge: Option<&AsyncCallBridge>,
     start: Option<Instant>,
     end: Instant,
 ) -> Option<u64> {
-    if *TIME_EXCLUSIVE {
-        return start.and(bridge).map(AsyncCallBridge::self_ns);
+    let inclusive_ns = end.duration_since(start?).as_nanos() as u64;
+    if !*TIME_EXCLUSIVE {
+        return Some(inclusive_ns);
     }
-    start.map(|start| end.duration_since(start).as_nanos() as u64)
+    let _ =
+        CHILDREN_NS.try_with(|children| children.set(children.get().saturating_add(inclusive_ns)));
+    let children_ns = bridge.map_or(0, AsyncCallBridge::children_ns);
+    Some(inclusive_ns.saturating_sub(children_ns))
 }
 
-/// Frame around one poll of a measured async body. Closes on drop, so a
-/// panicking poll still restores the enclosing frame.
+/// Frame around one poll of a measured async body: collects the children that
+/// returned during the poll. Closes on drop, so a panicking poll still
+/// restores the enclosing frame.
 pub(crate) struct PollFrame<'a> {
     frame: ExclusiveFrame,
-    start: Instant,
     bridge: &'a AsyncCallBridge,
 }
 
@@ -119,20 +136,15 @@ impl<'a> PollFrame<'a> {
     pub(crate) fn enter(bridge: Option<&'a AsyncCallBridge>) -> Option<Self> {
         let bridge = bridge?;
         let frame = ExclusiveFrame::enter()?;
-        Some(Self {
-            frame,
-            start: Instant::now(),
-            bridge,
-        })
+        Some(Self { frame, bridge })
     }
 }
 
 impl Drop for PollFrame<'_> {
     #[inline]
     fn drop(&mut self) {
-        let inclusive_ns = Instant::now().duration_since(self.start).as_nanos() as u64;
-        if let Some(self_ns) = self.frame.exit(inclusive_ns) {
-            self.bridge.add_self_ns(self_ns);
+        if let Some(children_ns) = self.frame.exit_poll() {
+            self.bridge.add_children_ns(children_ns);
         }
     }
 }

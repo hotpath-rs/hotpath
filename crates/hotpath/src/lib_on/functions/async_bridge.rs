@@ -9,8 +9,9 @@ pub(crate) struct AsyncCallBridge {
     bytes_total: AtomicU64,
     #[cfg(feature = "hotpath-alloc")]
     count_total: AtomicU64,
-    /// Summed exclusive time of the body's polls (`HOTPATH_TIME_EXCLUSIVE`).
-    self_ns: AtomicU64,
+    /// Summed inclusive durations of the measured calls that returned during
+    /// the body's polls (`HOTPATH_TIME_EXCLUSIVE`).
+    children_ns: AtomicU64,
 }
 
 impl AsyncCallBridge {
@@ -36,14 +37,14 @@ impl AsyncCallBridge {
 
     /// Polls of one future never overlap, so a load + store pair is enough.
     #[inline]
-    pub(crate) fn add_self_ns(&self, ns: u64) {
-        let total = self.self_ns.load(Ordering::Relaxed);
-        self.self_ns
+    pub(crate) fn add_children_ns(&self, ns: u64) {
+        let total = self.children_ns.load(Ordering::Relaxed);
+        self.children_ns
             .store(total.saturating_add(ns), Ordering::Relaxed);
     }
 
     #[inline]
-    pub(crate) fn self_ns(&self) -> u64 {
-        self.self_ns.load(Ordering::Relaxed)
+    pub(crate) fn children_ns(&self) -> u64 {
+        self.children_ns.load(Ordering::Relaxed)
     }
 }
