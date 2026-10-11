@@ -24,9 +24,19 @@ After=network.target
 Type=simple
 User=tuihost
 Group=tuihost
-ExecStart=/usr/local/bin/tuihost -l 0.0.0.0:22 -k /etc/tuihost/host_key -c /usr/local/bin/hotpath-wrapper.sh -e HOTPATH_EXCLUDE_WRAPPER=true -e --max-connections 100 --timeout 600 --max-session-duration=600
+ExecStart=/usr/local/bin/tuihost -l 0.0.0.0:22 -k /etc/tuihost/host_key -c /usr/local/bin/hotpath-wrapper.sh -e HOTPATH_EXCLUDE_WRAPPER=true -e HOTPATH_FUNCTIONS_LIMIT=15 --max-connections 100 --timeout 600 --max-session-duration 600
+Environment=NO_COLOR=1
 Restart=always
 RestartSec=5
+
+# Resource ceilings (one session is ~35M RSS, ~60 threads, ~35 fds)
+MemoryHigh=1536M
+MemoryMax=2G
+MemorySwapMax=0
+OOMPolicy=continue
+CPUQuota=200%
+TasksMax=4096
+LimitNOFILE=65536
 
 # Sandboxing
 NoNewPrivileges=yes
@@ -59,6 +69,9 @@ WantedBy=multi-user.target
 # Wrapper for tuihost: picks a random metrics port and runs hotpath console
 PORT=$((RANDOM % 16384 + 49152))
 export HOTPATH_METRICS_PORT="$PORT"
+export HOTPATH_DISABLE_SAMPLY_LOAD=1
+export HOTPATH_SAMPLY_WRAPPER_BIN="/root/.cargo/bin/samply"
+export HOTPATH_SAMPLY_BIN="/root/.cargo/bin/hotpath-samply"
 exec /usr/local/bin/hotpath console --metrics-port "$PORT"
 ```
 
