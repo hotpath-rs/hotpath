@@ -14,7 +14,7 @@
     (function () {
         var path = location.pathname;
         // Pages of the docs "hotpath Cloud" section light up the cloud link
-        var cloudPages = ['/cloud', '/ci_integration', '/regression_policy', '/performance_budgets', '/agents_cli'];
+        var cloudPages = ['/cloud', '/ci_integration', '/regression_policy', '/performance_budgets', '/agents_cli', '/cloud_faq'];
         var page = path.replace(/\.html$/, '').replace(/\/$/, '');
         var route = (path === '/blog' || path.indexOf('/blog/') === 0) ? 'blog'
             : cloudPages.indexOf(page) !== -1 ? 'cloud' : 'docs';

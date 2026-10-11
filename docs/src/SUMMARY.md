@@ -25,6 +25,7 @@
 - [Regression policy](./regression_policy.md)
 - [Performance budgets](./performance_budgets.md)
 - [AI Agents CLI](./agents_cli.md)
+- [FAQ](./cloud_faq.md)
 
 # More
 
