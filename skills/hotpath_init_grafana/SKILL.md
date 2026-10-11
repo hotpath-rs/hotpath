@@ -1,6 +1,6 @@
 ---
 name: hotpath_init_grafana
-description: Build a Grafana dashboard JSON for a Rust project profiled with hotpath. Writes the dashboard file with context-aware panels (SQL and HTTP time per route, N+1 detection, memory and time per request, channel queues, lock contention, Tokio workers, per-thread CPU and allocations, profiling overhead) limited to what the project instruments. Only builds the dashboard: does not configure Prometheus, Grafana or the hotpath metrics endpoint. Use when the user wants a Grafana dashboard for hotpath metrics.
+description: Build a Grafana dashboard JSON for a Rust project profiled with hotpath. Writes the dashboard file with context-aware panels (SQL and HTTP time per route, N+1 detection, memory and time per request, channel queues, lock contention, Tokio workers, per-thread CPU and allocations, profiling overhead) limited to what the project instruments. Only builds the dashboard, does not configure Prometheus, Grafana or the hotpath metrics endpoint. Use when the user wants a Grafana dashboard for hotpath metrics.
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
