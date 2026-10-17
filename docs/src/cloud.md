@@ -23,7 +23,7 @@ judged = true
 min_percent_change = 20
 metrics = ["avg", "total"]
 
-# The hot path must never allocate, whatever the baseline did
+# The hot path must never allocate, regardless of the baseline
 [[functions.budgets]]
 match = "my_crate::router::route"
 alloc = { total = "0 B" }

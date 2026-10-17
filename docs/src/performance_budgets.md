@@ -1,6 +1,6 @@
 # Performance budgets: absolute limits for Rust functions, queries and routes
 
-A performance budget is a hard limit on one function, query, route or other profiled entry: `"this function never allocates more than 1 KB per call"`, `"this query runs at most once per request"`. The [regression policy](regression_policy.md) compares a pull request with its baseline, so slow drift over many pull requests passes it. A budget is checked on every report on its own, so it holds whatever the baseline did, and it works on the first pull request and on pushes to the default branch.
+A performance budget is a hard limit on one function, query, route or other profiled entry: `"this function never allocates more than 1 KB per call"`, `"this query runs at most once per request"`. The [regression policy](regression_policy.md) compares a pull request with its baseline, so slow drift over many pull requests passes it. A budget is checked against each report alone, without a baseline, so drift cannot slip past it. It also applies to the first pull request and to pushes to the default branch.
 
 Budgets live in the same file as the [regression policy](regression_policy.md) rules, `hotpath/policy.toml`. A broken budget fails the verdict like a regression.
 
