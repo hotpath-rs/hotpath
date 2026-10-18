@@ -1,0 +1,40 @@
+name: Mirror CI images
+
+# Copies the service images used by ci.yml's test-integrations job into GHCR,
+# so CI pulls don't hit anonymous Docker Hub rate limits. The source pull is
+# authenticated (DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets), since anonymous
+# pulls from shared runner IPs get rate limited.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 1" # weekly, Monday 04:00 UTC
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - source: docker.io/library/postgres:17
+            target: ghcr.io/pawurb/hotpath-ci-postgres:17
+          - source: docker.io/library/redis:7
+            target: ghcr.io/pawurb/hotpath-ci-redis:7
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Copy ${{ matrix.source }}
+        run: docker buildx imagetools create --tag ${{ matrix.target }} ${{ matrix.source }}
