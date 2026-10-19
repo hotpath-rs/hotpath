@@ -33,6 +33,7 @@
 - [MCP integration](./mcp.md)
 - [Configuration](./configuration.md)
 - [Used by](./adoption.md)
+- [FAQ](./faq.md)
 
 ---
 
