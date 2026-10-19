@@ -55,7 +55,13 @@ mod tests {
     }
 
     fn report_args<'a>(selector: &[&'a str]) -> Vec<&'a str> {
-        let mut args = vec!["report", "--repo", "hotpath-rs/hotpath", "--benchmark", "ci"];
+        let mut args = vec![
+            "report",
+            "--repo",
+            "hotpath-rs/hotpath",
+            "--benchmark",
+            "ci",
+        ];
         args.extend_from_slice(selector);
         args
     }
