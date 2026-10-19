@@ -454,34 +454,32 @@ pub(crate) fn init_server_state() {
 
         EVENT_QUEUES.set_active(true);
 
-        std::thread::Builder::new()
-            .name("hp-server".into())
-            .spawn(move || {
-                let flush_interval = std::time::Duration::from_millis(*DRAIN_INTERVAL_MS);
-                let mut swept: Vec<ServerEvent> = Vec::new();
+        crate::lib_on::spawn_profiler_thread("hp-server", move || {
+            let flush_interval = std::time::Duration::from_millis(*DRAIN_INTERVAL_MS);
+            let mut swept: Vec<ServerEvent> = Vec::new();
 
-                // Single consumer of the per-thread event queues: capped sweep on
-                // every tick, then one uncapped drain when shutdown is signalled
-                // (producers are already stopped by then, so nothing is left behind).
-                loop {
-                    let shutdown = !matches!(
-                        shutdown_rx.recv_timeout(flush_interval),
-                        Err(RecvTimeoutError::Timeout)
-                    );
+            // Single consumer of the per-thread event queues: capped sweep on
+            // every tick, then one uncapped drain when shutdown is signalled
+            // (producers are already stopped by then, so nothing is left behind).
+            loop {
+                let shutdown = !matches!(
+                    shutdown_rx.recv_timeout(flush_interval),
+                    Err(RecvTimeoutError::Timeout)
+                );
 
-                    if shutdown {
-                        EVENT_QUEUES.drain_all(&mut swept);
-                        flush_server_buffer(&mut swept, &inner_clone);
-                        break;
-                    }
-
-                    EVENT_QUEUES.sweep(&mut swept);
+                if shutdown {
+                    EVENT_QUEUES.drain_all(&mut swept);
                     flush_server_buffer(&mut swept, &inner_clone);
+                    break;
                 }
 
-                let _ = completion_tx.send(());
-            })
-            .expect("Failed to spawn server-stats-collector thread");
+                EVENT_QUEUES.sweep(&mut swept);
+                flush_server_buffer(&mut swept, &inner_clone);
+            }
+
+            let _ = completion_tx.send(());
+        })
+        .expect("Failed to spawn server-stats-collector thread");
 
         crate::metrics_server::start_metrics_server_once(*METRICS_SERVER_PORT);
 

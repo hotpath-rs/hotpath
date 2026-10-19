@@ -69,6 +69,7 @@ dev = ["dep:time", "time/formatting", "time/local-offset"]
 hotpath-cpu = ["hotpath-macros/hotpath-cpu", "dep:object", "dep:rustc-demangle", "dep:flate2"]
 hotpath-mcp = ["hotpath", "dep:rmcp", "dep:tokio", "tokio/rt", "tokio/net", "dep:axum", "axum/http1", "axum/tokio", "dep:tokio-util", "dep:schemars"]
 hotpath-prometheus = ["hotpath", "dep:prost"]
+hotpath-pmu = ["threads"]
 
 [dependencies]
 arc-swap = { version = "1.7", optional = true }

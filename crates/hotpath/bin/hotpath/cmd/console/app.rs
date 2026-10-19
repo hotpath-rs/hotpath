@@ -528,6 +528,7 @@ impl App {
                 total_alloc_bytes: None,
                 total_dealloc_bytes: None,
                 alloc_dealloc_diff: None,
+                pmu: None,
             },
             threads_table_state: TableState::default().with_selected(0),
             debug_stats: Vec::new(),

@@ -1582,12 +1582,29 @@ pub(crate) fn collect_futures_json(
 
 #[cfg(feature = "threads")]
 pub(crate) fn report_threads_table(writer: &mut dyn Write, limit: usize) {
-    let mut threads_json = crate::threads::get_threads_json(Precision::Display);
+    let threads_json = crate::threads::get_threads_json(Precision::Display);
 
-    if threads_json.data.is_empty() {
-        return;
+    // Counters do not depend on the first thread sample, which a short run
+    // may never get.
+    #[cfg(feature = "hotpath-pmu")]
+    let pmu = threads_json.pmu.clone();
+
+    if !threads_json.data.is_empty() {
+        write_threads_table(writer, threads_json, limit);
     }
 
+    #[cfg(feature = "hotpath-pmu")]
+    if let Some(pmu) = &pmu {
+        report_pmu_table(writer, pmu);
+    }
+}
+
+#[cfg(feature = "threads")]
+fn write_threads_table(
+    writer: &mut dyn Write,
+    mut threads_json: crate::json::JsonThreadsList,
+    limit: usize,
+) {
     let total_count = threads_json.data.len();
     if limit > 0 && limit < total_count {
         threads_json.data.truncate(limit);
@@ -1654,6 +1671,121 @@ pub(crate) fn report_threads_table(writer: &mut dyn Write, limit: usize) {
     let _ = writeln!(writer);
     print_table(&table, writer);
     let _ = writeln!(writer);
+}
+
+#[cfg(feature = "hotpath-pmu")]
+fn report_pmu_table(writer: &mut dyn Write, pmu: &crate::json::JsonPmuCounters) {
+    use crate::json::{JsonPmuCounters, JsonPmuEvent, JsonPmuValue, PmuEvent};
+
+    write_section_header(
+        writer,
+        "perf counters",
+        "Linux perf counter deltas since the guard was built.",
+    );
+    let events = match pmu {
+        JsonPmuCounters::Available { events } => events,
+        JsonPmuCounters::Unavailable { reason } => {
+            let _ = writeln!(writer, " Unavailable: {reason}");
+            let _ = writeln!(writer);
+            return;
+        }
+    };
+    let _ = writeln!(writer);
+
+    let application = |event: PmuEvent| {
+        events.iter().find_map(|e: &JsonPmuEvent| match &e.value {
+            JsonPmuValue::Counted { application, .. } if e.event == event => Some(*application),
+            _ => None,
+        })
+    };
+    let ratio = |numer: PmuEvent, denom: PmuEvent| {
+        let (numer, denom) = (application(numer)?, application(denom)?);
+        (denom > 0).then(|| numer as f64 / denom as f64)
+    };
+    let percent_of = |numer: PmuEvent, denom: PmuEvent, label: &str| {
+        ratio(numer, denom).map(|r| format!("{:.1}% of {label}", r * 100.0))
+    };
+
+    let mut table = Table::new();
+    table.add_row(vec![
+        Cell::header("Event"),
+        Cell::header("Application"),
+        Cell::header("Profiler"),
+        Cell::header("Process"),
+        Cell::header("Main thread"),
+        Cell::header("Running"),
+        Cell::header("Note"),
+    ]);
+    for entry in events {
+        let format_value = |value: u64| match entry.event {
+            PmuEvent::TaskClock => format_duration(value),
+            _ => format_si_count(value),
+        };
+        let row = match &entry.value {
+            JsonPmuValue::Counted {
+                process,
+                application,
+                profiler,
+                main_thread,
+                running_percent,
+                user_space_only,
+            } => {
+                let derived = match entry.event {
+                    PmuEvent::Instructions => ratio(PmuEvent::Instructions, PmuEvent::Cycles)
+                        .map(|ipc| format!("IPC {ipc:.2}")),
+                    PmuEvent::BranchMisses => percent_of(
+                        PmuEvent::BranchMisses,
+                        PmuEvent::BranchInstructions,
+                        "branches",
+                    ),
+                    PmuEvent::CacheMisses => percent_of(
+                        PmuEvent::CacheMisses,
+                        PmuEvent::CacheReferences,
+                        "cache refs",
+                    ),
+                    PmuEvent::StalledCyclesFrontend | PmuEvent::StalledCyclesBackend => {
+                        percent_of(entry.event, PmuEvent::Cycles, "cycles")
+                    }
+                    _ => None,
+                };
+                let mut notes: Vec<String> = derived.into_iter().collect();
+                if !user_space_only {
+                    notes.push("incl. kernel".to_string());
+                }
+                vec![
+                    Cell::new(entry.event.as_str()),
+                    Cell::new(&format_value(*application)),
+                    Cell::new(&format_value(*profiler)),
+                    Cell::new(&format_value(*process)),
+                    Cell::new(&main_thread.map_or_else(|| "-".to_string(), format_value)),
+                    Cell::new(&format!("{running_percent:.0}%")),
+                    Cell::new(&notes.join(", ")),
+                ]
+            }
+            JsonPmuValue::Unavailable { reason } => vec![
+                Cell::new(entry.event.as_str()),
+                Cell::new("-"),
+                Cell::new("-"),
+                Cell::new("-"),
+                Cell::new("-"),
+                Cell::new("-"),
+                Cell::new(reason),
+            ],
+        };
+        table.add_row(row);
+    }
+    print_table(&table, writer);
+    let _ = writeln!(writer);
+}
+
+#[cfg(feature = "hotpath-pmu")]
+fn format_si_count(value: u64) -> String {
+    const UNITS: [(f64, &str); 4] = [(1e12, "T"), (1e9, "G"), (1e6, "M"), (1e3, "K")];
+    let v = value as f64;
+    UNITS.iter().find(|(scale, _)| v >= *scale).map_or_else(
+        || value.to_string(),
+        |(scale, unit)| format!("{:.2} {unit}", v / scale),
+    )
 }
 
 #[cfg(feature = "threads")]

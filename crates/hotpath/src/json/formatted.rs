@@ -954,12 +954,113 @@ pub struct JsonThreadsList {
     pub total_dealloc_bytes: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub alloc_dealloc_diff: Option<String>,
+    /// Perf counter deltas since the guard was built (`hotpath-pmu`).
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub pmu: Option<JsonPmuCounters>,
     pub data: Vec<JsonThreadEntry>,
     /// Number of entries measured, including ones truncated from `data` by
     /// the limit.
     pub total_count: usize,
     /// Number of entries in `data`.
     pub included_count: usize,
+}
+
+/// A Linux perf counter tracked with `hotpath-pmu`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PmuEvent {
+    Instructions,
+    Cycles,
+    RefCycles,
+    StalledCyclesFrontend,
+    StalledCyclesBackend,
+    BranchInstructions,
+    BranchMisses,
+    CacheReferences,
+    CacheMisses,
+    /// CPU time in nanoseconds.
+    TaskClock,
+    PageFaults,
+    ContextSwitches,
+    CpuMigrations,
+}
+
+impl PmuEvent {
+    pub const ALL: [PmuEvent; 13] = [
+        PmuEvent::Instructions,
+        PmuEvent::Cycles,
+        PmuEvent::RefCycles,
+        PmuEvent::StalledCyclesFrontend,
+        PmuEvent::StalledCyclesBackend,
+        PmuEvent::BranchInstructions,
+        PmuEvent::BranchMisses,
+        PmuEvent::CacheReferences,
+        PmuEvent::CacheMisses,
+        PmuEvent::TaskClock,
+        PmuEvent::PageFaults,
+        PmuEvent::ContextSwitches,
+        PmuEvent::CpuMigrations,
+    ];
+
+    /// Name as printed by `perf stat`.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PmuEvent::Instructions => "instructions",
+            PmuEvent::Cycles => "cycles",
+            PmuEvent::RefCycles => "ref-cycles",
+            PmuEvent::StalledCyclesFrontend => "stalled-cycles-frontend",
+            PmuEvent::StalledCyclesBackend => "stalled-cycles-backend",
+            PmuEvent::BranchInstructions => "branches",
+            PmuEvent::BranchMisses => "branch-misses",
+            PmuEvent::CacheReferences => "cache-references",
+            PmuEvent::CacheMisses => "cache-misses",
+            PmuEvent::TaskClock => "task-clock",
+            PmuEvent::PageFaults => "page-faults",
+            PmuEvent::ContextSwitches => "context-switches",
+            PmuEvent::CpuMigrations => "cpu-migrations",
+        }
+    }
+}
+
+/// Perf counters of the profiled process, or why none could be read.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum JsonPmuCounters {
+    Available { events: Vec<JsonPmuEvent> },
+    Unavailable { reason: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsonPmuEvent {
+    pub event: PmuEvent,
+    #[serde(flatten)]
+    pub value: JsonPmuValue,
+}
+
+/// One counter's deltas. Hardware counters run on a few physical
+/// registers; when more events are requested than fit, the kernel
+/// time-slices them and the counts are scaled estimates
+/// (`running_percent` < 100).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum JsonPmuValue {
+    Counted {
+        /// Every thread of the process.
+        process: u64,
+        /// `process` minus hotpath's own `hp-*` threads and threads they spawned.
+        application: u64,
+        /// hotpath's own `hp-*` threads and threads they spawned.
+        profiler: u64,
+        /// Only the thread that built the guard, without threads it spawned.
+        /// `None` when that counter could not be opened.
+        main_thread: Option<u64>,
+        running_percent: f64,
+        /// Kernel-mode work is excluded.
+        user_space_only: bool,
+    },
+    Unavailable {
+        reason: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]

@@ -80,14 +80,12 @@ pub(crate) fn try_spawn_snapshot() -> bool {
         state.error = None;
     }
 
-    let spawn_result = std::thread::Builder::new()
-        .name("hp-cpu-snapshot".into())
-        .spawn(|| {
-            let _suspend = crate::lib_on::SuspendAllocTracking::new();
-            run_snapshot();
-            autospawn::start();
-            SNAPSHOT_IN_PROGRESS.store(false, Ordering::Release);
-        });
+    let spawn_result = crate::lib_on::spawn_profiler_thread("hp-cpu-snapshot", || {
+        let _suspend = crate::lib_on::SuspendAllocTracking::new();
+        run_snapshot();
+        autospawn::start();
+        SNAPSHOT_IN_PROGRESS.store(false, Ordering::Release);
+    });
     if spawn_result.is_err() {
         SNAPSHOT_IN_PROGRESS.store(false, Ordering::Release);
         set_snapshot_error("failed to spawn snapshot thread");

@@ -883,6 +883,7 @@ mod test {
             total_alloc_bytes: None,
             total_dealloc_bytes: None,
             alloc_dealloc_diff: None,
+            pmu: None,
             data,
         }
     }

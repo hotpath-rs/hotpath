@@ -90,13 +90,11 @@ pub(crate) fn init_threads_monitoring() {
 
         let state_clone = Arc::clone(&state);
 
-        std::thread::Builder::new()
-            .name("hp-threads".into())
-            .spawn(move || {
-                let _suspend = crate::lib_on::SuspendAllocTracking::new();
-                collector_loop(state_clone, sample_interval);
-            })
-            .expect("Failed to spawn thread-metrics-collector thread");
+        crate::lib_on::spawn_profiler_thread("hp-threads", move || {
+            let _suspend = crate::lib_on::SuspendAllocTracking::new();
+            collector_loop(state_clone, sample_interval);
+        })
+        .expect("Failed to spawn thread-metrics-collector thread");
 
         state
     });
@@ -378,6 +376,7 @@ pub(crate) fn get_threads_json(precision: Precision) -> JsonThreadsList {
             total_alloc_bytes: None,
             total_dealloc_bytes: None,
             alloc_dealloc_diff: None,
+            pmu: pmu_snapshot(),
         };
     };
     let current_metrics = raw.metrics;
@@ -434,7 +433,15 @@ pub(crate) fn get_threads_json(precision: Precision) -> JsonThreadsList {
         total_alloc_bytes,
         total_dealloc_bytes,
         alloc_dealloc_diff,
+        pmu: pmu_snapshot(),
     }
+}
+
+fn pmu_snapshot() -> Option<crate::json::JsonPmuCounters> {
+    #[cfg(feature = "hotpath-pmu")]
+    return Some(crate::lib_on::pmu::snapshot());
+    #[cfg(not(feature = "hotpath-pmu"))]
+    None
 }
 
 fn thread_entry(metrics: &ThreadMetrics, precision: Precision) -> JsonThreadEntry {

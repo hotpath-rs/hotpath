@@ -76,6 +76,8 @@ pub(crate) mod git_info;
 pub(crate) mod hotpath_guard;
 #[cfg(feature = "hotpath-prometheus")]
 pub(crate) mod native_histograms;
+#[cfg(feature = "hotpath-pmu")]
+pub(crate) mod pmu;
 pub(crate) mod report;
 pub(crate) mod report_meta;
 pub(crate) mod sampling;
@@ -146,6 +148,26 @@ impl Drop for SuspendAllocTracking {
         #[cfg(feature = "hotpath-alloc")]
         functions::alloc::core::resume_alloc_tracking(self.previous_enabled);
     }
+}
+
+/// Spawns a profiler-internal `hp-*` thread. With `hotpath-pmu` the thread
+/// registers its own perf counters first, so its work (and that of threads it
+/// spawns) is reported separately from the application's.
+pub(crate) fn spawn_profiler_thread<F, T>(
+    name: &str,
+    f: F,
+) -> std::io::Result<std::thread::JoinHandle<T>>
+where
+    F: FnOnce() -> T + Send + 'static,
+    T: Send + 'static,
+{
+    std::thread::Builder::new()
+        .name(name.into())
+        .spawn(move || {
+            #[cfg(feature = "hotpath-pmu")]
+            pmu::register_profiler_thread();
+            f()
+        })
 }
 
 /// Measures the execution time or memory allocations of a code block.

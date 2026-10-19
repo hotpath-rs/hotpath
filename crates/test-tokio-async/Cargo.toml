@@ -25,6 +25,7 @@ hotpath = ["hotpath/hotpath"]
 hotpath-prometheus = ["hotpath/hotpath-prometheus"]
 hotpath-alloc = ["hotpath/hotpath-alloc"]
 hotpath-cpu = ["hotpath/hotpath-cpu"]
+hotpath-pmu = ["hotpath/hotpath-pmu"]
 hotpath-meta = ["hotpath/hotpath-meta"]
 hotpath-alloc-meta = ["hotpath/hotpath-alloc-meta"]
 dev = ["hotpath/dev"]
@@ -38,3 +39,7 @@ required-features = ["hotpath", "hotpath-alloc", "mimalloc-alloc"]
 [[example]]
 name = "jemalloc_allocator"
 required-features = ["hotpath", "hotpath-alloc", "jemalloc-alloc"]
+
+[[example]]
+name = "pmu_counters"
+required-features = ["hotpath", "hotpath-pmu"]

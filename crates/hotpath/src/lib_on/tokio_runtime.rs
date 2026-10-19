@@ -19,12 +19,10 @@ pub fn init_runtime_monitoring(handle: &Handle) {
 
         let interval = Duration::from_millis(interval_ms);
 
-        std::thread::Builder::new()
-            .name("hp-runtime".into())
-            .spawn(move || {
-                runtime_loop(handle, interval);
-            })
-            .expect("Failed to spawn hp-runtime thread");
+        crate::lib_on::spawn_profiler_thread("hp-runtime", move || {
+            runtime_loop(handle, interval);
+        })
+        .expect("Failed to spawn hp-runtime thread");
     });
 }
 

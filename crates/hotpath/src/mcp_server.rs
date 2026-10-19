@@ -560,6 +560,7 @@ Returns a JSON object with:
 - current_elapsed_ns, sample_interval_ms, thread_count
 - rss_bytes / rss_bytes_max: current and peak resident set size, formatted (when available)
 - total_alloc_bytes, total_dealloc_bytes, alloc_dealloc_diff: formatted process-wide totals (with hotpath-alloc)
+- pmu: Linux perf counter deltas since the guard was built (with hotpath-pmu): per event the process, application, profiler and main_thread counts, or an unavailability reason
 - data: threads sorted by peak CPU usage (with hotpath-alloc: by allocation traffic, the larger of allocated and deallocated bytes), each with:
   - os_tid, name (e.g. "tokio-runtime-worker"), status, status_code
   - cpu_percent, cpu_percent_max, cpu_percent_avg: formatted CPU utilization (e.g. "12.3%", 100% per core; null until sampled)
@@ -919,53 +920,51 @@ pub(crate) fn start_mcp_server_once() {
             if auth_enabled { "enabled" } else { "disabled" }
         ));
 
-        std::thread::Builder::new()
-            .name("hp-mcp".into())
-            .spawn(move || {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("Failed to create MCP runtime");
+        crate::lib_on::spawn_profiler_thread("hp-mcp", move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("Failed to create MCP runtime");
 
-                rt.block_on(async move {
-                    let cancellation_token = CancellationToken::new();
+            rt.block_on(async move {
+                let cancellation_token = CancellationToken::new();
 
-                    let mut config = StreamableHttpServerConfig::default();
-                    config.sse_keep_alive = Some(Duration::from_secs(15));
-                    config.stateful_mode = true;
-                    config.cancellation_token = cancellation_token.clone();
+                let mut config = StreamableHttpServerConfig::default();
+                config.sse_keep_alive = Some(Duration::from_secs(15));
+                config.stateful_mode = true;
+                config.cancellation_token = cancellation_token.clone();
 
-                    let service = StreamableHttpService::new(
-                        || Ok(HotPathMcpServer::new()),
-                        Arc::new(LocalSessionManager::default()),
-                        config,
-                    );
+                let service = StreamableHttpService::new(
+                    || Ok(HotPathMcpServer::new()),
+                    Arc::new(LocalSessionManager::default()),
+                    config,
+                );
 
-                    let app = Router::new()
-                        .nest_service("/mcp", service)
-                        .layer(axum::middleware::from_fn(auth_middleware));
-                    #[cfg(feature = "hotpath-meta")]
-                    let app = hotpath_meta::axum!(app);
+                let app = Router::new()
+                    .nest_service("/mcp", service)
+                    .layer(axum::middleware::from_fn(auth_middleware));
+                #[cfg(feature = "hotpath-meta")]
+                let app = hotpath_meta::axum!(app);
 
-                    let addr = format!("127.0.0.1:{}", port);
-                    let listener = match tokio::net::TcpListener::bind(&addr).await {
-                        Ok(l) => l,
-                        Err(e) => {
-                            log_debug(&format!("Failed to bind to {}: {}", addr, e));
-                            return;
-                        }
-                    };
+                let addr = format!("127.0.0.1:{}", port);
+                let listener = match tokio::net::TcpListener::bind(&addr).await {
+                    Ok(l) => l,
+                    Err(e) => {
+                        log_debug(&format!("Failed to bind to {}: {}", addr, e));
+                        return;
+                    }
+                };
 
-                    log_debug(&format!("Listening on http://{}/mcp", addr));
+                log_debug(&format!("Listening on http://{}/mcp", addr));
 
-                    let _ = axum::serve(listener, app)
-                        .with_graceful_shutdown(async move {
-                            cancellation_token.cancelled().await;
-                        })
-                        .await;
-                });
-            })
-            .expect("Failed to spawn MCP server thread");
+                let _ = axum::serve(listener, app)
+                    .with_graceful_shutdown(async move {
+                        cancellation_token.cancelled().await;
+                    })
+                    .await;
+            });
+        })
+        .expect("Failed to spawn MCP server thread");
     });
 }
 

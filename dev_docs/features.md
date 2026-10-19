@@ -17,6 +17,7 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 - `sqlx` / `toasty` are generic `tracing` layers with no sqlx/toasty dependency; filtering out the `sqlx::query` / `toasty::query` targets silently disables them.
 - `json` gates `hotpath::json` without pulling the profiler in (used by hotpath-backend to parse reports).
 - `demo` exists only for the TUI demo traffic (`bin/hotpath/cmd/console/demo.rs`).
+- `hotpath-pmu`: Linux perf counters in `lib_on/pmu/linux.rs`, shown in the threads section. `hp-*` threads must be spawned via `spawn_profiler_thread` (`lib_on.rs`) or their work is reported as application work.
 
 ## Cloud
 

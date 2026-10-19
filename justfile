@@ -20,6 +20,7 @@ test_all:
     cargo test --features hotpath --test cdylib -- --nocapture --test-threads=1
     cargo test --features hotpath --test time_sampling -- --nocapture --test-threads=1
     cargo test --features hotpath --test metrics_auth -- --nocapture --test-threads=1
+    cargo test --features hotpath --test pmu -- --nocapture --test-threads=1
     cargo test --features hotpath --test functions_alloc -- --nocapture --test-threads=1
     cargo test --features hotpath --test functions_alloc_meta -- --nocapture --test-threads=1
     cargo test --features hotpath --test functions_cpu -- --nocapture --test-threads=1

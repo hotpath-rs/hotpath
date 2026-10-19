@@ -674,9 +674,7 @@ impl HotpathGuard {
         let worker_percentiles = percentiles.clone();
         let worker_caller_name = caller_name;
         let worker_limit = limit;
-        thread::Builder::new()
-            .name("hp-functions".into())
-            .spawn(move || {
+        crate::lib_on::spawn_profiler_thread("hp-functions", move || {
                 let _suspend = crate::lib_on::SuspendAllocTracking::new();
 
                 let mut local_stats = HashMap::<u32, FunctionStats>::new();
@@ -914,6 +912,9 @@ impl HotpathGuard {
         {
             crate::threads::init_threads_monitoring();
         }
+
+        #[cfg(feature = "hotpath-pmu")]
+        crate::lib_on::pmu::start_session();
 
         let wrapper_guard = crate::functions::build_measurement_guard_sync(caller_name, true);
 

@@ -132,6 +132,10 @@ jobs:
       - name: Run metrics auth tests
         run: |
           cargo test --features hotpath --test metrics_auth -- --nocapture --test-threads=1
+      - name: Run pmu tests
+        run: |
+          sudo sysctl -w kernel.perf_event_paranoid=1
+          cargo test --features hotpath --test pmu -- --nocapture --test-threads=1
       - name: Run cloud tests
         run: |
           cargo test --lib --features hotpath,hotpath-cloud

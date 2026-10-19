@@ -45,7 +45,6 @@ use crate::streams::{get_stream_logs, get_streams_json};
 use serde::Serialize;
 use std::fmt::Display;
 use std::sync::OnceLock;
-use std::thread;
 #[cfg(feature = "hotpath-cpu")]
 use tiny_http::Method;
 use tiny_http::{Header, Request, Response, Server};
@@ -74,9 +73,7 @@ fn start_metrics_server(port: u16) {
     #[cfg(feature = "threads")]
     crate::threads::init_threads_monitoring();
 
-    thread::Builder::new()
-        .name("hp-server".into())
-        .spawn(move || {
+    crate::lib_on::spawn_profiler_thread("hp-server", move || {
             let _suspend = crate::lib_on::SuspendAllocTracking::new();
             let addr = format!("127.0.0.1:{}", port);
             let server = match Server::http(&addr) {

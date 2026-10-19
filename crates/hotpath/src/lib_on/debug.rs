@@ -196,29 +196,27 @@ pub(crate) fn init_debug_state() {
         let val_clone = Arc::clone(&val);
         let gauge_clone = Arc::clone(&gauge);
 
-        std::thread::Builder::new()
-            .name("hp-debug".into())
-            .spawn(move || {
-                while let Ok(event) = event_rx.recv() {
-                    match event {
-                        DebugEvent::Dbg { .. } => {
-                            let mut stats = dbg_clone.write().unwrap();
-                            process_dbg_event(&mut stats, event);
-                        }
-                        DebugEvent::Val { .. } => {
-                            let mut stats = val_clone.write().unwrap();
-                            process_val_event(&mut stats, event);
-                        }
-                        DebugEvent::Gauge { .. }
-                        | DebugEvent::GaugeInc { .. }
-                        | DebugEvent::GaugeDec { .. } => {
-                            let mut stats = gauge_clone.write().unwrap();
-                            process_gauge_event(&mut stats, event);
-                        }
+        crate::lib_on::spawn_profiler_thread("hp-debug", move || {
+            while let Ok(event) = event_rx.recv() {
+                match event {
+                    DebugEvent::Dbg { .. } => {
+                        let mut stats = dbg_clone.write().unwrap();
+                        process_dbg_event(&mut stats, event);
+                    }
+                    DebugEvent::Val { .. } => {
+                        let mut stats = val_clone.write().unwrap();
+                        process_val_event(&mut stats, event);
+                    }
+                    DebugEvent::Gauge { .. }
+                    | DebugEvent::GaugeInc { .. }
+                    | DebugEvent::GaugeDec { .. } => {
+                        let mut stats = gauge_clone.write().unwrap();
+                        process_gauge_event(&mut stats, event);
                     }
                 }
-            })
-            .expect("Failed to spawn debug event collector thread");
+            }
+        })
+        .expect("Failed to spawn debug event collector thread");
 
         DebugState {
             event_tx,

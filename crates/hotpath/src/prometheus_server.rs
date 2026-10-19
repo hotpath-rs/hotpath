@@ -11,7 +11,6 @@ pub(crate) mod families;
 pub(crate) mod protobuf;
 
 use std::sync::{LazyLock, OnceLock};
-use std::thread;
 
 use tiny_http::{Header, Request, Response, Server};
 
@@ -190,9 +189,7 @@ fn start_prometheus_server(port: u16) {
     LazyLock::force(&SLOW_LADDER_NS);
     crate::dev_logging::init_logging();
 
-    thread::Builder::new()
-        .name("hp-prometheus".into())
-        .spawn(move || {
+    crate::lib_on::spawn_profiler_thread("hp-prometheus", move || {
             let _suspend = crate::lib_on::SuspendAllocTracking::new();
             let addr = format!("{}:{}", *PROMETHEUS_HOST, port);
             crate::dev_logging::info!("prometheus: exporter listening on {}", addr);
