@@ -13,7 +13,7 @@ cargo install hotpath --version '^{{HOTPATH_VERSION}}'
 hotpath init-grafana --agent claude # or --agent codex / --agent opencode
 ```
 
-`hotpath init-grafana` downloads the [hotpath_init_grafana agent skill](https://github.com/pawurb/hotpath-rs/blob/main/skills/hotpath_init_grafana/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent builds a dashboard JSON file with panels for the subsystems your app instruments: SQL and HTTP time per route, N+1 detection, memory and time per request, channel queues, lock contention, Tokio workers, per-thread CPU and profiling overhead. It only writes the dashboard: configure the metrics endpoint and Prometheus scrape job as described below, then import the file into Grafana.
+`hotpath init-grafana` downloads the [hotpath_init_grafana agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_init_grafana/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent builds a dashboard JSON file with panels for the subsystems your app instruments: SQL and HTTP time per route, N+1 detection, memory and time per request, channel queues, lock contention, Tokio workers, per-thread CPU and profiling overhead. It only writes the dashboard: configure the metrics endpoint and Prometheus scrape job as described below, then import the file into Grafana.
 
 ## Configure prometheus metrics endpoint
 

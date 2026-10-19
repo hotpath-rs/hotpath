@@ -36,7 +36,7 @@ timing = { sql_per_request = 5 }
 message = "too many SQL queries per request, check for N+1 calls"
 ```
 
-The [`hotpath cloud`](agents_cli.md) CLI and dedicated [AI skill](https://github.com/pawurb/hotpath-rs/blob/main/skills/hotpath_cloud/SKILL.md) bring the same feedback loop to coding agents. Agents can analyze benchmark results, identify regressions, and use the profiling data to guide performance optimization:
+The [`hotpath cloud`](agents_cli.md) CLI and dedicated [AI skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_cloud/SKILL.md) bring the same feedback loop to coding agents. Agents can analyze benchmark results, identify regressions, and use the profiling data to guide performance optimization:
 
 <img loading="lazy" src="{{#asset-hash images/cloud-agent-diff.webp}}" alt="AI agent summarizing a hotpath Cloud diff">
 
@@ -44,7 +44,7 @@ Benchmark reports are persisted in `hotpath Cloud`, making it easy to share resu
 
 <img loading="lazy" src="{{#asset-hash images/cloud-dashboard-diff.webp}}" alt="hotpath Cloud dashboard diff page">
 
-<a href="https://hotpath.rs/app/repos/pawurb/hotpath-rs/benchmarks/drain/reports/01a124b3-d1f1-72ea-87ce-95057a276319/diff" target="_blank" rel="noopener noreferrer">See this diff on hotpath.rs</a>
+<a href="https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a124b3-d1f1-72ea-87ce-95057a276319/diff" target="_blank" rel="noopener noreferrer">See this diff on hotpath.rs</a>
 
 ## Getting Started
 
@@ -59,7 +59,7 @@ cargo install hotpath --version '^{{HOTPATH_VERSION}}'
 hotpath init-ci --agent claude # or --agent codex / --agent opencode
 ```
 
-`hotpath init-ci` downloads the [hotpath_init_ci agent skill](https://github.com/pawurb/hotpath-rs/blob/main/skills/hotpath_init_ci/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file and a GitHub Actions benchmark workflow, so every pull request gets a performance comment.
+`hotpath init-ci` downloads the [hotpath_init_ci agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_init_ci/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file and a GitHub Actions benchmark workflow, so every pull request gets a performance comment.
 
 Use `--forks` for public repositories that want to benchmark pull requests from forks. Fork pull requests need a [separate setup](ci_integration.md#pull-requests-from-forks) for security reasons:
 

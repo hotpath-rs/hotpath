@@ -3,7 +3,7 @@
 <h2 class="hero-subtitle"><b>Performance profiling for developers and coding agents.</b> Find CPU, memory, async, SQL, I/O and contention bottlenecks with a single Rust profiler. Export metrics to Prometheus and Grafana when you need production monitoring.</h2>
 
 <div class="hero-badges">
-  <a href="https://github.com/pawurb/hotpath-rs" target="_blank" rel="noopener noreferrer"><img src="{{#asset-hash images/stars-pawurb-hotpath-rs.svg}}" alt="GitHub Stars"></a>
+  <a href="https://github.com/hotpath-rs/hotpath" target="_blank" rel="noopener noreferrer"><img src="{{#asset-hash images/stars-hotpath-rs-hotpath.svg}}" alt="GitHub Stars"></a>
   <a href="https://crates.io/crates/hotpath" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/crates/d/hotpath?cacheSeconds=86400" alt="crates.io downloads"></a>
 </div>
 
@@ -43,7 +43,7 @@ function hotpathInitAgent(agent) {
 }
 </script>
 
-[hotpath-rs](https://github.com/pawurb/hotpath-rs) is an easy-to-configure Rust performance profiling toolkit that shows exactly where your code spends time, burns CPU, and allocates memory. 
+[hotpath-rs](https://github.com/hotpath-rs/hotpath) is an easy-to-configure Rust performance profiling toolkit that shows exactly where your code spends time, burns CPU, and allocates memory. 
 
 It helps you distinguish between functions that are slow because they wait on I/O and those that are CPU-intensive. Instrument functions, channels, futures, streams, SQL queries, HTTP calls, and byte-level I/O to find bottlenecks and focus optimizations where they matter most. Get actionable insights into time, memory, and async data flow with minimal setup.
 
@@ -136,7 +136,7 @@ cargo install hotpath --version '^{{HOTPATH_VERSION}}'
 hotpath init --agent claude # or --agent codex / --agent opencode
 ```
 
-`hotpath init` downloads the [hotpath_init agent skill](https://github.com/pawurb/hotpath-rs/blob/main/skills/hotpath_init/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent inspects your project, adds the dependency, instruments `main` and a starting set of functions, channels and locks, then verifies that everything compiles with profiling enabled and disabled.
+`hotpath init` downloads the [hotpath_init agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_init/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent inspects your project, adds the dependency, instruments `main` and a starting set of functions, channels and locks, then verifies that everything compiles with profiling enabled and disabled.
 
 Your agent remains in control: you review and approve edits through its regular permission prompts. Requires `curl` and the `claude`, `codex` or `opencode` CLI on `PATH`.
 

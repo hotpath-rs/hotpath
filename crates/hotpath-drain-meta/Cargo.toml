@@ -2,7 +2,7 @@
 name = "hotpath-drain-meta"
 version = "0.28.6"
 edition = "2021"
-repository = "https://github.com/pawurb/hotpath-rs"
+repository = "https://github.com/hotpath-rs/hotpath"
 description = "Hotpath drain meta - a version of hotpath-drain used to profile the profiler itself. Not intended for external use."
 readme = "README.md"
 license = "MIT"

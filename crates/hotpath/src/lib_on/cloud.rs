@@ -599,8 +599,8 @@ mod tests {
     };
 
     const DASHBOARD_URL: &str =
-        "https://hotpath.rs/app/repos/pawurb/hotpath-rs/benchmarks/meta/reports/r1/diff";
-    const POLICY_URL: &str = "https://github.com/pawurb/hotpath-rs/blob/3f1c000000000000000000000000000000000000/hotpath/policy.toml";
+        "https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/meta/reports/r1/diff";
+    const POLICY_URL: &str = "https://github.com/hotpath-rs/hotpath/blob/3f1c000000000000000000000000000000000000/hotpath/policy.toml";
     const VERDICT_FIELDS: &str = r#""verdict":{"judged":true,"regressed":false,"regressions":0,"improvements":0,"budgets_broken":0},"policy_path":"hotpath/policy.toml","policy_url":"https://github.com/a/b/blob/3f1c000000000000000000000000000000000000/hotpath/policy.toml","dashboard_url":"https://hotpath.rs/d""#;
 
     fn env(actions: bool, mode: UploadMode) -> Env {
@@ -650,7 +650,7 @@ mod tests {
     fn created() -> UploadCreated {
         UploadCreated {
             id: "r1".into(),
-            repository: "pawurb/hotpath-rs".into(),
+            repository: "hotpath-rs/hotpath".into(),
             benchmark: "meta".into(),
             baseline: Some("r0".into()),
             comment: CommentOutcome::default(),
@@ -889,7 +889,7 @@ mod tests {
         assert_eq!(r.level, Level::Notice);
         assert_eq!(
             r.message,
-            format!("uploaded report r1 (repository pawurb/hotpath-rs, benchmark meta, baseline r0, request abc); verdict: no regressions; diff: {DASHBOARD_URL}")
+            format!("uploaded report r1 (repository hotpath-rs/hotpath, benchmark meta, baseline r0, request abc); verdict: no regressions; diff: {DASHBOARD_URL}")
         );
         assert!(r
             .summary
@@ -920,14 +920,14 @@ mod tests {
         );
         assert_eq!(
             render(&no_baseline, &env(false, UploadMode::Enabled), None).message,
-            format!("uploaded report r1 (repository pawurb/hotpath-rs, benchmark meta, baseline none); verdict: no regressions; diff: {DASHBOARD_URL}")
+            format!("uploaded report r1 (repository hotpath-rs/hotpath, benchmark meta, baseline none); verdict: no regressions; diff: {DASHBOARD_URL}")
         );
     }
 
     #[test]
     fn render_regressed_levels() {
         let prefix =
-            "uploaded report r1 (repository pawurb/hotpath-rs, benchmark meta, baseline r0)";
+            "uploaded report r1 (repository hotpath-rs/hotpath, benchmark meta, baseline r0)";
 
         // A regression is a warning in every mode: the check run fails it,
         // never the job.
@@ -992,7 +992,7 @@ mod tests {
             None,
         );
         let prefix =
-            "uploaded report r1 (repository pawurb/hotpath-rs, benchmark meta, baseline r0)";
+            "uploaded report r1 (repository hotpath-rs/hotpath, benchmark meta, baseline r0)";
         let r = render(&outcome, &env(true, UploadMode::FailOnError), Some("meta"));
         assert_eq!(r.level, Level::Warning);
         assert_eq!(
@@ -1057,7 +1057,7 @@ mod tests {
         assert_eq!(r.level, Level::Warning);
         assert_eq!(
             r.message,
-            format!("uploaded report r1 (repository pawurb/hotpath-rs, benchmark meta, baseline r0); verdict: no regressions; comment failed: approve \"Pull requests: write\" for the installation; diff: {DASHBOARD_URL}")
+            format!("uploaded report r1 (repository hotpath-rs/hotpath, benchmark meta, baseline r0); verdict: no regressions; comment failed: approve \"Pull requests: write\" for the installation; diff: {DASHBOARD_URL}")
         );
 
         // A comment that was posted, or nothing to post, is a plain notice.
@@ -1095,7 +1095,7 @@ mod tests {
         assert_eq!(r.level, Level::Notice);
         assert_eq!(
             r.message,
-            format!("uploaded report r1 (repository pawurb/hotpath-rs, benchmark meta, baseline r0); verdict: no regressions; comment skipped: nothing to report; diff: {DASHBOARD_URL}")
+            format!("uploaded report r1 (repository hotpath-rs/hotpath, benchmark meta, baseline r0); verdict: no regressions; comment skipped: nothing to report; diff: {DASHBOARD_URL}")
         );
     }
 

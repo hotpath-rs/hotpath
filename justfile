@@ -194,7 +194,7 @@ fetch-badges:
     fetch marc2332-freya marc2332/freya
     fetch parseablehq-parseable parseablehq/parseable
     fetch MapleTechLabs-maple MapleTechLabs/maple
-    fetch pawurb-hotpath-rs pawurb/hotpath-rs
+    fetch hotpath-rs-hotpath hotpath-rs/hotpath
 
     echo "Badges saved to ${DIR}/"
 

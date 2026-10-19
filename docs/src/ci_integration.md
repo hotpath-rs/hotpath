@@ -198,7 +198,7 @@ on:
 
 jobs:
   relay:
-    uses: pawurb/hotpath-rs/.github/workflows/hotpath-relay.yml@{{HOTPATH_RELEASE_TAG}}
+    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@{{HOTPATH_RELEASE_TAG}}
     permissions:
       actions: read # download the artifact of the benchmark run
       id-token: write # authenticate the upload
@@ -209,18 +209,18 @@ jobs:
       report_file: report.json
 ```
 
-[`hotpath-relay.yml`](https://github.com/pawurb/hotpath-rs/blob/main/.github/workflows/hotpath-relay.yml) is a reusable workflow. It runs after a successful benchmark run of a pull request, downloads the artifact, uploads the report and prints the server's response in the step summary. A rejected upload fails the relay job, and a comment that could not be posted is a warning. The pull request the report belongs to is looked up from the benchmark run's head commit, not read from the report, which the pull request's own code wrote; that lookup is what `pull-requests: read` is for.
+[`hotpath-relay.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/hotpath-relay.yml) is a reusable workflow. It runs after a successful benchmark run of a pull request, downloads the artifact, uploads the report and prints the server's response in the step summary. A rejected upload fails the relay job, and a comment that could not be posted is a warning. The pull request the report belongs to is looked up from the benchmark run's head commit, not read from the report, which the pull request's own code wrote; that lookup is what `pull-requests: read` is for.
 
 Pin the relay to a release tag, the one of the `hotpath` version the benchmark builds with, so the relay and the report it uploads come from the same release. 
 
 ```bash
-git ls-remote https://github.com/pawurb/hotpath-rs refs/tags/{{HOTPATH_RELEASE_TAG}}
+git ls-remote https://github.com/hotpath-rs/hotpath refs/tags/{{HOTPATH_RELEASE_TAG}}
 ```
 
 Repositories that pin actions by commit hash should use the commit the tag points to, with the tag in the comment:
 
 ```yaml
-    uses: pawurb/hotpath-rs/.github/workflows/hotpath-relay.yml@<commit sha> # {{HOTPATH_RELEASE_TAG}}
+    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@<commit sha> # {{HOTPATH_RELEASE_TAG}}
 ```
 
 | Input | Description |

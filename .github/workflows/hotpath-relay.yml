@@ -13,7 +13,7 @@ name: hotpath relay
 #       types: [completed]
 #   jobs:
 #     relay:
-#       uses: pawurb/hotpath-rs/.github/workflows/hotpath-relay.yml@v0.28.6
+#       uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@v0.28.6
 #       permissions:
 #         actions: read
 #         id-token: write

@@ -118,7 +118,7 @@ mod tests {
 
         let git = meta.git.expect("git info from the checkout");
         assert_eq!(git.sha.len(), 40, "sha: {}", git.sha);
-        assert_eq!(git.repository.as_deref(), Some("pawurb/hotpath-rs"));
+        assert_eq!(git.repository.as_deref(), Some("hotpath-rs/hotpath"));
         // A merge base needs a commit-graph walk the `.git` reader avoids.
         assert_eq!(git.base_sha, None);
     }
@@ -134,7 +134,7 @@ mod tests {
             ("GITHUB_ACTIONS", "true"),
             ("GITHUB_SHA", &head),
             ("GITHUB_REF", "refs/pull/42/merge"),
-            ("GITHUB_REPOSITORY", "pawurb/hotpath-rs"),
+            ("GITHUB_REPOSITORY", "hotpath-rs/hotpath"),
             ("GITHUB_REPOSITORY_ID", "123456"),
             ("GITHUB_EVENT_NAME", "pull_request"),
             ("GITHUB_EVENT_PATH", &event_path.to_string_lossy()),
@@ -151,7 +151,7 @@ mod tests {
         assert_eq!(git.sha, head);
         assert_eq!(git.r#ref.as_deref(), Some("refs/pull/42/merge"));
         assert_eq!(git.base_sha.as_deref(), Some(BASE_SHA));
-        assert_eq!(git.repository.as_deref(), Some("pawurb/hotpath-rs"));
+        assert_eq!(git.repository.as_deref(), Some("hotpath-rs/hotpath"));
 
         let ci = meta.ci.expect("ci info");
         assert_eq!(ci.provider, "github-actions");
@@ -191,7 +191,7 @@ mod tests {
         assert_eq!(git.sha, head_sha());
         assert_ne!(git.r#ref.as_deref(), Some("refs/pull/42/merge"));
         assert_eq!(git.base_sha.as_deref(), Some(BASE_SHA));
-        assert_eq!(git.repository.as_deref(), Some("pawurb/hotpath-rs"));
+        assert_eq!(git.repository.as_deref(), Some("hotpath-rs/hotpath"));
 
         // `ci.*` describes the run, not the checkout, so it stays intact.
         let ci = meta.ci.expect("ci info");
