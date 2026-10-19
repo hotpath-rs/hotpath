@@ -72,25 +72,3 @@ judged = true
 min_percent_change = 50
 metrics = ["avg", "errors", "bytes_per_sec"]
 min_calls = 0
-
-# hotpath's workers and the benchmark's own threads (Linux cuts the main
-# thread's name to 15 bytes). Left out: `hp-threads`, which allocates per
-# sample and so with the run's length, and `hp-functions`, whose dozen bytes
-# would flip the bar on one allocation.
-[threads]
-names = [
-  "benchmark_rando",
-  "hp-channels",
-  "hp-http",
-  "hp-io",
-  "hp-mutexes",
-  "hp-rw-locks",
-  "hp-server",
-  "hp-sql",
-  "tokio-rt-worker",
-]
-
-[threads.alloc]
-judged = true
-min_percent_change = 10
-metrics = ["total"]

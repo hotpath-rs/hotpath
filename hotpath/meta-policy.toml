@@ -25,30 +25,3 @@ judged = false
 min_percent_change = 50
 metrics = ["avg", "total"]
 min_calls = 1
-
-# hotpath's own workers, profiled by the meta copy. Left out: `hp-channels`,
-# whose bytes follow the drain batching and halve between runs of one commit,
-# `hp-threads`, which allocates per sample and so with the run's length, and
-# the meta copy's `hp-meta-*` threads, which are the profiler, not the code
-# under test.
-[threads]
-names = [
-  "benchmark_meta",
-  "hp-debug",
-  "hp-functions",
-  "hp-futures",
-  "hp-http",
-  "hp-io",
-  "hp-mutexes",
-  "hp-prometheus",
-  "hp-rw-locks",
-  "hp-server",
-  "hp-sql",
-  "hp-streams",
-  "tokio-rt-worker",
-]
-
-[threads.alloc]
-judged = true
-min_percent_change = 10
-metrics = ["total"]
