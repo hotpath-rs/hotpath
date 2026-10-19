@@ -27,6 +27,32 @@ For very hot code paths, you can lower the cost further with [time sampling](pro
 
 All of these metrics can also be exported to [Prometheus and Grafana](prometheus_grafana.md).
 
+## How do I profile async Rust and Tokio applications?
+
+Add `#[hotpath::measure]` to an `async fn` to record its wall-clock time and allocations, just like a sync function. Use `#[hotpath::measure(future = true)]` to also track the future itself: poll counts, poll durations, and whether each call completed or was cancelled. See [Async functions](functions.md#async-functions-and-future--true) for details.
+
+Async function profiling works on any async runtime, including Tokio and smol, with no runtime-specific feature flag. Enable the `tokio` feature only for Tokio-specific integrations:
+
+- [Tokio runtime metrics](tokio_runtime.md) - call `hotpath::tokio_runtime!()` in your async main to monitor worker thread utilization, task scheduling, and queue depths.
+- [Channels](data_flow.md#channels-monitoring) - wrap Tokio channels with `channel!` to track throughput and queue depth.
+- [Locks](locks.md) - wrap `tokio::sync::Mutex` and `RwLock` to measure wait and hold times.
+
+You can also monitor [streams and futures](data_flow.md) with the `stream!` and `future!` macros.
+
+## How do I profile memory allocations?
+
+Enable the `hotpath-alloc` feature:
+
+```bash
+cargo run --features='hotpath,hotpath-alloc'
+```
+
+`hotpath` then installs a tracking global allocator and reports allocation counts and bytes for every instrumented function. Async functions are measured per poll, so allocations are attributed correctly even when a future moves between Tokio worker threads.
+
+By default, each function reports only its own allocations, excluding nested instrumented calls. Set `HOTPATH_ALLOC_CUMULATIVE=true` to include them. If your program uses a custom allocator like jemalloc or mimalloc, pass it with `#[hotpath::main(allocator = ...)]`. See [Memory and allocations profiling](functions.md#memory-and-allocations-profiling) for details.
+
+The [threads view](threads.md) complements per-function stats with per-thread allocated and deallocated bytes and process RSS. It's useful for spotting memory leaks in long-running applications.
+
 ## Is it safe to profile production applications?
 
 Yes. Every instrumented subsystem is covered by an integration test suite, and the profiling pipeline is designed to keep a low and predictable overhead.
