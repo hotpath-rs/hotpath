@@ -89,7 +89,7 @@ pub(crate) enum HPSubcommand {
     about,
     long_about = "hotpath CLI: automatically profile Rust programs on each Pull Request
 
-https://github.com/pawurb/hotpath-rs",
+https://github.com/hotpath-rs/hotpath",
     args_conflicts_with_subcommands = true
 )]
 pub(crate) struct HPArgs {

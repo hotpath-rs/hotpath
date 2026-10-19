@@ -2,7 +2,7 @@
 
 `hotpath cloud` is the command line client of the `hotpath Cloud` API. It gives a coding agent, a script or a CI step the same judgement the pull request comment shows, as JSON: which report was compared with which baseline, under which policy, what regressed, which budgets broke, and the verdict. An agent can push a change, wait for the benchmark, read the verdict and fix what regressed, without opening the dashboard.
 
-Give your agent the [hotpath_cloud agent skill](https://github.com/pawurb/hotpath-rs/blob/main/skills/hotpath_cloud/SKILL.md): it teaches the agent how to use these commands, wait for a benchmark, read the verdict and fix what regressed.
+Give your agent the [hotpath_cloud agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_cloud/SKILL.md): it teaches the agent how to use these commands, wait for a benchmark, read the verdict and fix what regressed.
 
 ## Install and authenticate
 
@@ -36,12 +36,12 @@ The token gives the CLI access to the same repositories as your account on hotpa
 `repos` lists every repository the token reaches, with its benchmarks. `benchmarks` lists one repository's:
 
 ```bash
-hotpath cloud benchmarks --repo pawurb/hotpath-rs --pretty
+hotpath cloud benchmarks --repo hotpath-rs/hotpath --pretty
 ```
 
 ```json
 {
-  "repository": "pawurb/hotpath-rs",
+  "repository": "hotpath-rs/hotpath",
   "benchmarks": [
     { "name": "drain", "reports": 55, "latest_report_at": "2026-10-01T23:09:00.46559Z" },
     { "name": "meta", "reports": 54, "latest_report_at": "2026-10-01T23:09:29.367532Z" }
@@ -54,7 +54,7 @@ hotpath cloud benchmarks --repo pawurb/hotpath-rs --pretty
 Fetches one stored report, selected by pull request, commit or id:
 
 ```bash
-hotpath cloud report --repo pawurb/hotpath-rs --benchmark drain --pr 604 --no-payload --pretty
+hotpath cloud report --repo hotpath-rs/hotpath --benchmark drain --pr 604 --no-payload --pretty
 ```
 
 ```json
@@ -65,10 +65,10 @@ hotpath cloud report --repo pawurb/hotpath-rs --benchmark drain --pr 604 --no-pa
   "head_ref": "perf/cycle-drain-buffer",
   "pr_number": 604,
   "baseline_id": "01a0f43f-c0f8-71c0-bfcc-ef82bbb17270",
-  "comment_url": "https://github.com/pawurb/hotpath-rs/pull/604#issuecomment-5783640286",
+  "comment_url": "https://github.com/hotpath-rs/hotpath/pull/604#issuecomment-5783640286",
   "regressed": false,
   "policy_path": "hotpath/drain-policy.toml",
-  "dashboard_url": "https://hotpath.rs/app/repos/pawurb/hotpath-rs/benchmarks/drain/reports/01a0f476-5b3a-7d0e-901a-7756f28e2414"
+  "dashboard_url": "https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a0f476-5b3a-7d0e-901a-7756f28e2414"
 }
 ```
 
@@ -88,7 +88,7 @@ A report that is not there yet answers `not_found` with exit code 1, so polling 
 Compares a report with its baseline under the policy the report carried, exactly as the pull request comment did. It selects the report with the same flags as `report`:
 
 ```bash
-hotpath cloud diff --repo pawurb/hotpath-rs --benchmark drain --pr 604 --pretty
+hotpath cloud diff --repo hotpath-rs/hotpath --benchmark drain --pr 604 --pretty
 ```
 
 Trimmed answer:
@@ -125,7 +125,7 @@ Trimmed answer:
       }
     ]
   },
-  "dashboard_url": "https://hotpath.rs/app/repos/pawurb/hotpath-rs/benchmarks/drain/reports/01a0f476-5b3a-7d0e-901a-7756f28e2414/diff"
+  "dashboard_url": "https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a0f476-5b3a-7d0e-901a-7756f28e2414/diff"
 }
 ```
 

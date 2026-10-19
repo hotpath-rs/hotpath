@@ -11,7 +11,7 @@ on:
 # under test is the one on the default branch.
 jobs:
   relay:
-    uses: pawurb/hotpath-rs/.github/workflows/hotpath-relay.yml@main
+    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@main
     permissions:
       actions: read
       id-token: write

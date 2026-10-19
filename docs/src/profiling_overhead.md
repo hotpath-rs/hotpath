@@ -10,7 +10,7 @@ The numbers below describe what you pay while profiling is **enabled**.
 
 ## Methodology
 
-Each number comes from a dedicated `benchmark_*` example in the [repository](https://github.com/pawurb/hotpath-rs/blob/main/CONTRIBUTING.md#overhead-benchmarks). Every benchmark hammers a single instrumented codepath in a tight, uncontended loop and compares it against an uninstrumented baseline in the same run, so the delta isolates the per-operation instrumentation cost. Each operation also performs ~1 µs of spin work to emulate a realistic function body:
+Each number comes from a dedicated `benchmark_*` example in the [repository](https://github.com/hotpath-rs/hotpath/blob/main/CONTRIBUTING.md#overhead-benchmarks). Every benchmark hammers a single instrumented codepath in a tight, uncontended loop and compares it against an uninstrumented baseline in the same run, so the delta isolates the per-operation instrumentation cost. Each operation also performs ~1 µs of spin work to emulate a realistic function body:
 
 ```bash
 cargo run --example benchmark_noop --features hotpath --release

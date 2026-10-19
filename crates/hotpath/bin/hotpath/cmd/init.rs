@@ -2,9 +2,9 @@ use std::io::ErrorKind;
 use std::process::Command;
 
 const SKILL_URL_BRANCH_TEMPLATE: &str =
-    "https://raw.githubusercontent.com/pawurb/hotpath-rs/init-v{minor}/skills/{skill}/SKILL.md";
+    "https://raw.githubusercontent.com/hotpath-rs/hotpath/init-v{minor}/skills/{skill}/SKILL.md";
 const SKILL_URL_TAG_TEMPLATE: &str =
-    "https://raw.githubusercontent.com/pawurb/hotpath-rs/v{version}/skills/{skill}/SKILL.md";
+    "https://raw.githubusercontent.com/hotpath-rs/hotpath/v{version}/skills/{skill}/SKILL.md";
 
 /// What an agent session sets up: each one is a skill of `skills/` and the
 /// prompt that starts the session.
@@ -211,7 +211,7 @@ mod tests {
         );
         assert_eq!(
             url,
-            "https://raw.githubusercontent.com/pawurb/hotpath-rs/init-v0.21/skills/hotpath_init_ci/SKILL.md"
+            "https://raw.githubusercontent.com/hotpath-rs/hotpath/init-v0.21/skills/hotpath_init_ci/SKILL.md"
         );
     }
 

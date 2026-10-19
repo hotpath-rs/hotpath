@@ -22,13 +22,13 @@ mod tests {
     const TOKEN: &str = "hpat_5f3c9a1b2d4e6f7a8b9c0d1e2f3a4b5c";
     const AUTH_BODY: &str =
         r#"{"login":"pawurb","token":{"name":"laptop","expires_at":"2027-01-01T00:00:00Z"}}"#;
-    const REPOS_BODY: &str = r#"{"repositories":[{"full_name":"pawurb/hotpath-rs","private":false,"visibility_public":true,"benchmarks":[{"name":"ci","reports":412,"latest_report_at":"2026-09-25T18:03:11Z"},{"name":"empty","reports":0,"latest_report_at":null}]},{"full_name":"pawurb/private-thing","private":true,"visibility_public":false,"benchmarks":[]}]}"#;
-    const BENCHMARKS_BODY: &str = r#"{"repository":"pawurb/hotpath-rs","benchmarks":[{"name":"ci","reports":412,"latest_report_at":"2026-09-25T18:03:11Z"}]}"#;
-    const BENCHMARKS_PATH: &str = "/api/v1/repos/pawurb/hotpath-rs/benchmarks";
-    const REPORTS_PATH: &str = "/api/v1/repos/pawurb/hotpath-rs/benchmarks/ci/reports";
+    const REPOS_BODY: &str = r#"{"repositories":[{"full_name":"hotpath-rs/hotpath","private":false,"visibility_public":true,"benchmarks":[{"name":"ci","reports":412,"latest_report_at":"2026-09-25T18:03:11Z"},{"name":"empty","reports":0,"latest_report_at":null}]},{"full_name":"pawurb/private-thing","private":true,"visibility_public":false,"benchmarks":[]}]}"#;
+    const BENCHMARKS_BODY: &str = r#"{"repository":"hotpath-rs/hotpath","benchmarks":[{"name":"ci","reports":412,"latest_report_at":"2026-09-25T18:03:11Z"}]}"#;
+    const BENCHMARKS_PATH: &str = "/api/v1/repos/hotpath-rs/hotpath/benchmarks";
+    const REPORTS_PATH: &str = "/api/v1/repos/hotpath-rs/hotpath/benchmarks/ci/reports";
     const REPORT_ID: &str = "0199a3c2-7d2e-7b41-9c3a-1f2e3d4c5b6a";
     const SHA: &str = "9ab2000000000000000000000000000000000000";
-    const SUMMARY_BODY: &str = r#"{"id":"0199a3c2-7d2e-7b41-9c3a-1f2e3d4c5b6a","repository":"pawurb/hotpath-rs","benchmark":"ci","event":"pull_request","commit_sha":"3f1c000000000000000000000000000000000000","head_sha":"9ab2000000000000000000000000000000000000","base_sha":"77de000000000000000000000000000000000000","git_ref":null,"base_ref":"main","head_ref":"channel-delay","pr_number":105,"run_id":"18237461234","workflow":"CI","actor":"pawurb","ci_provider":"github-actions","hotpath_version":"0.26.1","user_metadata":{"profile":"release"},"baseline_id":"0199a3b0-0000-7000-8000-000000000000","comment_url":"https://github.com/pawurb/hotpath-rs/pull/105#issuecomment-1","regressed":false,"policy_path":"hotpath/ci-policy.toml","policy_url":"https://github.com/pawurb/hotpath-rs/blob/3f1c000000000000000000000000000000000000/hotpath/ci-policy.toml","size_bytes":81234,"created_at":"2026-09-25T18:03:11Z","dashboard_url":"https://hotpath.rs/app/repos/pawurb/hotpath-rs/benchmarks/ci/reports/0199a3c2-7d2e-7b41-9c3a-1f2e3d4c5b6a"}"#;
+    const SUMMARY_BODY: &str = r#"{"id":"0199a3c2-7d2e-7b41-9c3a-1f2e3d4c5b6a","repository":"hotpath-rs/hotpath","benchmark":"ci","event":"pull_request","commit_sha":"3f1c000000000000000000000000000000000000","head_sha":"9ab2000000000000000000000000000000000000","base_sha":"77de000000000000000000000000000000000000","git_ref":null,"base_ref":"main","head_ref":"channel-delay","pr_number":105,"run_id":"18237461234","workflow":"CI","actor":"pawurb","ci_provider":"github-actions","hotpath_version":"0.26.1","user_metadata":{"profile":"release"},"baseline_id":"0199a3b0-0000-7000-8000-000000000000","comment_url":"https://github.com/hotpath-rs/hotpath/pull/105#issuecomment-1","regressed":false,"policy_path":"hotpath/ci-policy.toml","policy_url":"https://github.com/hotpath-rs/hotpath/blob/3f1c000000000000000000000000000000000000/hotpath/ci-policy.toml","size_bytes":81234,"created_at":"2026-09-25T18:03:11Z","dashboard_url":"https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/ci/reports/0199a3c2-7d2e-7b41-9c3a-1f2e3d4c5b6a"}"#;
 
     /// `SUMMARY_BODY` plus a payload in the writer's (unsorted) key order.
     fn report_body() -> String {
@@ -55,7 +55,7 @@ mod tests {
     }
 
     fn report_args<'a>(selector: &[&'a str]) -> Vec<&'a str> {
-        let mut args = vec!["report", "--repo", "pawurb/hotpath-rs", "--benchmark", "ci"];
+        let mut args = vec!["report", "--repo", "hotpath-rs/hotpath", "--benchmark", "ci"];
         args.extend_from_slice(selector);
         args
     }
@@ -448,7 +448,7 @@ mod tests {
         let output = hotpath(
             &server,
             Some(TOKEN),
-            &["benchmarks", "--repo", "pawurb/hotpath-rs"],
+            &["benchmarks", "--repo", "hotpath-rs/hotpath"],
         );
         mock.assert();
         assert_eq!(output.status.code(), Some(0), "stderr: {}", stderr(&output));
@@ -494,7 +494,7 @@ mod tests {
                 404,
                 error_body(
                     ApiErrorCode::NotFound,
-                    "Repository pawurb/hotpath-rs not found.",
+                    "Repository hotpath-rs/hotpath not found.",
                 ),
             ),
             (
@@ -518,7 +518,7 @@ mod tests {
             let output = hotpath(
                 &server,
                 Some(TOKEN),
-                &["benchmarks", "--repo", "pawurb/hotpath-rs"],
+                &["benchmarks", "--repo", "hotpath-rs/hotpath"],
             );
             mock.assert();
             assert_eq!(output.status.code(), Some(1), "{body}");
@@ -551,7 +551,7 @@ mod tests {
             "{printed}"
         );
         assert!(
-            printed.contains(r#""policy_url":"https://github.com/pawurb/hotpath-rs/blob/3f1c000000000000000000000000000000000000/hotpath/ci-policy.toml""#),
+            printed.contains(r#""policy_url":"https://github.com/hotpath-rs/hotpath/blob/3f1c000000000000000000000000000000000000/hotpath/ci-policy.toml""#),
             "{printed}"
         );
         assert!(!printed.contains(r#""policy":"#), "{printed}");
@@ -668,7 +668,7 @@ mod tests {
                 vec![
                     "report",
                     "--repo",
-                    "pawurb/hotpath-rs",
+                    "hotpath-rs/hotpath",
                     "--benchmark",
                     "a/b",
                     "--pr",
@@ -680,7 +680,7 @@ mod tests {
                 vec![
                     "report",
                     "--repo",
-                    "pawurb/hotpath-rs",
+                    "hotpath-rs/hotpath",
                     "--benchmark",
                     "..",
                     "--pr",
@@ -692,7 +692,7 @@ mod tests {
                 vec![
                     "report",
                     "--repo",
-                    "pawurb/hotpath-rs",
+                    "hotpath-rs/hotpath",
                     "--benchmark",
                     &long_name,
                     "--pr",
@@ -751,7 +751,7 @@ mod tests {
         mock.assert();
     }
 
-    const DIFF_PATH: &str = "/api/v1/repos/pawurb/hotpath-rs/benchmarks/ci/diff";
+    const DIFF_PATH: &str = "/api/v1/repos/hotpath-rs/hotpath/benchmarks/ci/diff";
     const BASE_ID: &str = "0199a3b0-0000-7000-8000-000000000000";
 
     const NO_BASELINE: &str = r#"{"status":"no_baseline"}"#;
@@ -814,7 +814,7 @@ mod tests {
         let judged = was_compared || budgets.has_rules();
         let regressed = regressions > 0 || budgets_broken > 0;
         format!(
-            r#"{{"repository":"pawurb/hotpath-rs","benchmark":"ci","head":{SUMMARY_BODY},"base":{base},"rows":"findings","verdict":{{"judged":{judged},"regressed":{regressed},"regressions":{regressions},"improvements":0,"budgets_broken":{budgets_broken}}},"budgets":{budgets},"result":{result},"dashboard_url":"https://hotpath.rs/app/repos/pawurb/hotpath-rs/benchmarks/ci/reports/0199a3c2-7d2e-7b41-9c3a-1f2e3d4c5b6a/diff"}}"#,
+            r#"{{"repository":"hotpath-rs/hotpath","benchmark":"ci","head":{SUMMARY_BODY},"base":{base},"rows":"findings","verdict":{{"judged":{judged},"regressed":{regressed},"regressions":{regressions},"improvements":0,"budgets_broken":{budgets_broken}}},"budgets":{budgets},"result":{result},"dashboard_url":"https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/ci/reports/0199a3c2-7d2e-7b41-9c3a-1f2e3d4c5b6a/diff"}}"#,
             budgets = budgets.body(),
         )
     }
@@ -833,7 +833,7 @@ mod tests {
     }
 
     fn diff_args<'a>(selector: &[&'a str]) -> Vec<&'a str> {
-        let mut args = vec!["diff", "--repo", "pawurb/hotpath-rs", "--benchmark", "ci"];
+        let mut args = vec!["diff", "--repo", "hotpath-rs/hotpath", "--benchmark", "ci"];
         args.extend_from_slice(selector);
         args
     }
@@ -1027,7 +1027,7 @@ mod tests {
                 vec![
                     "diff",
                     "--repo",
-                    "pawurb/hotpath-rs",
+                    "hotpath-rs/hotpath",
                     "--benchmark",
                     "a/b",
                     "--pr",
@@ -1083,11 +1083,11 @@ mod tests {
 
         for args in [
             // Gone: the policy is a file in the repository, read per report.
-            vec!["set-policy", "--repo", "pawurb/hotpath-rs", "--file", "x"],
+            vec!["set-policy", "--repo", "hotpath-rs/hotpath", "--file", "x"],
             vec![
                 "get-policy",
                 "--repo",
-                "pawurb/hotpath-rs",
+                "hotpath-rs/hotpath",
                 "--benchmark",
                 "ci",
             ],
@@ -1495,7 +1495,7 @@ mod tests {
 
         let cases: [&[&str]; 3] = [
             &["--benchmark", "ci", "--file", "hotpath/policy.toml"],
-            &["--repo", "pawurb/hotpath-rs"],
+            &["--repo", "hotpath-rs/hotpath"],
             &["--benchmark"],
         ];
         for args in cases {

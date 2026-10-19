@@ -25,7 +25,7 @@ let mut buf = Vec::new();
 file.read_to_end(&mut buf)?;
 ```
 
-See the [basic_io_sync](https://github.com/pawurb/hotpath-rs/blob/main/crates/test-io/examples/basic_io_sync.rs) and [basic_io_async](https://github.com/pawurb/hotpath-rs/blob/main/crates/test-io/examples/basic_io_async.rs) examples.
+See the [basic_io_sync](https://github.com/hotpath-rs/hotpath/blob/main/crates/test-io/examples/basic_io_sync.rs) and [basic_io_async](https://github.com/hotpath-rs/hotpath/blob/main/crates/test-io/examples/basic_io_async.rs) examples.
 
 Profiling Redis TCP connection:
 ```rust
@@ -39,7 +39,7 @@ let mut buf = [0u8; 7];
 stream.read_exact(&mut buf).await?; // +PONG\r\n
 ```
 
-See the [basic_redis_io](https://github.com/pawurb/hotpath-rs/blob/main/crates/test-io/examples/basic_redis_io.rs) example.
+See the [basic_redis_io](https://github.com/hotpath-rs/hotpath/blob/main/crates/test-io/examples/basic_redis_io.rs) example.
 
 The `label` parameter is optional; without it the wrapper is identified by `file:line`. Literal labels must be unique among `io!` sites within a crate: a repeated one fails `cargo build`/`test`/`run` with ``symbol `__hotpath_unique_io_redis_<crate hash>` is already defined`` (`cargo check` does not report it), so give a paired reader and writer distinct labels such as `redis-read` / `redis-write`. Labels passed as runtime expressions are not checked.
 
@@ -58,7 +58,7 @@ let compressed = hotpath::io_unwrap(encoder).finish()?;
 
 With profiling disabled `io!` returns its argument unchanged and `io_unwrap` is the identity, so call sites compile identically in both modes.
 
-See the [basic_zstd_io](https://github.com/pawurb/hotpath-rs/blob/main/crates/test-io/examples/basic_zstd_io.rs) example, which unwraps a zstd encoder with `io_unwrap` before `finish()`.
+See the [basic_zstd_io](https://github.com/hotpath-rs/hotpath/blob/main/crates/test-io/examples/basic_zstd_io.rs) example, which unwraps a zstd encoder with `io_unwrap` before `finish()`.
 
 Report entries are keyed by creation site and concrete type: wrappers created repeatedly at one `io!` call - for example per accepted connection in a server loop - accumulate into a single entry, so profiler memory stays bounded by the number of `io!` call sites rather than the number of values ever wrapped.
 
@@ -110,7 +110,7 @@ let mut encoder = hotpath::io!(
 );
 ```
 
-The `gzip` row then reports e.g. 8.0 MB consumed at 19 MB/s while `gzip-out` reports the 1.0 MB that came out the other side. See the [compression_levels_io](https://github.com/pawurb/hotpath-rs/blob/main/crates/test-io/examples/compression_levels_io.rs) example, which compares gzip and brotli across various compression levels.
+The `gzip` row then reports e.g. 8.0 MB consumed at 19 MB/s while `gzip-out` reports the 1.0 MB that came out the other side. See the [compression_levels_io](https://github.com/hotpath-rs/hotpath/blob/main/crates/test-io/examples/compression_levels_io.rs) example, which compares gzip and brotli across various compression levels.
 
 Read-side encoders (`flate2::read::GzEncoder`, `brotli::CompressorReader`) invert the accounting: reads return compressed bytes, so the wrapper's Bytes is the compressed output, and stream finalization happens inside the last instrumented reads. Wrap whichever side produces the number you want to read off the report.
 

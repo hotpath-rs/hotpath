@@ -12,7 +12,7 @@ site-url = "/"
 default-theme = "ayu"
 preferred-dark-theme = "ayu"
 additional-css = ["src/custom.css", "theme/hotpath-nav.css"]
-edit-url-template = "https://github.com/pawurb/hotpath-rs/edit/main/docs/{path}"
+edit-url-template = "https://github.com/hotpath-rs/hotpath/edit/main/docs/{path}"
 
 [output.html.print]
 enable = false

@@ -17,7 +17,7 @@ mod tests {
     use crate::common::example::Example;
 
     /// With a field this client does not know, which the response file keeps.
-    const REGRESSED_BODY: &str = r#"{"id":"r1","new_field":{"z":1,"a":2},"repository":"pawurb/hotpath-rs","benchmark":"guard-test","baseline":"r0","comment":{"url":"https://github.com/c/1"},"verdict":{"judged":true,"regressed":true,"regressions":2,"improvements":0,"budgets_broken":1},"policy_path":"hotpath/policy.toml","policy_url":"https://github.com/pawurb/hotpath-rs/blob/3f1c000000000000000000000000000000000000/hotpath/policy.toml","dashboard_url":"https://hotpath.rs/app/repos/pawurb/hotpath-rs/benchmarks/guard-test/reports/r1/diff"}"#;
+    const REGRESSED_BODY: &str = r#"{"id":"r1","new_field":{"z":1,"a":2},"repository":"hotpath-rs/hotpath","benchmark":"guard-test","baseline":"r0","comment":{"url":"https://github.com/c/1"},"verdict":{"judged":true,"regressed":true,"regressions":2,"improvements":0,"budgets_broken":1},"policy_path":"hotpath/policy.toml","policy_url":"https://github.com/hotpath-rs/hotpath/blob/3f1c000000000000000000000000000000000000/hotpath/policy.toml","dashboard_url":"https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/guard-test/reports/r1/diff"}"#;
 
     fn mock_server(status: usize, body: &str) -> (ServerGuard, mockito::Mock) {
         let mut server = Server::new();

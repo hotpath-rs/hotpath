@@ -226,7 +226,7 @@ jobs:
     # Images are copied to GHCR by mirror-ci-images.yml (weekly, or run it manually)
     services:
       postgres:
-        image: ghcr.io/pawurb/hotpath-ci-postgres:17
+        image: ghcr.io/hotpath-rs/hotpath-ci-postgres:17
         env:
           POSTGRES_USER: hotpath
           POSTGRES_PASSWORD: hotpath
@@ -239,7 +239,7 @@ jobs:
           --health-timeout 2s
           --health-retries 15
       redis:
-        image: ghcr.io/pawurb/hotpath-ci-redis:7
+        image: ghcr.io/hotpath-rs/hotpath-ci-redis:7
         ports:
           - 6390:6379
         options: >-

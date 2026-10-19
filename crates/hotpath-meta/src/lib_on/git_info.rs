@@ -209,12 +209,12 @@ mod tests {
         std::fs::write(git.join("HEAD"), format!("{SHA}\n")).unwrap();
         std::fs::write(
             git.join("config"),
-            "[core]\n\turl = not-a-remote\n[remote \"upstream\"]\n\turl = git@github.com:other/repo.git\n[remote \"origin\"]\n\turl = git@github.com:pawurb/hotpath-rs.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
+            "[core]\n\turl = not-a-remote\n[remote \"upstream\"]\n\turl = git@github.com:other/repo.git\n[remote \"origin\"]\n\turl = git@github.com:hotpath-rs/hotpath.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
         )
         .unwrap();
 
         let info = read_git_info_at(&root).unwrap();
-        assert_eq!(info.repository.as_deref(), Some("pawurb/hotpath-rs"));
+        assert_eq!(info.repository.as_deref(), Some("hotpath-rs/hotpath"));
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -233,15 +233,15 @@ mod tests {
     #[test]
     fn owner_name_url_forms() {
         for url in [
-            "git@github.com:pawurb/hotpath-rs.git",
-            "https://github.com/pawurb/hotpath-rs.git",
-            "https://github.com/pawurb/hotpath-rs",
-            "ssh://git@github.com/pawurb/hotpath-rs.git",
-            "https://github.com/pawurb/hotpath-rs/",
+            "git@github.com:hotpath-rs/hotpath.git",
+            "https://github.com/hotpath-rs/hotpath.git",
+            "https://github.com/hotpath-rs/hotpath",
+            "ssh://git@github.com/hotpath-rs/hotpath.git",
+            "https://github.com/hotpath-rs/hotpath/",
         ] {
             assert_eq!(
                 owner_name(url).as_deref(),
-                Some("pawurb/hotpath-rs"),
+                Some("hotpath-rs/hotpath"),
                 "{url}"
             );
         }

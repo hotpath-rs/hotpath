@@ -91,6 +91,10 @@
     "hash": "62d7f18f",
     "hashed_path": "images/stars-apache-opendal.62d7f18f.svg"
   },
+  "images/stars-hotpath-rs-hotpath.svg": {
+    "hash": "f75111e5",
+    "hashed_path": "images/stars-hotpath-rs-hotpath.f75111e5.svg"
+  },
   "images/stars-maplibre-martin.svg": {
     "hash": "d4be9e4a",
     "hashed_path": "images/stars-maplibre-martin.d4be9e4a.svg"
@@ -102,10 +106,6 @@
   "images/stars-parseablehq-parseable.svg": {
     "hash": "f4821fb0",
     "hashed_path": "images/stars-parseablehq-parseable.f4821fb0.svg"
-  },
-  "images/stars-pawurb-hotpath-rs.svg": {
-    "hash": "dc3b0bdd",
-    "hashed_path": "images/stars-pawurb-hotpath-rs.dc3b0bdd.svg"
   },
   "images/stars-rustfs-rustfs.svg": {
     "hash": "c85c3b38",

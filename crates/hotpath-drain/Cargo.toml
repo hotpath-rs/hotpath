@@ -2,7 +2,7 @@
 name = "hotpath-drain"
 version = "0.28.6"
 edition = "2021"
-repository = "https://github.com/pawurb/hotpath-rs"
+repository = "https://github.com/hotpath-rs/hotpath"
 description = "Lock-free per-thread event queues with a single drain. Transport layer of the hotpath profiler."
 readme = "README.md"
 license = "MIT"

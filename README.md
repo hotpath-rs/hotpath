@@ -1,5 +1,5 @@
 # <img src="media/hotpath-logo2.png" alt="hotpath-rs logo" width="80px" align="left"> hotpath - Rust Profiler for Easy Performance Debugging 
-[![GH Actions](https://github.com/pawurb/hotpath-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/pawurb/hotpath-rs/actions) [![Latest Version](https://img.shields.io/crates/v/hotpath.svg)](https://crates.io/crates/hotpath) [![Downloads](https://img.shields.io/crates/d/hotpath?cacheSeconds=86400)](https://crates.io/crates/hotpath) [![Sponsor](https://img.shields.io/badge/Sponsor-hotpath--rs-6f42c1)](https://hotpath.rs/sponsorship)
+[![GH Actions](https://github.com/hotpath-rs/hotpath/actions/workflows/ci.yml/badge.svg)](https://github.com/hotpath-rs/hotpath/actions) [![Latest Version](https://img.shields.io/crates/v/hotpath.svg)](https://crates.io/crates/hotpath) [![Downloads](https://img.shields.io/crates/d/hotpath?cacheSeconds=86400)](https://crates.io/crates/hotpath) [![Sponsor](https://img.shields.io/badge/Sponsor-hotpath--rs-6f42c1)](https://hotpath.rs/sponsorship)
 
 A simple Rust profiler that shows exactly why your code is slow.
 

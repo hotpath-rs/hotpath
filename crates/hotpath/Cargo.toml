@@ -2,7 +2,7 @@
 name = "hotpath"
 version = "0.28.6"
 edition = "2021"
-repository = "https://github.com/pawurb/hotpath-rs"
+repository = "https://github.com/hotpath-rs/hotpath"
 description = "One profiler for CPU, time, memory, SQL, and async code - quickly find and debug performance bottlenecks."
 readme = "../../README.md"
 license = "MIT"

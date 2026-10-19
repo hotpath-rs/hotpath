@@ -251,7 +251,7 @@ mod tests {
                 sha: sha.to_string(),
                 r#ref: None,
                 base_sha: None,
-                repository: Some("pawurb/hotpath-rs".to_string()),
+                repository: Some("hotpath-rs/hotpath".to_string()),
             }
         }
 
@@ -288,7 +288,7 @@ mod tests {
             // The checkout is detached, so only the environment names a ref.
             assert_eq!(git.r#ref.as_deref(), Some("refs/pull/42/merge"));
             assert_eq!(git.base_sha.as_deref(), Some(BASE_SHA));
-            assert_eq!(git.repository.as_deref(), Some("pawurb/hotpath-rs"));
+            assert_eq!(git.repository.as_deref(), Some("hotpath-rs/hotpath"));
         }
 
         /// A job that built the head commit rather than the merge commit:
@@ -338,7 +338,7 @@ mod tests {
             let git = merge_git_info(Some(local), Some(&bare_ci)).expect("git info");
             assert_eq!(git.sha, LOCAL_SHA);
             assert_eq!(git.r#ref.as_deref(), Some("refs/heads/main"));
-            assert_eq!(git.repository.as_deref(), Some("pawurb/hotpath-rs"));
+            assert_eq!(git.repository.as_deref(), Some("hotpath-rs/hotpath"));
         }
 
         /// An unreadable `.git` leaves the environment as the only source, and
@@ -405,7 +405,7 @@ mod tests {
             let git = back.git.expect("git info");
             assert_eq!(git.sha, LOCAL_SHA);
             assert_eq!(git.base_sha.as_deref(), Some(BASE_SHA));
-            assert_eq!(git.repository.as_deref(), Some("pawurb/hotpath-rs"));
+            assert_eq!(git.repository.as_deref(), Some("hotpath-rs/hotpath"));
             let ci = back.ci.expect("ci info");
             assert_eq!(ci.provider, "github-actions");
             assert_eq!(ci.event, "pull_request");

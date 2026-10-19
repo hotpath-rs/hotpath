@@ -34,7 +34,7 @@ The site documents the latest hotpath release, which can be newer than the versi
 ### 1. Inspect the project
 
 - Find the crate(s), the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`, usually `main`) and the existing workflows in `.github/workflows/`.
-- Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented functions. If it is not, set it up first by following the `hotpath_init` skill (https://raw.githubusercontent.com/pawurb/hotpath-rs/main/skills/hotpath_init/SKILL.md), then continue here.
+- Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented functions. If it is not, set it up first by following the `hotpath_init` skill (https://raw.githubusercontent.com/hotpath-rs/hotpath/main/skills/hotpath_init/SKILL.md), then continue here.
 - Check whether the repository is public or private (`gh repo view --json visibility`). For a public repository that accepts pull requests from forks, tell the user that fork pull requests will not be benchmarked by this setup and suggest `hotpath init-ci --forks`. Continue only if they confirm.
 
 ### 2. Pick the benchmark
