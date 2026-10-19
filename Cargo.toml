@@ -44,7 +44,8 @@ members = [
 resolver = "2"
 # test-toasty: toasty's rusqlite and sqlx-sqlite pull conflicting
 # `links = "sqlite3"` versions. Build it via --manifest-path.
-exclude = ["crates/test-toasty"]
+# callgrind-poc: standalone POC, built via --manifest-path in its workflow.
+exclude = ["crates/test-toasty", "crates/callgrind-poc"]
 
 [workspace.dependencies]
 hotpath-macros = { path = "./crates/hotpath-macros", version = "0.28.6" }

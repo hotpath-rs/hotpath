@@ -1,0 +1,60 @@
+name: Callgrind POC
+
+on:
+  pull_request:
+    paths:
+      - "crates/callgrind-poc/**"
+      - ".github/workflows/callgrind-poc.yml"
+  workflow_dispatch:
+
+jobs:
+  measure:
+    name: callgrind runner ${{ matrix.job }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [1, 2, 3, 4, 5, 6, 7, 8]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install Valgrind
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq valgrind
+          valgrind --version
+      - name: Build
+        run: cargo build --release --manifest-path crates/callgrind-poc/Cargo.toml
+      - name: Run under Callgrind
+        env:
+          HOTPATH_OUTPUT_FORMAT: none
+          HOTPATH_REPORT: functions-timing
+          HOTPATH_METRICS_SERVER_OFF: "true"
+        run: |
+          grep -m1 "model name" /proc/cpuinfo
+          for i in 1 2 3; do
+            valgrind -q --tool=callgrind --callgrind-out-file=cg.$i \
+              crates/callgrind-poc/target/release/callgrind-poc > stdout.$i
+            callgrind_annotate --inclusive=yes --threshold=100 cg.$i > annotate.$i
+            python3 -I crates/callgrind-poc/extract.py annotate.$i stdout.$i ${{ matrix.job }} $i >> results-${{ matrix.job }}.jsonl
+          done
+          cat results-${{ matrix.job }}.jsonl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.job }}
+          path: results-${{ matrix.job }}.jsonl
+
+  compare:
+    needs: measure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: results-*
+          merge-multiple: true
+          path: results
+      - name: Compare runs
+        run: python3 -I crates/callgrind-poc/compare.py results/*.jsonl
