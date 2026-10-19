@@ -160,6 +160,11 @@ impl Precision {
             Precision::Exact => format_bytes_exact(bytes),
         }
     }
+
+    pub(crate) fn bytes_signed(self, bytes: i64) -> String {
+        let sign = if bytes < 0 { "-" } else { "" };
+        format!("{sign}{}", self.bytes(bytes.unsigned_abs()))
+    }
 }
 
 /// Formats an optional per-second rate to one decimal place, or `-` when absent.

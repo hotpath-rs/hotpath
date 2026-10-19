@@ -6,7 +6,6 @@ use time::OffsetDateTime;
 
 use crate::json::{
     ChannelLogs, DataFlowLogEntry, FutureLog, FutureLogsList, HttpLogs, SqlLogs, StreamLogs,
-    ThreadMetrics,
 };
 
 use crate::output::{format_bytes, format_duration, FunctionLog, FunctionLogsList, ProfilingMode};
@@ -934,23 +933,6 @@ pub struct JsonThreadEntry {
     pub dealloc_bytes: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub mem_diff: Option<String>,
-}
-
-impl From<&ThreadMetrics> for JsonThreadEntry {
-    fn from(metrics: &ThreadMetrics) -> Self {
-        JsonThreadEntry {
-            os_tid: metrics.os_tid,
-            name: metrics.name.clone(),
-            status: metrics.status.clone(),
-            status_code: metrics.status_code.clone(),
-            cpu_percent: metrics.cpu_percent.map(|p| format!("{:.1}%", p)),
-            cpu_percent_max: metrics.cpu_percent_max.map(|p| format!("{:.1}%", p)),
-            cpu_percent_avg: metrics.cpu_percent_avg.map(|p| format!("{:.1}%", p)),
-            alloc_bytes: metrics.alloc_bytes.map(format_bytes),
-            dealloc_bytes: metrics.dealloc_bytes.map(format_bytes),
-            mem_diff: metrics.mem_diff.map(format_bytes_signed),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
