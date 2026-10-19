@@ -61,3 +61,4 @@ To profile production safely, follow these guidelines:
 
 - **Run your test suite with profiling enabled.** Use `cargo test --features=hotpath` to confirm that your application behaves the same with instrumentation turned on.
 - **Don't instrument very short, very hot functions.** A function that runs in the low microseconds and is called millions of times contributes a large share of the total processing time, so even ~40 ns per call can add up. Instrument larger units of work instead, or use [time sampling](profiling_overhead.md#reducing-overhead-time-sampling) to reduce the cost.
+- **Review the metrics server.** By default, a profiled application exposes an HTTP metrics server on `localhost:6770`, which feeds the TUI console. Set `HOTPATH_METRICS_SERVER_OFF=true` to disable it, `HOTPATH_METRICS_PORT` to change the port, or `HOTPATH_METRICS_AUTH_TOKEN` to require a token on every request. See [Configuration](configuration.md) for all options.
