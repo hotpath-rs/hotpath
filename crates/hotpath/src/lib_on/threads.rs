@@ -21,8 +21,8 @@ mod collector;
 mod collector;
 
 pub(crate) use crate::json::ThreadMetrics;
-use crate::json::{format_bytes_signed, JsonThreadEntry, JsonThreadsList};
-use crate::output::{format_bytes, Precision};
+use crate::json::{JsonThreadEntry, JsonThreadsList};
+use crate::output::Precision;
 
 #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure(log = true))]
 pub(crate) fn thread_metrics_with_percentage(
@@ -360,9 +360,9 @@ pub(crate) fn get_threads_raw() -> Option<ThreadsRaw> {
     })
 }
 
-/// Get current thread metrics as JSON. `precision` applies to the process
-/// RSS fields, which the cloud diff reads back; per-thread cells stay in
-/// display form.
+/// Get current thread metrics as JSON. `precision` applies to the byte
+/// fields, process and per-thread, which the cloud diff reads back; CPU
+/// percentages stay in display form.
 #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure(log = true))]
 pub(crate) fn get_threads_json(precision: Precision) -> JsonThreadsList {
     let Some(raw) = get_threads_raw() else {
@@ -397,9 +397,9 @@ pub(crate) fn get_threads_json(precision: Precision) -> JsonThreadsList {
     let (total_alloc_bytes, total_dealloc_bytes, alloc_dealloc_diff) = if has_alloc_data {
         let diff = total_alloc as i64 - total_dealloc as i64;
         (
-            Some(format_bytes(total_alloc)),
-            Some(format_bytes(total_dealloc)),
-            Some(format_bytes_signed(diff)),
+            Some(precision.bytes(total_alloc)),
+            Some(precision.bytes(total_dealloc)),
+            Some(precision.bytes_signed(diff)),
         )
     } else {
         (None, None, None)
@@ -424,7 +424,7 @@ pub(crate) fn get_threads_json(precision: Precision) -> JsonThreadsList {
         sample_interval_ms: raw.sample_interval_ms,
         data: sorted_metrics
             .iter()
-            .map(|m| JsonThreadEntry::from(*m))
+            .map(|m| thread_entry(m, precision))
             .collect(),
         total_count: sorted_metrics.len(),
         included_count: sorted_metrics.len(),
@@ -434,5 +434,20 @@ pub(crate) fn get_threads_json(precision: Precision) -> JsonThreadsList {
         total_alloc_bytes,
         total_dealloc_bytes,
         alloc_dealloc_diff,
+    }
+}
+
+fn thread_entry(metrics: &ThreadMetrics, precision: Precision) -> JsonThreadEntry {
+    JsonThreadEntry {
+        os_tid: metrics.os_tid,
+        name: metrics.name.clone(),
+        status: metrics.status.clone(),
+        status_code: metrics.status_code.clone(),
+        cpu_percent: metrics.cpu_percent.map(|p| format!("{:.1}%", p)),
+        cpu_percent_max: metrics.cpu_percent_max.map(|p| format!("{:.1}%", p)),
+        cpu_percent_avg: metrics.cpu_percent_avg.map(|p| format!("{:.1}%", p)),
+        alloc_bytes: metrics.alloc_bytes.map(|b| precision.bytes(b)),
+        dealloc_bytes: metrics.dealloc_bytes.map(|b| precision.bytes(b)),
+        mem_diff: metrics.mem_diff.map(|b| precision.bytes_signed(b)),
     }
 }

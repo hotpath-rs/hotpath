@@ -40,6 +40,13 @@ mod tests {
         assert!(parse_duration(s).is_some(), "{what}: {s:?} does not parse");
     }
 
+    fn assert_exact_bytes(s: &str, what: &str) {
+        assert!(
+            s.ends_with(" B") && parse_bytes(s).is_some(),
+            "{what}: {s:?} is not an exact byte count"
+        );
+    }
+
     fn assert_display_duration(s: &str, what: &str) {
         let expected = match duration_shape(s) {
             ("ns", d) => d == 0,
@@ -116,11 +123,37 @@ mod tests {
         for (what, value) in [
             ("rss_bytes", &threads.rss_bytes),
             ("rss_bytes_max", &threads.rss_bytes_max),
+            ("total_alloc_bytes", &threads.total_alloc_bytes),
+            ("total_dealloc_bytes", &threads.total_dealloc_bytes),
         ] {
             let value = value.as_deref().unwrap_or_else(|| panic!("threads {what}"));
-            assert!(
-                value.ends_with(" B") && parse_bytes(value).is_some(),
-                "threads {what}: {value:?} is not an exact byte count"
+            assert_exact_bytes(value, &format!("threads {what}"));
+        }
+        let diff = threads
+            .alloc_dealloc_diff
+            .as_deref()
+            .expect("threads alloc_dealloc_diff");
+        assert_exact_bytes(diff.trim_start_matches('-'), "threads alloc_dealloc_diff");
+        let allocating: Vec<_> = threads
+            .data
+            .iter()
+            .filter(|t| t.alloc_bytes.is_some())
+            .collect();
+        assert!(!allocating.is_empty(), "no thread with alloc stats");
+        for thread in allocating {
+            for (what, value) in [
+                ("alloc_bytes", &thread.alloc_bytes),
+                ("dealloc_bytes", &thread.dealloc_bytes),
+            ] {
+                let value = value
+                    .as_deref()
+                    .unwrap_or_else(|| panic!("{} {what}", thread.name));
+                assert_exact_bytes(value, &format!("{} {what}", thread.name));
+            }
+            let mem_diff = thread.mem_diff.as_deref().expect("mem_diff");
+            assert_exact_bytes(
+                mem_diff.trim_start_matches('-'),
+                &format!("{} mem_diff", thread.name),
             );
         }
     }
