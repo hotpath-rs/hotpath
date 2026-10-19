@@ -27,3 +27,14 @@ judged = false
 min_percent_change = 50
 metrics = ["avg", "total"]
 min_calls = 10
+
+# Every thread of the run is named and does the same lockstep work each round,
+# so their allocations are as deterministic as the functions'.
+[threads]
+names = ["consumer", "producer-0", "producer-1", "producer-2", "producer-3", "throughput"]
+
+[threads.alloc]
+judged = true
+fail_check = true
+min_percent_change = 2
+metrics = ["total"]
