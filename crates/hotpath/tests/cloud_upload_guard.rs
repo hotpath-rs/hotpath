@@ -8,6 +8,7 @@ mod tests {
     //!
     //! cargo test --features hotpath --test cloud_upload_guard -- --nocapture --test-threads=1
 
+    use std::io::Read;
     use std::path::{Path, PathBuf};
     use std::process::Output;
 
@@ -19,6 +20,7 @@ mod tests {
     /// With a field this client does not know, which the response file keeps.
     const REGRESSED_BODY: &str = r#"{"id":"r1","new_field":{"z":1,"a":2},"repository":"hotpath-rs/hotpath","benchmark":"guard-test","baseline":"r0","comment":{"url":"https://github.com/c/1"},"verdict":{"judged":true,"regressed":true,"regressions":2,"improvements":0,"budgets_broken":1},"policy_path":"hotpath/policy.toml","policy_url":"https://github.com/hotpath-rs/hotpath/blob/3f1c000000000000000000000000000000000000/hotpath/policy.toml","dashboard_url":"https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/guard-test/reports/r1/diff"}"#;
 
+    /// The upload only matches as a gzipped JSON report.
     fn mock_server(status: usize, body: &str) -> (ServerGuard, mockito::Mock) {
         let mut server = Server::new();
         server
@@ -31,6 +33,15 @@ mod tests {
             .mock("POST", "/api/v1/reports")
             .match_query(Matcher::UrlEncoded("benchmark".into(), "guard-test".into()))
             .match_header("authorization", "Bearer oidc-token")
+            .match_header("content-encoding", "gzip")
+            .match_request(|req| {
+                let mut json = Vec::new();
+                req.body().is_ok_and(|body| {
+                    flate2::read::GzDecoder::new(&body[..])
+                        .read_to_end(&mut json)
+                        .is_ok()
+                }) && serde_json::from_slice::<JsonReport>(&json).is_ok()
+            })
             .with_status(status)
             .with_body(body)
             .create();
