@@ -300,6 +300,11 @@ jobs:
       - name: Run sql postgres tests
         run: |
           cargo test --features hotpath --test sql_pg -- --nocapture --test-threads=1
+      - name: Run sql seaorm tests
+        # sea-orm 2.0 has MSRV 1.94
+        if: matrix.rust != '1.89'
+        run: |
+          cargo test --features hotpath --test sql_seaorm -- --nocapture --test-threads=1
       - name: Run diesel tests
         run: |
           cargo test --features hotpath --test diesel -- --nocapture --test-threads=1

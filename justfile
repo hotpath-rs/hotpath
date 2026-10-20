@@ -48,6 +48,7 @@ test_all:
     cargo test --features hotpath --test server_axum_alloc -- --nocapture --test-threads=1
     cargo test --features hotpath --test sql_sqlite -- --nocapture --test-threads=1
     cargo test --features hotpath --test sql_pg -- --nocapture --test-threads=1
+    cargo test --features hotpath --test sql_seaorm -- --nocapture --test-threads=1
     cargo test --features hotpath --test diesel -- --nocapture --test-threads=1
     cargo test --features hotpath --test diesel_pg -- --nocapture --test-threads=1
     cargo test --features hotpath --test toasty_sqlite -- --nocapture --test-threads=1
