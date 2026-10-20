@@ -31,6 +31,7 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 
 - Label uniqueness: `__unique_label!` in `hotpath-macros/src/lib_on.rs`, tests in `tests/unique_labels.rs` and `tests/cdylib.rs`. Duplicates surface only at link time, not in `cargo check` or clippy. Symbols must stay plain C identifiers or cdylib links break.
 - `#[measure]` on a bare impl method needs `impl_type = "Type"` for `hotpath-cpu` attribution (see `architecture.md`).
+- `hotpath-callgrind` wraps each `#[measure]` body in a nested marker fn (sync body runs in a closure); `measure_block!` gets none.
 - `channel!` on bounded std `sync_channel` / `futures_channel::mpsc` needs `capacity = N`, otherwise it panics at runtime.
 - `channel!` / `stream!` / `io!`: `iter = true` grows profiler state with instance churn.
 - A new HTTP/SQL front-end must be added to the `cfg_if!` gates in `lib_on/caller_stack.rs` and `lib_on/functions.rs`, or the `Source` column stays empty.

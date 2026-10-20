@@ -927,6 +927,10 @@ impl HotpathGuard {
             crate::functions::cpu::autospawn::start();
         }
 
+        // Last, so guard setup is not counted.
+        #[cfg(feature = "hotpath-callgrind")]
+        crate::functions::callgrind::start_session();
+
         // Meta-internal sections (measurement transport, queue registration)
         // allocate while user-level tracking may be live; these hooks let the
         // meta profiler suspend our alloc tracking around them so those bytes
@@ -1013,9 +1017,32 @@ fn build_timing_list(
     }
 }
 
+#[cfg(feature = "hotpath-callgrind")]
+fn build_instructions_list(
+    report: &crate::functions::callgrind::InstructionsReport,
+    stats: &HashMap<u32, FunctionStats>,
+    config: &FunctionStatsConfig,
+    elapsed_ns: u64,
+) -> JsonFunctionsList {
+    let calls = stats
+        .values()
+        .filter(|s| !s.wrapper && s.has_data)
+        .map(|s| (s.name, (s.id, s.count)))
+        .collect();
+    crate::functions::callgrind::build_instructions_list(report, &calls, config, elapsed_ns)
+}
+
 impl Drop for HotpathGuard {
     fn drop(&mut self) {
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
+
+        // First, so nothing the drop does is counted.
+        #[cfg(feature = "hotpath-callgrind")]
+        let instructions_report = crate::functions::callgrind::finish_session();
+        #[cfg(feature = "hotpath-callgrind")]
+        let counting_instructions = instructions_report.is_some();
+        #[cfg(not(feature = "hotpath-callgrind"))]
+        let counting_instructions = false;
 
         #[cfg(feature = "hotpath-cpu")]
         let cpu_report: Option<Result<crate::functions::cpu::CpuReport, String>> = if self
@@ -1114,7 +1141,13 @@ impl Drop for HotpathGuard {
         let sections: Vec<Section> = match &self.sections_mode {
             SectionsMode::Explicit(list) => list.clone(),
             SectionsMode::Auto { include, exclude } => {
-                let mut base = vec![Section::FunctionsTiming];
+                // Durations under Valgrind are meaningless, so its run
+                // reports instructions in their place.
+                let mut base = vec![if counting_instructions {
+                    Section::FunctionsInstructions
+                } else {
+                    Section::FunctionsTiming
+                }];
                 #[cfg(feature = "hotpath-alloc")]
                 base.push(Section::FunctionsAlloc);
                 #[cfg(feature = "hotpath-cpu")]
@@ -1310,6 +1343,36 @@ impl Drop for HotpathGuard {
                                 report.functions_cpu = Some(crate::json::JsonFunctionsCpu::Error {
                                     message: msg.clone(),
                                 });
+                            }
+                            None => {}
+                        }
+                    }
+                    Section::FunctionsInstructions =>
+                    {
+                        #[cfg(feature = "hotpath-callgrind")]
+                        match instructions_report.as_ref() {
+                            Some(Ok(instructions)) => {
+                                if let (Some(stats), Ok(state_guard)) =
+                                    (functions_stats.as_ref(), state.read())
+                                {
+                                    let total_elapsed =
+                                        end_time.duration_since(state_guard.start_time);
+                                    let config = make_functions_config(
+                                        &state_guard,
+                                        total_elapsed,
+                                        limit_for,
+                                        cloud_report,
+                                    );
+                                    report.functions_instructions = Some(build_instructions_list(
+                                        instructions,
+                                        stats,
+                                        &config,
+                                        total_elapsed.as_nanos() as u64,
+                                    ));
+                                }
+                            }
+                            Some(Err(msg)) => {
+                                eprintln!("[hotpath] instructions report unavailable: {msg}");
                             }
                             None => {}
                         }
@@ -1565,6 +1628,55 @@ impl Drop for HotpathGuard {
                                     );
                                 }
                                 None => {}
+                            }
+                        }
+                    }
+                    Section::FunctionsInstructions =>
+                    {
+                        #[cfg(feature = "hotpath-callgrind")]
+                        if matches!(format, Format::Table) {
+                            match instructions_report.as_ref() {
+                                Some(Ok(instructions)) => {
+                                    if let (Some(stats), Ok(state_guard)) =
+                                        (functions_stats.as_ref(), state.read())
+                                    {
+                                        let total_elapsed =
+                                            end_time.duration_since(state_guard.start_time);
+                                        let config = make_functions_config(
+                                            &state_guard,
+                                            total_elapsed,
+                                            |limit| limit,
+                                            false,
+                                        );
+                                        let list = build_instructions_list(
+                                            instructions,
+                                            stats,
+                                            &config,
+                                            total_elapsed.as_nanos() as u64,
+                                        );
+                                        if list.data.is_empty() {
+                                            display_no_measurements_message_to(
+                                                &mut writer,
+                                                total_elapsed,
+                                                state_guard.caller_name,
+                                            );
+                                        } else {
+                                            display_functions_table_to(&mut writer, &list);
+                                        }
+                                    }
+                                }
+                                Some(Err(msg)) => {
+                                    let _ = writeln!(
+                                        writer,
+                                        "instructions - report unavailable: {msg}\n"
+                                    );
+                                }
+                                None => {
+                                    let _ = writeln!(
+                                        writer,
+                                        "instructions - not running under valgrind --tool=callgrind\n"
+                                    );
+                                }
                             }
                         }
                     }

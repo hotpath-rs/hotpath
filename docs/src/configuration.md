@@ -8,7 +8,7 @@
 |----------|-------------|
 | `HOTPATH_OUTPUT_FORMAT` | Output format: `table`, `json`, `json-pretty`, or `none`. Using `none` silences output while keeping the metrics server and MCP server active. (default: `table`) |
 | `HOTPATH_OUTPUT_PATH` | Filesystem path for profiling reports. If unset, reports are written to `stdout`. When set, this env var takes precedence over programmatic `output_path` config. On Unix, use `/dev/stdout` or `/dev/stderr` to redirect to the standard streams. |
-| `HOTPATH_REPORT` | Report sections spec: `all`, `auto`, an exact comma-separated list (`functions-timing`, `functions-alloc`, `functions-cpu`, `channels`, `streams`, `futures`, `rw_locks`, `mutexes`, `sql`, `http`, `server`, `io`, `threads`, `debug`), or auto with exclusions like `auto,-threads` / `-threads`. (default: `auto` - function and thread sections plus every instrumented section with data) |
+| `HOTPATH_REPORT` | Report sections spec: `all`, `auto`, an exact comma-separated list (`functions-timing`, `functions-alloc`, `functions-cpu`, `functions-instructions`, `channels`, `streams`, `futures`, `rw_locks`, `mutexes`, `sql`, `http`, `server`, `io`, `threads`, `debug`), or auto with exclusions like `auto,-threads` / `-threads`. (default: `auto` - function and thread sections plus every instrumented section with data) |
 | `HOTPATH_REPORT_LABEL` | Free-form name for the run, written as the top-level `label` field of the JSON report. Ignored when empty. (default: unset) |
 | `HOTPATH_DISABLE_HINTS` | Set to `1` or `true` to hide the hint line printed at the end of the table report. (default: unset) |
 | `HOTPATH_USER_METADATA` | Comma-separated `key=value` pairs attached to the report, e.g. `commit=abc123,env=ci`. Rendered as a `user_metadata` table under the report header and as a top-level `user_metadata` object in JSON output. Values are split on the first `=`, so they may contain `=` but not `,`; keys must be unique and non-empty, otherwise the guard panics at startup. Merged on top of `HotpathGuardBuilder::user_metadata`, env values win per key. |
@@ -62,6 +62,12 @@ Measure durations for only a fraction of calls to reduce profiling overhead in e
 | `HOTPATH_CPU_INCLUSIVE` | Set to `true` or `1` to credit each CPU sample to every instrumented function on its stack (inclusive) instead of only the innermost one (exclusive). (default: `false`) |
 | `HOTPATH_SAMPLY_WRAPPER_BIN` | Path to the `hotpath-samply` wrapper binary that autospawn launches under the `hotpath-cpu` feature. (default: `hotpath-samply`, resolved via `PATH`) |
 | `HOTPATH_SAMPLY_BIN` | Path to the external `samply` binary used by the `hotpath-samply` worker. (default: `samply`, resolved via `PATH`) |
+
+## Instruction Counts
+
+| Variable | Description |
+|----------|-------------|
+| `HOTPATH_CALLGRIND_OUT_FILE` | The `--callgrind-out-file` value Valgrind was started with, under the `hotpath-callgrind` feature; `%p` and `%q{VAR}` are expanded like Valgrind does. (default: `callgrind.out.%p`) |
 
 ## Metrics Server
 

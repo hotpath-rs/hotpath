@@ -16,7 +16,7 @@ pub enum MetricDiff {
     CallsCount(u64, u64),  // (before, after)
     DurationNs(u64, u64),  // (before, after) - Duration in nanoseconds
     AllocBytes(u64, u64),  // (before, after) - Bytes allocated
-    AllocCount(u64, u64),  // (before, after) - Allocation count
+    Count(u64, u64),       // (before, after) - Allocation or instruction count
     AllocSigned(i64, i64), // (before, after) - Signed bytes
     Percentage(u64, u64),  // (before, after)
 }
@@ -56,7 +56,7 @@ impl MetricDiff {
                     emoji
                 )
             }
-            MetricDiff::AllocCount(before, after) => {
+            MetricDiff::Count(before, after) => {
                 let diff_percent = calculate_percentage_diff(*before, *after);
                 let emoji = get_emoji_for_diff(diff_percent, emoji_threshold);
                 format!(
@@ -246,7 +246,7 @@ fn find_function<'a>(data: &'a [JsonFunctionEntry], name: &str) -> Option<&'a Js
 fn parse_metric(s: &str, mode: &hotpath::ProfilingMode) -> Option<u64> {
     use hotpath::ProfilingMode;
     match mode {
-        ProfilingMode::AllocCount => parse_count(s),
+        ProfilingMode::AllocCount | ProfilingMode::Instructions => parse_count(s),
         ProfilingMode::AllocBytes => parse_bytes(s),
         ProfilingMode::Timing => parse_duration(s),
     }
@@ -263,7 +263,7 @@ enum MetricKind {
     Calls,
     Duration,
     Alloc,
-    AllocCount,
+    Count,
     Percentage,
 }
 
@@ -276,7 +276,7 @@ fn build_metrics_from_function(
 
     let mut metrics = Vec::new();
     let kind = match mode {
-        ProfilingMode::AllocCount => MetricKind::AllocCount,
+        ProfilingMode::AllocCount | ProfilingMode::Instructions => MetricKind::Count,
         ProfilingMode::AllocBytes => MetricKind::Alloc,
         ProfilingMode::Timing => MetricKind::Duration,
     };
@@ -321,7 +321,7 @@ pub fn compare_metrics(
             MetricKind::Calls => MetricDiff::CallsCount(before_val, after_val),
             MetricKind::Duration => MetricDiff::DurationNs(before_val, after_val),
             MetricKind::Alloc => MetricDiff::AllocBytes(before_val, after_val),
-            MetricKind::AllocCount => MetricDiff::AllocCount(before_val, after_val),
+            MetricKind::Count => MetricDiff::Count(before_val, after_val),
             MetricKind::Percentage => MetricDiff::Percentage(before_val, after_val),
         }
     };
@@ -713,6 +713,7 @@ mod test {
             percentiles: vec![95.0],
             included_count: count,
             total_count: count,
+            tool: None,
             data,
         }
     }
@@ -756,6 +757,7 @@ mod test {
             percentiles: vec![95.0],
             included_count: count,
             total_count: count,
+            tool: None,
             data,
         }
     }

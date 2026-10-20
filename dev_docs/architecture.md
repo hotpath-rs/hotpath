@@ -16,6 +16,17 @@ Each subsystem spawns a worker thread named `hp-<subsystem>` from its `lib_on/<s
 
 `lib_on/tokio_runtime.rs`. Some metrics need `RUSTFLAGS="--cfg tokio_unstable"`.
 
+## Instruction counts (`hotpath-callgrind`, x86_64 Linux)
+
+- `lib_on/functions/callgrind.rs` - marker registry, session start/finish, report section.
+- `lib_on/functions/callgrind/request.rs` - Valgrind client requests (`asm!`).
+- `lib_on/functions/callgrind/parser.rs` - Callgrind dump parsing, fixture in `callgrind/fixtures/`.
+- Markers are emitted in `measure_impl` (`hotpath-macros/src/lib_on.rs`).
+
+Gotchas:
+- A client-request dump is `<out-file>.<n>`, not the bare out file (that one is the exit dump).
+- Markers need a per-site constant in their body, or LLVM merges identical ones into one symbol.
+
 ## CPU sampling (`hotpath-cpu`, macOS and Linux)
 
 - `bin/hotpath-samply/main.rs` - wrapper child that runs `samply record --pid <host>`.

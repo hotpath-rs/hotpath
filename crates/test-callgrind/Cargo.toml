@@ -1,0 +1,15 @@
+[package]
+name = "test-callgrind"
+version = "0.0.0"
+publish = false
+edition = "2021"
+description = "Tests for per-function instruction counts via the hotpath-callgrind feature."
+
+[dependencies]
+hotpath = { workspace = true }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
+
+[features]
+hotpath = ["hotpath/hotpath"]
+hotpath-alloc = ["hotpath/hotpath-alloc"]
+hotpath-callgrind = ["hotpath/hotpath-callgrind"]

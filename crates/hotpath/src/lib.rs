@@ -16,6 +16,9 @@ compile_error!("the `hotpath-alloc` feature requires the `hotpath` feature");
 #[cfg(all(feature = "hotpath-cpu", not(feature = "hotpath")))]
 compile_error!("the `hotpath-cpu` feature requires the `hotpath` feature");
 
+#[cfg(all(feature = "hotpath-callgrind", not(feature = "hotpath")))]
+compile_error!("the `hotpath-callgrind` feature requires the `hotpath` feature");
+
 #[cfg(all(feature = "hotpath-prometheus", not(feature = "hotpath")))]
 compile_error!("the `hotpath-prometheus` feature requires the `hotpath` feature");
 

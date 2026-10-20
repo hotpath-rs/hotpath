@@ -4556,6 +4556,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-callgrind"
+version = "0.0.0"
+dependencies = [
+ "hotpath",
+ "tokio",
+]
+
+[[package]]
 name = "test-cdylib"
 version = "0.0.0"
 dependencies = [
