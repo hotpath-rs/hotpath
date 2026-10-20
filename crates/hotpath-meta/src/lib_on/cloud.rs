@@ -300,17 +300,29 @@ pub(crate) fn mint_token(request_url: &str, request_token: &str) -> Result<Strin
     Ok(token.value)
 }
 
+/// Sends the JSON `body` gzipped under `Content-Encoding: gzip`; the server
+/// caps and meters the decompressed size.
 pub(crate) fn post_report(base_url: &str, token: &str, benchmark: &str, body: &[u8]) -> Outcome {
     let url = format!(
         "{base_url}/api/v1/reports?benchmark={}",
         url_encode(benchmark)
     );
+    let body = match gzip(body) {
+        Ok(body) => body,
+        Err(e) => {
+            return Outcome::Failed {
+                message: format!("failed to compress report: {e}"),
+                body: None,
+            }
+        }
+    };
     let mut resp = match agent(UPLOAD_TIMEOUT)
         .post(&url)
         .header("Authorization", &format!("Bearer {token}"))
         .header("Content-Type", "application/json")
+        .header("Content-Encoding", "gzip")
         .header("X-Hotpath-Version", env!("CARGO_PKG_VERSION"))
-        .send(body)
+        .send(&body[..])
     {
         Ok(resp) => resp,
         Err(e) => {
@@ -328,6 +340,12 @@ pub(crate) fn post_report(base_url: &str, token: &str, benchmark: &str, body: &[
         .map(str::to_string);
     let body = read_body(&mut resp);
     interpret(status, request_id, body)
+}
+
+fn gzip(body: &[u8]) -> std::io::Result<Vec<u8>> {
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(body)?;
+    encoder.finish()
 }
 
 /// A 201 (or the 200 of an already stored run) parses as `UploadCreated`,

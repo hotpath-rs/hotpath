@@ -32,7 +32,7 @@ hotpath-meta = [
   "dep:libc",
 ]
 hotpath-alloc-meta = []
-hotpath-cloud-meta = ["dep:ureq", "ureq/rustls", "ureq/json"]
+hotpath-cloud-meta = ["dep:ureq", "ureq/rustls", "ureq/json", "dep:flate2"]
 hotpath-cpu-meta = ["dep:object", "dep:rustc-demangle", "dep:flate2"]
 tui = ["json", "dep:eyre", "dep:clap", "dep:reqwest", "reqwest/json", "reqwest/rustls", "dep:crossterm", "dep:ratatui", "dep:crossbeam-channel", "dep:tokio", "tokio/rt", "crossbeam", "dep:futures-util"]
 tokio = ["dep:tokio", "tokio/sync", "tokio/macros", "tokio/rt-multi-thread", "tokio/time"]
