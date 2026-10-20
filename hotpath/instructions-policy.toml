@@ -1,0 +1,14 @@
+# Policy for the `instructions` benchmark: test-callgrind's `benchmark` example
+# run under Valgrind Callgrind. Instruction counts are exact, so a small bar
+# catches real changes; there is no timing section in a Callgrind run.
+
+pr_check = "report"
+
+[functions]
+min_percent_total = 0.5
+
+[functions.instructions]
+judged = true
+min_percent_change = 1
+metrics = ["avg", "total"]
+min_calls = 0
