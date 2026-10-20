@@ -49,7 +49,7 @@ Callgrind writes its counts to `callgrind.out.<pid>` files in the working direct
 - **Async functions** count the instructions executed while their body is polled. Work in tasks spawned with `tokio::spawn` runs elsewhere and is not part of the caller's count.
 - **Calls** come from hotpath's own counters, `Avg` is total divided by calls.
 - `% Total` is relative to all instructions the program executed between guard creation and drop.
-- `measure_block!` blocks are not counted, nor are measured functions that a `macro_rules!` generates from one source position (a warning names them).
+- `measure_block!` blocks are not counted, nor are measured functions that a `macro_rules!` generates from one source position (a warning names them), nor sync `#[track_caller]` functions (counting them would break `Location::caller()`).
 
 Counts are exact for deterministic code. Randomized hashing (`HashMap` with the default `RandomState`) and contended multi-threaded code vary slightly between runs.
 

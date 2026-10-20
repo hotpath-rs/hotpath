@@ -1036,14 +1036,6 @@ impl Drop for HotpathGuard {
     fn drop(&mut self) {
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
 
-        // First, so nothing the drop does is counted.
-        #[cfg(feature = "hotpath-callgrind")]
-        let instructions_report = crate::functions::callgrind::finish_session();
-        #[cfg(feature = "hotpath-callgrind")]
-        let counting_instructions = instructions_report.is_some();
-        #[cfg(not(feature = "hotpath-callgrind"))]
-        let counting_instructions = false;
-
         #[cfg(feature = "hotpath-cpu")]
         let cpu_report: Option<Result<crate::functions::cpu::CpuReport, String>> = if self
             .sections_mode
@@ -1091,6 +1083,15 @@ impl Drop for HotpathGuard {
         if let Some(f) = self.before_shutdown.take() {
             f();
         }
+
+        // After the callback (its measured calls are counted), before any
+        // report building.
+        #[cfg(feature = "hotpath-callgrind")]
+        let instructions_report = crate::functions::callgrind::finish_session();
+        #[cfg(feature = "hotpath-callgrind")]
+        let counting_instructions = instructions_report.is_some();
+        #[cfg(not(feature = "hotpath-callgrind"))]
+        let counting_instructions = false;
 
         let wrapper_guard = self.wrapper_guard.take().unwrap();
         drop(wrapper_guard);

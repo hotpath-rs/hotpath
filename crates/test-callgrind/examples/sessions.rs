@@ -1,6 +1,7 @@
 //! Two profiling sessions in one process, run sequentially: under Callgrind
 //! each session's guard writes its own dump, so the second report counts
-//! only the second session's calls. Reports go to the paths given as args.
+//! only the second session's calls, including one made from its
+//! `before_shutdown` callback. Reports go to the paths given as args.
 //!
 //! Run with:
 //!   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" cargo run --release -p test-callgrind --example sessions --features hotpath,hotpath-callgrind -- first.json second.json
@@ -21,11 +22,16 @@ fn work() -> u64 {
     spin(100_000)
 }
 
-fn session(output_path: &str, calls: usize) {
-    let _guard = hotpath::HotpathGuardBuilder::new("session")
+fn session(output_path: &str, calls: usize, call_on_shutdown: bool) {
+    let mut builder = hotpath::HotpathGuardBuilder::new("session")
         .format(hotpath::Format::Json)
-        .output_path(output_path)
-        .build();
+        .output_path(output_path);
+    if call_on_shutdown {
+        builder = builder.before_shutdown(|| {
+            black_box(work());
+        });
+    }
+    let _guard = builder.build();
     for _ in 0..calls {
         black_box(work());
     }
@@ -33,6 +39,6 @@ fn session(output_path: &str, calls: usize) {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    session(&args[0], 1);
-    session(&args[1], 3);
+    session(&args[0], 1, false);
+    session(&args[1], 3, true);
 }

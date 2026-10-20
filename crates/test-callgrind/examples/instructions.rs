@@ -1,7 +1,8 @@
 //! Per-function instruction counts under Callgrind for every shape the
 //! measure macros wrap: free, generic, inherent, trait and recursive
 //! functions, `measure_all` modules, `label` and `log = true` variants,
-//! functions a `macro_rules!` generates (excluded), and async functions polled
+//! functions a `macro_rules!` generates and `#[track_caller]` ones (both
+//! excluded), and async functions polled
 //! on current-thread, multi-thread and spawned tokio tasks. Each measured
 //! body runs `spin`, so expected counts are multiples of one `spin(N)`.
 //!
@@ -121,6 +122,13 @@ mod nested {
     }
 }
 
+// Keeps its caller propagation, so it gets no instruction count.
+#[hotpath::measure]
+#[track_caller]
+fn caller_line() -> u32 {
+    std::panic::Location::caller().line()
+}
+
 #[hotpath::main]
 fn main() {
     let mut total = 0u64;
@@ -135,6 +143,7 @@ fn main() {
     total = total.wrapping_add(beta::generated());
     total = total.wrapping_add(nested::first());
     total = total.wrapping_add(nested::second());
+    assert_eq!(caller_line(), line!(), "#[track_caller] must propagate");
 
     let mut worker = Worker { values: vec![1] };
     total = total.wrapping_add(worker.inherent());
