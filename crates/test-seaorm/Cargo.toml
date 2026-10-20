@@ -1,0 +1,15 @@
+[package]
+name = "test-seaorm"
+version = "0.0.0"
+publish = false
+edition = "2021"
+description = "Tests for SeaORM SQL query instrumentation via the sqlx tracing layer."
+
+[dependencies]
+hotpath = { workspace = true, features = ["sqlx"] }
+sea-orm = { version = "2.0.4", default-features = false, features = ["macros", "sqlx-sqlite", "runtime-tokio"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tracing-subscriber = { version = "0.3", features = ["registry"] }
+
+[features]
+hotpath = ["hotpath/hotpath"]

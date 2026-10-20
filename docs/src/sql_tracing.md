@@ -1,10 +1,10 @@
-# Rust SQL Performance Profiling for sqlx, Diesel and Toasty
+# Rust SQL Performance Profiling for sqlx, SeaORM, Diesel and Toasty
 
 <img loading="lazy" src="{{#asset-hash images/sql-report.png}}" alt="hotpath-rs terminal SQL report table showing normalized queries with source function attribution, call counts, average, P95, total, and percent-of-total execution time">
 
 `hotpath` profiles SQL queries in Rust applications, helping you identify slow statements, repetitive query patterns, and unexpected database activity. Queries are grouped by their normalized SQL text, so parameterized executions of the same statement are reported together. For example, 1,000 executions of `SELECT * FROM users WHERE id = ?` appear as a single entry with call count, average latency, percentiles, and total execution time.
 
-The same profiling backend powers sqlx, Diesel, and the Toasty ORM, with more integrations coming soon. Instrumentation is inactive unless the `hotpath` feature is enabled.
+The same profiling backend powers sqlx (and SeaORM, which runs on top of it), Diesel, and the Toasty ORM, with more integrations coming soon. Instrumentation is inactive unless the `hotpath` feature is enabled.
 
 ## Normalizing SQL queries 
 
@@ -59,6 +59,12 @@ That's it - every query executed through any `sqlx` pool or connection is now pr
 ### EnvFilter caveat
 
 A *global* `EnvFilter` (`registry().with(env_filter)`) runs before the hotpath layer's own filter and can suppress the `sqlx::query` events for the whole stack, emptying the SQL report. Attach any `EnvFilter` **per-layer** instead, or make sure you don't globally filter out the `sqlx::query` target.
+
+### SeaORM
+
+[SeaORM](https://www.sea-ql.org/SeaORM/) executes every statement through a `sqlx` pool, so the same `sqlx` feature and `hotpath::sqlx_tracing_layer()` profile it with no extra setup. Queries generated from entities (`insert`, `find_by_id`, `filter`, `count`), raw `Statement`s, and transaction-internal queries are all captured.
+
+SeaORM forwards its `sqlx_logging` connect option to sqlx, so keep it enabled (the default). Connecting with `ConnectOptions::sqlx_logging(false)` turns off the `sqlx::query` events and the SQL report stays empty.
 
 ## Profiling Diesel queries with Instrumentation
 

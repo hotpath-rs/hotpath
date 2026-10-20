@@ -28,6 +28,7 @@ members = [
     "crates/test-ureq",
     "crates/test-axum",
     "crates/test-diesel",
+    "crates/test-seaorm",
     "crates/test-channels-tokio",
     "crates/test-futures",
     "crates/test-io",
