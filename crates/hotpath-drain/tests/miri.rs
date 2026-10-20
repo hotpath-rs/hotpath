@@ -72,3 +72,87 @@ fn push_sweep_drain_across_threads() {
     let expected: Vec<u64> = (0..TOTAL).collect();
     assert_eq!(values, expected);
 }
+
+/// Wrap-around: the producer fills the ring several times over while the
+/// consumer keeps up, so chunks are reused rather than allocated, and the
+/// events still arrive complete and in per-producer order.
+#[test]
+fn ring_reuses_chunks_across_laps() {
+    static REG: EventQueueRegistry<Box<u64>> = EventQueueRegistry::new();
+    const LAPS: u64 = 4;
+    const PER_LAP: u64 = CHUNK_SIZE as u64 * 3;
+
+    REG.set_active(true);
+    let producer = REG.register();
+    let mut out = Vec::new();
+    let mut all = Vec::new();
+    for lap in 0..LAPS {
+        for i in 0..PER_LAP {
+            producer.push(Box::new(lap * PER_LAP + i));
+        }
+        // Consumer takes everything, resetting the chunks for the next lap.
+        REG.sweep(&mut out);
+        all.extend(out.drain(..).map(|b| *b));
+    }
+    drop(producer);
+    REG.set_active(false);
+    REG.drain_all(&mut out);
+    all.extend(out.drain(..).map(|b| *b));
+    let expected: Vec<u64> = (0..LAPS * PER_LAP).collect();
+    assert_eq!(all, expected);
+}
+
+/// Growth: with no consumer sweeping, every chunk stays live and the ring
+/// must grow; the final drain then returns everything in order.
+#[test]
+fn ring_grows_when_consumer_is_behind() {
+    static REG: EventQueueRegistry<Box<u64>> = EventQueueRegistry::new();
+    const TOTAL: u64 = CHUNK_SIZE as u64 * 5 + 7;
+
+    REG.set_active(true);
+    let producer = REG.register();
+    for i in 0..TOTAL {
+        producer.push(Box::new(i));
+    }
+    let mut out = Vec::new();
+    REG.sweep(&mut out);
+    let got: Vec<u64> = out.iter().map(|b| **b).collect();
+    assert_eq!(got, (0..TOTAL).collect::<Vec<_>>());
+
+    // Second burst reuses the grown ring, partially interleaved with sweeps.
+    out.clear();
+    for i in 0..TOTAL {
+        producer.push(Box::new(i));
+        if i % 100 == 0 {
+            REG.sweep(&mut out);
+        }
+    }
+    drop(producer);
+    REG.set_active(false);
+    REG.drain_all(&mut out);
+    let got: Vec<u64> = out.iter().map(|b| **b).collect();
+    assert_eq!(got, (0..TOTAL).collect::<Vec<_>>());
+}
+
+/// Drop: a queue with several live chunks of unconsumed events plus free
+/// chunks in the ring is dropped; miri checks every `Box` is freed exactly
+/// once and nothing leaks.
+#[test]
+fn unconsumed_events_dropped_with_ring() {
+    let registry = EventQueueRegistry::<Box<u64>>::new();
+    let producer = registry.register();
+    let mut out = Vec::new();
+    // Grow the ring to a few chunks, then free them all.
+    for i in 0..(CHUNK_SIZE as u64 * 3) {
+        producer.push(Box::new(i));
+    }
+    registry.sweep(&mut out);
+    assert_eq!(out.len(), CHUNK_SIZE * 3);
+    out.clear();
+    // Leave two and a half chunks unconsumed, spanning reused chunks.
+    for i in 0..(CHUNK_SIZE as u64 * 2 + CHUNK_SIZE as u64 / 2) {
+        producer.push(Box::new(i));
+    }
+    drop(producer);
+    drop(registry);
+}
