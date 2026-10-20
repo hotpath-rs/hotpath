@@ -9,6 +9,7 @@
 //!   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" cargo run --release -p test-callgrind --example benchmark --features hotpath,hotpath-callgrind
 
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::hash::{BuildHasherDefault, DefaultHasher};
 
 const RECORDS: usize = 20_000;
@@ -44,7 +45,7 @@ fn generate_records(count: usize) -> Vec<Record> {
 fn render_csv(records: &[Record]) -> String {
     let mut out = String::with_capacity(records.len() * 24);
     for r in records {
-        out.push_str(&format!("{},{},{}\n", r.id, r.key, r.value));
+        let _ = writeln!(out, "{},{},{}", r.id, r.key, r.value);
     }
     out
 }
@@ -69,10 +70,10 @@ fn sort_records(records: &mut [Record]) {
 }
 
 #[hotpath::measure]
-fn aggregate(records: &[Record]) -> FixedMap<&str, (u64, u64)> {
-    let mut totals: FixedMap<&str, (u64, u64)> = FixedMap::default();
+fn aggregate(records: &[Record]) -> FixedMap<String, (u64, u64)> {
+    let mut totals: FixedMap<String, (u64, u64)> = FixedMap::default();
     for r in records {
-        let entry = totals.entry(r.key.as_str()).or_insert((0, 0));
+        let entry = totals.entry(r.key.clone()).or_insert((0, 0));
         entry.0 += 1;
         entry.1 += r.value;
     }
