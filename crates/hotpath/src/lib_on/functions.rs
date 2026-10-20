@@ -14,6 +14,11 @@ use crate::output::FunctionLogsList;
 #[cfg(feature = "hotpath-cpu")]
 pub(crate) mod cpu;
 
+#[cfg(feature = "hotpath-callgrind")]
+pub(crate) mod callgrind;
+#[cfg(feature = "hotpath-callgrind")]
+pub use callgrind::{register_callgrind_marker, CallgrindFuture};
+
 pub(crate) mod allocator;
 
 cfg_if::cfg_if! {

@@ -1,0 +1,90 @@
+# callgrind format
+version: 1
+creator: callgrind-3.24.0
+pid: 8
+cmd:  /target/release/examples/instructions
+part: 1
+
+
+desc: I1 cache: 
+desc: D1 cache: 
+desc: LL cache: 
+
+desc: Timerange: Basic block 0 - 7198037
+desc: Trigger: Client Request: hotpath-8-1
+
+positions: line
+events: Ir
+summary: 40101841
+
+
+
+fn=(1552) <hotpath::lib_on::futures::wrapper::InstrumentedFuture<hotpath::lib_on::functions::callgrind::CallgrindFuture<instructions::tracked_future::{closure#0}::{closure#2}, instructions::tracked_future::{closure#0}::__hotpath_cg_9624c3670a93e126<instructions::tracked_future::{closure#0}::{closure#2}>>> as core::future::future::Future>::poll
+cfn=(1554) instructions::tracked_future::{closure#0}::__hotpath_cg_9624c3670a93e126::<instructions::tracked_future::{closure#0}::{closure#2}>
+calls=1 0 
+0 1800021
+
+fn=(1208) instructions::free_fn
+cfn=(1226) instructions::free_fn::__hotpath_cg_189c9d1f4fb56614::<u64, instructions::free_fn::{closure#2}>
+calls=2 0 
+0 3600024
+
+fn=(1246) instructions::recursive
+cfn=(1252) instructions::recursive::__hotpath_cg_c5edf7c7a9c739da::<u64, instructions::recursive::{closure#2}>
+calls=1 0 
+0 7201112
+
+fn=(1247) instructions::recursive'2
+cfn=(1253) instructions::recursive::__hotpath_cg_c5edf7c7a9c739da::<u64, instructions::recursive::{closure#2}>'2
+calls=3 0 
+0 10801146
+
+fn=(1382) instructions::async_fn::{closure#0}
+cfn=(1390) instructions::async_fn::{closure#0}::__hotpath_cg_ecb39ecd98d0fc28::<instructions::async_fn::{closure#0}::{closure#2}>
+calls=1 0 
+0 1800390
+cfn=(1390)
+calls=4 0 
+0 5400389
+cfn=(1390)
+calls=1 0 
+0 1800406
+cfn=(1390)
+calls=4 0 
+0 5400410
+
+fn=(896) instructions::main
+cfn=(1244) instructions::generic_fn::__hotpath_cg_fdfe56723f88fc60::<u64, instructions::generic_fn<u32>::{closure#2}>
+calls=1 0 
+0 1800012
+cfn=(1244)
+calls=1 0 
+0 1800012
+cfn=(1264) instructions::labeled_fn::__hotpath_cg_ab2649e9e6013710::<u64, instructions::labeled_fn::{closure#3}>
+calls=1 0 
+0 1800012
+cfn=(1274) instructions::logged_fn::__hotpath_cg_77d1f822c0830eed::<u64, instructions::logged_fn::{closure#2}::{closure#0}>
+calls=1 0 
+0 1800012
+cfn=(1296) <instructions::Worker>::inherent::__hotpath_cg_8c1f1ae4ff049387::<u64, <instructions::Worker>::inherent::{closure#2}>
+calls=1 0 
+0 1800012
+cfn=(1302) <instructions::Worker as instructions::Job>::run::__hotpath_cg_0a43f54bf9e4444b::<u64, <instructions::Worker as instructions::Job>::run::{closure#2}>
+calls=1 0 
+0 1800012
+cfn=(1308) <instructions::Worker>::first_mut::__hotpath_cg_3c585534bb08202f::<&mut u64, <instructions::Worker>::first_mut::{closure#2}>
+calls=1 0 
+0 1800021
+
+fn=(1490) <tokio::runtime::park::CachedParkThread>::block_on::<instructions::main::{closure#1}>
+cfn=(1534) <hotpath::lib_on::futures::wrapper::InstrumentedFuture<hotpath::lib_on::functions::callgrind::CallgrindFuture<instructions::tracked_future::{closure#0}::{closure#2}, instructions::tracked_future::{closure#0}::__hotpath_cg_9624c3670a93e126<instructions::tracked_future::{closure#0}::{closure#2}>>>>::new
+calls=1 0 
+0 2148
+cfn=(1552)
+calls=1 0 
+0 1800273
+cfn=(1556) core::ptr::drop_glue::<hotpath::lib_on::functions::measure_async_future<u64, hotpath::lib_on::functions::callgrind::CallgrindFuture<instructions::tracked_future::{closure#0}::{closure#2}, instructions::tracked_future::{closure#0}::__hotpath_cg_9624c3670a93e126<instructions::tracked_future::{closure#0}::{closure#2}>>>::{closure#0}>
+calls=1 0 
+0 17
+
+totals: 40101943

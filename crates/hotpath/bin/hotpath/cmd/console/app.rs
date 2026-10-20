@@ -388,6 +388,7 @@ impl App {
             data: Vec::new(),
             included_count: 0,
             total_count: 0,
+            tool: None,
         };
 
         Self {
