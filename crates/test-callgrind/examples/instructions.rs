@@ -122,10 +122,16 @@ mod nested {
     }
 }
 
-// Keeps its caller propagation, so it gets no instruction count.
+// Keep their caller propagation, so they get no instruction count.
 #[hotpath::measure]
 #[track_caller]
 fn caller_line() -> u32 {
+    std::panic::Location::caller().line()
+}
+
+#[hotpath::measure]
+#[cfg_attr(all(), track_caller)]
+fn conditional_caller_line() -> u32 {
     std::panic::Location::caller().line()
 }
 
@@ -144,6 +150,11 @@ fn main() {
     total = total.wrapping_add(nested::first());
     total = total.wrapping_add(nested::second());
     assert_eq!(caller_line(), line!(), "#[track_caller] must propagate");
+    let (conditional_line, line) = (conditional_caller_line(), line!());
+    assert_eq!(
+        conditional_line, line,
+        "cfg_attr track_caller must propagate"
+    );
 
     let mut worker = Worker { values: vec![1] };
     total = total.wrapping_add(worker.inherent());
