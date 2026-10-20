@@ -12,6 +12,8 @@ use crate::instant::Instant;
 
 pub(crate) mod wrapper;
 
+use crate::channels::wrapper::WrapChannel;
+
 use std::mem;
 
 use crate::batch::{EventProducer, EventQueueRegistry};
@@ -841,6 +843,19 @@ pub trait InstrumentChannelWrap {
     ) -> Self::Output;
 }
 
+impl<C: WrapChannel> InstrumentChannelWrap for C {
+    type Output = C::Output;
+    fn instrument_wrap(
+        self,
+        source: &'static str,
+        label: Option<String>,
+        capacity: Option<usize>,
+        iter: bool,
+    ) -> Self::Output {
+        self.wrap(source, label, capacity, None, iter)
+    }
+}
+
 /// Trait for instrumenting channels by wrapping their endpoints, with message logging.
 ///
 /// This trait is not intended for direct use. Use the `channel!` macro with
@@ -859,6 +874,23 @@ pub trait InstrumentChannelWrapLog {
         capacity: Option<usize>,
         iter: bool,
     ) -> Self::Output;
+}
+
+impl<C: WrapChannel> InstrumentChannelWrapLog for C
+where
+    C::Msg: std::fmt::Debug,
+{
+    type Output = C::Output;
+    fn instrument_wrap_log(
+        self,
+        source: &'static str,
+        label: Option<String>,
+        capacity: Option<usize>,
+        iter: bool,
+    ) -> Self::Output {
+        let log_fn: fn(&C::Msg) -> String = |m| crate::output_on::format_debug_truncated(m);
+        self.wrap(source, label, capacity, Some(log_fn), iter)
+    }
 }
 
 /// Instrument a channel creation for profiling.

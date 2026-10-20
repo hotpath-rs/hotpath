@@ -23,31 +23,17 @@
 
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::error::{RecvError, TryRecvError};
 
-use crate::channels::{
-    register_channel, sample_stamp, send_channel_event, ChannelEvent, ChannelType, Instant,
-    InstrumentChannelWrap, InstrumentChannelWrapLog,
+use crate::channels::wrapper::{
+    emit_sent, msg_counter, stamp, LogFn, Payload, RecvSide, WrapChannel,
 };
-
-type Payload<T> = (u64, Option<Instant>, T);
-
-/// A `Some` payload stamp means the message is sampled: stamp `now`, compute the delay.
-#[inline]
-fn recv_stamp(send_ts: Option<Instant>) -> (Option<Instant>, Option<u64>) {
-    match send_ts {
-        Some(ts) => {
-            let now = Instant::now();
-            (Some(now), Some(now.duration_since(ts).as_nanos() as u64))
-        }
-        None => (None, None),
-    }
-}
+use crate::channels::{register_channel, send_channel_event, ChannelEvent, ChannelType};
 
 /// Instrumented [`tokio::sync::oneshot::Sender`] wrapper.
 pub struct Sender<T> {
@@ -58,7 +44,7 @@ pub struct Sender<T> {
     closed: Arc<AtomicBool>,
     /// Set by a successful `send`; the drop impl then leaves teardown to the receiver.
     sent: bool,
-    log_fn: Option<fn(&T) -> String>,
+    log_fn: Option<LogFn<T>>,
 }
 
 impl<T> Sender<T> {
@@ -73,21 +59,13 @@ impl<T> Sender<T> {
             .inner
             .take()
             .expect("oneshot sender endpoint is only taken by `send`");
-        let log = self.log_fn.map(|f| f(&msg));
-        let msg_id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let sent_at = sample_stamp();
-        if let Err((_, _, msg)) = inner.send((msg_id, sent_at, msg)) {
+        let (payload, stamp) = stamp(&self.next_id, self.log_fn, msg);
+        if let Err((_, _, msg)) = inner.send(payload) {
             return Err(msg);
         }
         self.sent = true;
         send_channel_event(ChannelEvent::Notified { id: self.id });
-        send_channel_event(ChannelEvent::WrapMessageSent {
-            id: self.id,
-            msg_id,
-            log,
-            timestamp: crate::channels::anchor_first_msg(msg_id, sent_at),
-            queue_len: 1,
-        });
+        emit_sent(self.id, stamp, 1);
         Ok(())
     }
 
@@ -119,8 +97,7 @@ impl<T> Drop for Sender<T> {
 pub struct Receiver<T> {
     /// `None` after `blocking_recv` consumed it.
     inner: Option<oneshot::Receiver<Payload<T>>>,
-    id: u32,
-    closed: Arc<AtomicBool>,
+    side: RecvSide,
     received: bool,
 }
 
@@ -131,16 +108,10 @@ impl<T> Receiver<T> {
             .expect("oneshot receiver endpoint is only taken by `blocking_recv`")
     }
 
-    fn on_received(&mut self, msg_id: u64, send_ts: Option<Instant>) {
-        let (now, delay_nanos) = recv_stamp(send_ts);
+    fn received(&mut self, (msg_id, send_ts, msg): Payload<T>) -> T {
         self.received = true;
-        send_channel_event(ChannelEvent::WrapMessageReceived {
-            id: self.id,
-            msg_id,
-            timestamp: now,
-            queue_len: 0,
-            delay_nanos,
-        });
+        self.side.received(msg_id, send_ts, 0);
+        msg
     }
 
     /// No `Closed` emit here: a value sent before `close()` can still be taken
@@ -150,9 +121,8 @@ impl<T> Receiver<T> {
     }
 
     pub fn try_recv(&mut self) -> Result<T, TryRecvError> {
-        let (msg_id, send_ts, msg) = self.inner().try_recv()?;
-        self.on_received(msg_id, send_ts);
-        Ok(msg)
+        let payload = self.inner().try_recv()?;
+        Ok(self.received(payload))
     }
 
     /// Event emission is a sync crossbeam send, so it is safe off-runtime; like
@@ -162,9 +132,7 @@ impl<T> Receiver<T> {
             .inner
             .take()
             .expect("oneshot receiver endpoint is only taken by `blocking_recv`");
-        let (msg_id, send_ts, msg) = inner.blocking_recv()?;
-        self.on_received(msg_id, send_ts);
-        Ok(msg)
+        Ok(self.received(inner.blocking_recv()?))
     }
 
     pub fn is_terminated(&self) -> bool {
@@ -184,10 +152,7 @@ impl<T> Future for Receiver<T> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
         match Pin::new(this.inner()).poll(cx) {
-            Poll::Ready(Ok((msg_id, send_ts, msg))) => {
-                this.on_received(msg_id, send_ts);
-                Poll::Ready(Ok(msg))
-            }
+            Poll::Ready(Ok(payload)) => Poll::Ready(Ok(this.received(payload))),
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
             Poll::Pending => Poll::Pending,
         }
@@ -209,16 +174,9 @@ impl<T> Drop for Receiver<T> {
             None => false,
         };
         if pending {
-            // The sender emitted no `Closed` after delivering, so this teardown
-            // must, then retire the value nobody will take.
-            self.closed.store(true, Ordering::Release);
-            send_channel_event(ChannelEvent::Closed { id: self.id });
-            send_channel_event(ChannelEvent::Abandoned {
-                id: self.id,
-                count: 1,
-            });
+            self.side.mark_closed_undelivered();
         } else {
-            crate::channels::mark_closed(&self.closed, self.id, 0);
+            self.side.mark_closed(0);
         }
     }
 }
@@ -237,7 +195,7 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Receiver<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Receiver")
             .field("inner", &self.inner)
-            .field("id", &self.id)
+            .field("id", &self.side.id())
             .finish_non_exhaustive()
     }
 }
@@ -245,64 +203,42 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Receiver<T> {
 fn build<T>(
     source: &'static str,
     label: Option<String>,
-    log_fn: Option<fn(&T) -> String>,
+    log_fn: Option<LogFn<T>>,
     iter: bool,
 ) -> (Sender<T>, Receiver<T>) {
     let id = register_channel::<T>(source, label, ChannelType::Oneshot, iter);
-    // Rebuild to carry `(msg_id, send_ts, T)`; the caller's channel is discarded
-    // (the wrapper is inline-only).
+    // Rebuild to carry the payload; the caller's channel is discarded (the wrapper
+    // is inline-only).
     let (tx, rx) = oneshot::channel::<Payload<T>>();
     let closed = Arc::new(AtomicBool::new(false));
-    // Aggregated instances share one msg-id sequence so ids stay unique
-    // within the entry; iter-mode instances keep a local counter.
-    let next_id = if iter {
-        Arc::new(AtomicU64::new(0))
-    } else {
-        crate::channels::entry_msg_counter(id)
-    };
     let sender = Sender {
         inner: Some(tx),
         id,
-        next_id,
+        next_id: msg_counter(id, iter),
         closed: Arc::clone(&closed),
         sent: false,
         log_fn,
     };
     let receiver = Receiver {
         inner: Some(rx),
-        id,
-        closed,
+        side: RecvSide::new(id, closed),
         received: false,
     };
     (sender, receiver)
 }
 
-impl<T: Send + 'static> InstrumentChannelWrap for (oneshot::Sender<T>, oneshot::Receiver<T>) {
+impl<T: Send + 'static> WrapChannel for (oneshot::Sender<T>, oneshot::Receiver<T>) {
+    type Msg = T;
     type Output = (Sender<T>, Receiver<T>);
-    fn instrument_wrap(
+    fn wrap(
         self,
         source: &'static str,
         label: Option<String>,
         _capacity: Option<usize>,
+        log_fn: Option<LogFn<T>>,
         iter: bool,
     ) -> Self::Output {
-        build(source, label, None, iter)
-    }
-}
-
-impl<T: Send + std::fmt::Debug + 'static> InstrumentChannelWrapLog
-    for (oneshot::Sender<T>, oneshot::Receiver<T>)
-{
-    type Output = (Sender<T>, Receiver<T>);
-    fn instrument_wrap_log(
-        self,
-        source: &'static str,
-        label: Option<String>,
-        _capacity: Option<usize>,
-        iter: bool,
-    ) -> Self::Output {
-        let log_fn: fn(&T) -> String = |m| crate::output_on::format_debug_truncated(m);
-        build(source, label, Some(log_fn), iter)
+        build(source, label, log_fn, iter)
     }
 }
 
