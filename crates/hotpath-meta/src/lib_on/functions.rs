@@ -214,13 +214,6 @@ fn build_measurement_guard_async_with_log_bridge(
 
 #[doc(hidden)]
 #[inline]
-pub fn measure_sync<T, F: FnOnce() -> T>(measurement_loc: &'static str, f: F) -> T {
-    let _guard = build_measurement_guard_sync(measurement_loc, false);
-    f()
-}
-
-#[doc(hidden)]
-#[inline]
 pub fn measure_sync_log<T: std::fmt::Debug, F: FnOnce() -> T>(
     measurement_loc: &'static str,
     f: F,

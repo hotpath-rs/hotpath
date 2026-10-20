@@ -120,7 +120,7 @@ fn per_request(calls: u64, scoped_count: u64) -> Option<f64> {
 
 impl ServerEntry {
     const LOW_NS: u64 = 1;
-    const HIGH_NS: u64 = 1_000_000_000_000; // 1000s
+    const HIGH_NS: u64 = crate::lib_on::MAX_DURATION_NS;
     const LOW_BYTES: u64 = 1;
     const HIGH_BYTES: u64 = 1_000_000_000; // 1GB
     const SIGFIGS: u8 = 3;

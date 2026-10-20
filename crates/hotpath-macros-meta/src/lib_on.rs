@@ -1,7 +1,16 @@
 use proc_macro::TokenStream;
 use quote::{quote, quote_spanned};
+use std::sync::LazyLock;
 use syn::parse::Parser;
 use syn::{parse_macro_input, ImplItem, Item, ItemFn, Lit, LitInt, LitStr, Path};
+
+fn env_flag(name: &str) -> bool {
+    std::env::var(name)
+        .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
+        .unwrap_or(false)
+}
+
+static KEEP_INLINE: LazyLock<bool> = LazyLock::new(|| env_flag("HOTPATH_META_KEEP_INLINE"));
 
 /// Upper bound on configured percentiles. Kept in sync with `MAX_PERCENTILES`
 /// in the `hotpath-meta` crate, which enforces the same limit on the builder path.
@@ -532,10 +541,21 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
 
-    let attrs = &input.attrs;
+    let touch_inline = cfg!(feature = "hotpath-cpu-meta") && !*KEEP_INLINE;
+    let attrs: Vec<&syn::Attribute> = input
+        .attrs
+        .iter()
+        .filter(|a| !(touch_inline && a.path().is_ident("inline")))
+        .collect();
     let vis = &input.vis;
     let sig = &input.sig;
     let block = &input.block;
+
+    let inline_attr = if touch_inline {
+        quote! { #[inline(never)] }
+    } else {
+        quote! {}
+    };
 
     let fn_ident = &sig.ident;
     let is_async_fn = sig.asyncness.is_some();
@@ -659,7 +679,8 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         } else {
             quote! {
-                hotpath_meta::functions::measure_sync(#measurement_loc, || #block)
+                let _guard = hotpath_meta::functions::build_measurement_guard_sync(#measurement_loc, false);
+                #block
             }
         }
     } else if enable_future_tracking {
@@ -683,6 +704,7 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let output = quote! {
+        #inline_attr
         #(#attrs)*
         #[allow(unused_braces)]
         #vis #sig {
@@ -734,10 +756,21 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn future_fn_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
 
-    let attrs = &input.attrs;
+    let touch_inline = cfg!(feature = "hotpath-cpu-meta") && !*KEEP_INLINE;
+    let attrs: Vec<&syn::Attribute> = input
+        .attrs
+        .iter()
+        .filter(|a| !(touch_inline && a.path().is_ident("inline")))
+        .collect();
     let vis = &input.vis;
     let sig = &input.sig;
     let block = &input.block;
+
+    let inline_attr = if touch_inline {
+        quote! { #[inline(never)] }
+    } else {
+        quote! {}
+    };
 
     if sig.asyncness.is_none() {
         return syn::Error::new_spanned(
@@ -813,6 +846,7 @@ pub fn future_fn_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let output = quote! {
+        #inline_attr
         #(#attrs)*
         #[allow(unused_braces)]
         #vis #sig {

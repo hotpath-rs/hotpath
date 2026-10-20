@@ -167,11 +167,6 @@ use crate::Format;
 use crate::Section;
 
 #[inline]
-pub fn measure_sync<T, F: FnOnce() -> T>(_measurement_loc: &'static str, f: F) -> T {
-    f()
-}
-
-#[inline]
 pub fn measure_sync_log<T: std::fmt::Debug, F: FnOnce() -> T>(
     _measurement_loc: &'static str,
     f: F,

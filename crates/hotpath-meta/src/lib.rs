@@ -153,7 +153,7 @@ pub mod wrap {
     /// `channel!` is a no-op and the endpoints are the raw crossbeam types, so the
     /// alias resolves the same way regardless of feature configuration.
     #[cfg(feature = "crossbeam")]
-    pub mod crossbeam {
+    pub mod crossbeam_channel {
         #[cfg(feature = "hotpath-meta")]
         pub use crate::lib_on::channels::wrapper::crossbeam_wrap::{Receiver, Sender};
         #[cfg(not(feature = "hotpath-meta"))]
