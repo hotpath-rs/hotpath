@@ -759,7 +759,10 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     // through (async) a nested `#[inline(never)]` marker fn named after this
     // call site; Callgrind's dump attributes inclusive instructions to its
     // symbol. It sits inside the guard, so guard overhead is not counted.
-    let marker = cfg!(feature = "hotpath-callgrind")
+    // A sync `#[track_caller]` body keeps no marker: the closure would end
+    // its caller propagation.
+    let track_caller = attrs.iter().any(|a| a.path().is_ident("track_caller"));
+    let marker = (cfg!(feature = "hotpath-callgrind") && !(track_caller && !is_async_fn))
         .then(|| callgrind_marker(fn_ident, label.as_ref(), impl_type.as_ref()));
     let (marker_items, sync_body, async_body) = match &marker {
         Some((marker, hash)) => {

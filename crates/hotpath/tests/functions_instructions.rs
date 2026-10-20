@@ -180,8 +180,9 @@ pub mod tests {
         let (first_calls, first_total) = total(&read(&first), "sessions::work");
         let (second_calls, second_total) = total(&read(&second), "sessions::work");
 
-        assert_eq!((first_calls, second_calls), (1, 3));
-        let ratio = second_total as f64 / (3 * first_total) as f64;
+        // 3 calls in the session plus one from its `before_shutdown`.
+        assert_eq!((first_calls, second_calls), (1, 4));
+        let ratio = second_total as f64 / (4 * first_total) as f64;
         assert!(
             (0.999..1.001).contains(&ratio),
             "{first_total} then {second_total} Ir"

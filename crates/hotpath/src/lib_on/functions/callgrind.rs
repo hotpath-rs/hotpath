@@ -7,7 +7,8 @@
 //! at runtime: under `valgrind --tool=callgrind` the session zeroes Callgrind's
 //! counters at guard creation, and the guard drop writes a dump through a
 //! client request, stops instrumenting and attributes the dump's inclusive
-//! `Ir` to measured functions by marker. Natively the markers are one extra
+//! `Ir` to measured functions by marker (after the `before_shutdown`
+//! callback, so its measured calls count too). Natively the markers are one extra
 //! call per measured invocation and nothing else happens.
 
 use std::collections::HashMap;
