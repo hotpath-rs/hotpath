@@ -14,6 +14,7 @@ keywords = ["lock-free", "spsc", "queue", "thread-local", "profiling"]
 hotpath-meta = ["dep:hotpath-meta", "hotpath-meta/hotpath-meta"]
 hotpath-alloc-meta = ["hotpath-meta", "hotpath-meta/hotpath-alloc-meta"]
 hotpath-cloud-meta = ["hotpath-meta", "hotpath-meta/hotpath-cloud-meta"]
+hotpath-callgrind-meta = ["hotpath-meta", "hotpath-meta/hotpath-callgrind-meta"]
 
 [dependencies]
 hotpath-meta = { workspace = true, optional = true }

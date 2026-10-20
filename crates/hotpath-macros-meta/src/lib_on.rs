@@ -513,6 +513,50 @@ fn contains_impl_trait(tokens: &proc_macro2::TokenStream) -> bool {
     })
 }
 
+/// `__hotpath_cg_<16 hex>` and its hash as a `u64` literal, unique per
+/// measured fn within a build: the hash covers the crate scope, the fn
+/// name's source position (its own span, so `measure_all` items differ) and
+/// the measured name parts. Only the runtime registry maps the ident back to
+/// a name; functions a `macro_rules!` expands from one source position share
+/// a marker, which the registry detects and excludes.
+fn callgrind_marker(
+    fn_ident: &syn::Ident,
+    label: Option<&LitStr>,
+    impl_type: Option<&LitStr>,
+) -> (syn::Ident, LitInt) {
+    let span = fn_ident.span().unwrap();
+    let mut key = Vec::new();
+    for var in [
+        "CARGO_CRATE_NAME",
+        "CARGO_PKG_NAME",
+        "CARGO_PKG_VERSION",
+        "CARGO_BIN_NAME",
+        "CARGO_TARGET_TMPDIR",
+    ] {
+        key.extend(std::env::var(var).unwrap_or_default().into_bytes());
+        key.push(0);
+    }
+    for part in [
+        span.file(),
+        span.line().to_string(),
+        span.column().to_string(),
+        fn_ident.to_string(),
+        label.map(LitStr::value).unwrap_or_default(),
+        impl_type.map(LitStr::value).unwrap_or_default(),
+    ] {
+        key.extend(part.into_bytes());
+        key.push(0);
+    }
+    let hash = fnv1a(&key);
+    (
+        syn::Ident::new(
+            &format!("__hotpath_cg_{hash:016x}"),
+            proc_macro2::Span::call_site(),
+        ),
+        LitInt::new(&format!("{hash}u64"), proc_macro2::Span::call_site()),
+    )
+}
+
 fn fnv1a(bytes: &[u8]) -> u64 {
     bytes.iter().fold(0xcbf2_9ce4_8422_2325, |hash, &byte| {
         (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
@@ -696,34 +740,88 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     // cannot name an `impl Trait` return type, so those keep the inferred one.
     let closure_ret = closure_return_type(&sig.output);
 
+    // Under `hotpath-callgrind-meta` the body runs inside (sync) or is polled
+    // through (async) a nested `#[inline(never)]` marker fn named after this
+    // call site; Callgrind's dump attributes inclusive instructions to its
+    // symbol. It sits inside the guard, so guard overhead is not counted.
+    // A sync `#[track_caller]` body keeps no marker: the closure would end
+    // its caller propagation.
+    let track_caller = attrs.iter().any(|a| a.path().is_ident("track_caller"));
+    let marker = (cfg!(feature = "hotpath-callgrind-meta") && !(track_caller && !is_async_fn))
+        .then(|| callgrind_marker(fn_ident, label.as_ref(), impl_type.as_ref()));
+    let (marker_items, sync_body, async_body) = match &marker {
+        Some((marker, hash)) => {
+            // A per-site constant keeps LLVM's MergeFunctions and linker ICF
+            // from folding markers with identical bodies into one symbol.
+            let unique = quote! { ::core::hint::black_box(#hash); };
+            let marker_fn = if is_async_fn {
+                quote! {
+                    #[inline(never)]
+                    fn #marker<__HotpathF: ::core::future::Future>(
+                        fut: ::core::pin::Pin<&mut __HotpathF>,
+                        cx: &mut ::core::task::Context<'_>,
+                    ) -> ::core::task::Poll<__HotpathF::Output> {
+                        #unique
+                        __HotpathF::poll(fut, cx)
+                    }
+                }
+            } else {
+                quote! {
+                    #[inline(never)]
+                    fn #marker<__HotpathR>(body: impl ::core::ops::FnOnce() -> __HotpathR) -> __HotpathR {
+                        #unique
+                        body()
+                    }
+                }
+            };
+            (
+                quote! {
+                    #marker_fn
+                    {
+                        static __HOTPATH_CG_ONCE: ::std::sync::Once = ::std::sync::Once::new();
+                        __HOTPATH_CG_ONCE.call_once(|| {
+                            hotpath_meta::functions::register_callgrind_marker(
+                                stringify!(#marker),
+                                #measurement_loc,
+                            );
+                        });
+                    }
+                },
+                quote! { #marker(|| #block) },
+                quote! { hotpath_meta::functions::CallgrindFuture::new(async #block, #marker) },
+            )
+        }
+        None => (quote! {}, quote! { #block }, quote! { async #block }),
+    };
+
     let wrapped_body = if !is_async_fn {
         if enable_result_logging {
             quote! {
-                hotpath_meta::functions::measure_sync_log(#measurement_loc, || #closure_ret #block)
+                hotpath_meta::functions::measure_sync_log(#measurement_loc, || #closure_ret { #sync_body })
             }
         } else {
             quote! {
                 let _guard = hotpath_meta::functions::build_measurement_guard_sync(#measurement_loc, false);
-                #block
+                #sync_body
             }
         }
     } else if enable_future_tracking {
         if enable_result_logging {
             quote! {
-                hotpath_meta::functions::measure_async_future_log(#measurement_loc, async #block).await
+                hotpath_meta::functions::measure_async_future_log(#measurement_loc, #async_body).await
             }
         } else {
             quote! {
-                hotpath_meta::functions::measure_async_future(#measurement_loc, async #block).await
+                hotpath_meta::functions::measure_async_future(#measurement_loc, #async_body).await
             }
         }
     } else if enable_result_logging {
         quote! {
-            hotpath_meta::functions::measure_async_log(#measurement_loc, async #block).await
+            hotpath_meta::functions::measure_async_log(#measurement_loc, #async_body).await
         }
     } else {
         quote! {
-            hotpath_meta::functions::measure_async(#measurement_loc, async #block).await
+            hotpath_meta::functions::measure_async(#measurement_loc, #async_body).await
         }
     };
 
@@ -732,6 +830,7 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         #(#attrs)*
         #[allow(unused_braces)]
         #vis #sig {
+            #marker_items
             #unique_label_check
             #cpu_alias_register
             #loc_register

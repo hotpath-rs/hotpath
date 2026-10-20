@@ -12,6 +12,7 @@ categories = ["development-tools"]
 default = []
 hotpath-meta = ["dep:proc-macro2", "dep:quote", "dep:syn"]
 hotpath-cpu-meta = []
+hotpath-callgrind-meta = []
 
 [lib]
 proc-macro = true

@@ -34,6 +34,7 @@ hotpath-meta = [
 hotpath-alloc-meta = []
 hotpath-cloud-meta = ["dep:ureq", "ureq/rustls", "ureq/json", "dep:flate2"]
 hotpath-cpu-meta = ["hotpath-macros-meta/hotpath-cpu-meta", "dep:object", "dep:rustc-demangle", "dep:flate2"]
+hotpath-callgrind-meta = ["hotpath-macros-meta/hotpath-callgrind-meta"]
 tui = ["json", "dep:eyre", "dep:clap", "dep:reqwest", "reqwest/json", "reqwest/rustls", "dep:crossterm", "dep:ratatui", "dep:crossbeam-channel", "dep:tokio", "tokio/rt", "crossbeam", "dep:futures-util"]
 tokio = ["dep:tokio", "tokio/sync", "tokio/macros", "tokio/rt-multi-thread", "tokio/time"]
 futures = ["dep:tokio", "tokio/sync", "tokio/macros", "tokio/rt-multi-thread", "dep:futures-channel", "dep:futures-sink", "dep:futures-util"]
