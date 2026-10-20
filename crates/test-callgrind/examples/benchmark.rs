@@ -1,4 +1,4 @@
-//! The `instructions` cloud benchmark (`.github/workflows/cloud-instructions-benchmark.yml`):
+//! The `icount` cloud benchmark (`.github/workflows/cloud-icount-benchmark.yml`):
 //! a small deterministic pipeline - generate records, render and parse them as
 //! CSV, sort, aggregate, checksum, plus an async batch stage - whose
 //! per-function instruction counts are exact under Callgrind, so a change to

@@ -153,7 +153,7 @@ pub(crate) fn start_session() {
     }
 }
 
-pub(crate) struct InstructionsReport {
+pub(crate) struct IcountReport {
     pub(crate) total_ir: u64,
     /// Inclusive `Ir` per measured name.
     pub(crate) by_name: HashMap<&'static str, u64>,
@@ -163,7 +163,7 @@ pub(crate) struct InstructionsReport {
 
 /// Called first thing at guard drop. `None` when not under Valgrind.
 #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
-pub(crate) fn finish_session() -> Option<Result<InstructionsReport, String>> {
+pub(crate) fn finish_session() -> Option<Result<IcountReport, String>> {
     if !active() {
         return None;
     }
@@ -178,7 +178,7 @@ pub(crate) fn finish_session() -> Option<Result<InstructionsReport, String>> {
     Some(read_report(&path, &tag))
 }
 
-fn read_report(path: &std::path::Path, tag: &str) -> Result<InstructionsReport, String> {
+fn read_report(path: &std::path::Path, tag: &str) -> Result<IcountReport, String> {
     let input = std::fs::read_to_string(path).map_err(|e| {
         format!(
             "failed to read Callgrind dump {}: {e} (is valgrind running with \
@@ -216,7 +216,7 @@ fn read_report(path: &std::path::Path, tag: &str) -> Result<InstructionsReport, 
         }
     }
 
-    Ok(InstructionsReport {
+    Ok(IcountReport {
         total_ir: dump.total_ir,
         by_name,
         tool: dump.creator,
@@ -227,8 +227,8 @@ fn read_report(path: &std::path::Path, tag: &str) -> Result<InstructionsReport, 
 pub(crate) type CallCounts = HashMap<&'static str, (u32, u64)>;
 
 #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
-pub(crate) fn build_instructions_list(
-    report: &InstructionsReport,
+pub(crate) fn build_icount_list(
+    report: &IcountReport,
     calls: &CallCounts,
     config: &FunctionStatsConfig,
     current_elapsed_ns: u64,
@@ -277,7 +277,7 @@ pub(crate) fn build_instructions_list(
         .collect();
 
     JsonFunctionsList {
-        profiling_mode: ProfilingMode::Instructions,
+        profiling_mode: ProfilingMode::Icount,
         time_elapsed: precision.duration(config.total_elapsed.as_nanos() as u64),
         total_elapsed_ns: current_elapsed_ns,
         total_allocated: None,

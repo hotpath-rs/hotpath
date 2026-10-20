@@ -1018,8 +1018,8 @@ fn build_timing_list(
 }
 
 #[cfg(feature = "hotpath-callgrind")]
-fn build_instructions_list(
-    report: &crate::functions::callgrind::InstructionsReport,
+fn build_icount_list(
+    report: &crate::functions::callgrind::IcountReport,
     stats: &HashMap<u32, FunctionStats>,
     config: &FunctionStatsConfig,
     elapsed_ns: u64,
@@ -1029,7 +1029,7 @@ fn build_instructions_list(
         .filter(|s| !s.wrapper && s.has_data)
         .map(|s| (s.name, (s.id, s.count)))
         .collect();
-    crate::functions::callgrind::build_instructions_list(report, &calls, config, elapsed_ns)
+    crate::functions::callgrind::build_icount_list(report, &calls, config, elapsed_ns)
 }
 
 impl Drop for HotpathGuard {
@@ -1087,11 +1087,11 @@ impl Drop for HotpathGuard {
         // After the callback (its measured calls are counted), before any
         // report building.
         #[cfg(feature = "hotpath-callgrind")]
-        let instructions_report = crate::functions::callgrind::finish_session();
+        let icount_report = crate::functions::callgrind::finish_session();
         #[cfg(feature = "hotpath-callgrind")]
-        let counting_instructions = instructions_report.is_some();
+        let counting_icount = icount_report.is_some();
         #[cfg(not(feature = "hotpath-callgrind"))]
-        let counting_instructions = false;
+        let counting_icount = false;
 
         let wrapper_guard = self.wrapper_guard.take().unwrap();
         drop(wrapper_guard);
@@ -1144,8 +1144,8 @@ impl Drop for HotpathGuard {
             SectionsMode::Auto { include, exclude } => {
                 // Durations under Valgrind are meaningless, so its run
                 // reports instructions in their place.
-                let mut base = vec![if counting_instructions {
-                    Section::FunctionsInstructions
+                let mut base = vec![if counting_icount {
+                    Section::FunctionsIcount
                 } else {
                     Section::FunctionsTiming
                 }];
@@ -1348,11 +1348,11 @@ impl Drop for HotpathGuard {
                             None => {}
                         }
                     }
-                    Section::FunctionsInstructions =>
+                    Section::FunctionsIcount =>
                     {
                         #[cfg(feature = "hotpath-callgrind")]
-                        match instructions_report.as_ref() {
-                            Some(Ok(instructions)) => {
+                        match icount_report.as_ref() {
+                            Some(Ok(icount)) => {
                                 if let (Some(stats), Ok(state_guard)) =
                                     (functions_stats.as_ref(), state.read())
                                 {
@@ -1364,8 +1364,8 @@ impl Drop for HotpathGuard {
                                         limit_for,
                                         cloud_report,
                                     );
-                                    report.functions_instructions = Some(build_instructions_list(
-                                        instructions,
+                                    report.functions_icount = Some(build_icount_list(
+                                        icount,
                                         stats,
                                         &config,
                                         total_elapsed.as_nanos() as u64,
@@ -1373,7 +1373,7 @@ impl Drop for HotpathGuard {
                                 }
                             }
                             Some(Err(msg)) => {
-                                eprintln!("[hotpath] instructions report unavailable: {msg}");
+                                eprintln!("[hotpath] icount report unavailable: {msg}");
                             }
                             None => {}
                         }
@@ -1632,12 +1632,12 @@ impl Drop for HotpathGuard {
                             }
                         }
                     }
-                    Section::FunctionsInstructions =>
+                    Section::FunctionsIcount =>
                     {
                         #[cfg(feature = "hotpath-callgrind")]
                         if matches!(format, Format::Table) {
-                            match instructions_report.as_ref() {
-                                Some(Ok(instructions)) => {
+                            match icount_report.as_ref() {
+                                Some(Ok(icount)) => {
                                     if let (Some(stats), Ok(state_guard)) =
                                         (functions_stats.as_ref(), state.read())
                                     {
@@ -1649,8 +1649,8 @@ impl Drop for HotpathGuard {
                                             |limit| limit,
                                             false,
                                         );
-                                        let list = build_instructions_list(
-                                            instructions,
+                                        let list = build_icount_list(
+                                            icount,
                                             stats,
                                             &config,
                                             total_elapsed.as_nanos() as u64,
@@ -1667,15 +1667,13 @@ impl Drop for HotpathGuard {
                                     }
                                 }
                                 Some(Err(msg)) => {
-                                    let _ = writeln!(
-                                        writer,
-                                        "instructions - report unavailable: {msg}\n"
-                                    );
+                                    let _ =
+                                        writeln!(writer, "icount - report unavailable: {msg}\n");
                                 }
                                 None => {
                                     let _ = writeln!(
                                         writer,
-                                        "instructions - not running under valgrind --tool=callgrind\n"
+                                        "icount - not running under valgrind --tool=callgrind\n"
                                     );
                                 }
                             }

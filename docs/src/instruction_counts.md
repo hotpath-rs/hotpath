@@ -24,10 +24,10 @@ CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" \
   cargo run --release --features='hotpath,hotpath-callgrind'
 ```
 
-Under Valgrind the timing report is replaced by an instructions report (durations measured inside the simulator are meaningless):
+Under Valgrind the timing report is replaced by an `icount` (instruction count) report, since durations measured inside the simulator are meaningless:
 
 ```
-instructions - Inclusive instructions executed per function (Callgrind Ir).
+icount - Inclusive instructions executed per function (Callgrind Ir).
 +------------------------------+-------+---------+----------+---------+
 | Function                     | Calls | Avg     | Total    | % Total |
 +------------------------------+-------+---------+----------+---------+
@@ -38,6 +38,8 @@ instructions - Inclusive instructions executed per function (Callgrind Ir).
 | instructions::free_fn        | 2     | 1800012 | 3600024  | 9.06%   |
 +------------------------------+-------+---------+----------+---------+
 ```
+
+In the JSON report it is the `functions_icount` section; select it with `HOTPATH_REPORT=functions-icount` and judge it in a policy file under `[functions.icount]`.
 
 The same build run natively prints the usual timing report, so one binary serves both runs. An explicit `HOTPATH_REPORT=functions-timing` is still honoured under Valgrind, but its durations are meaningless. Expect the Callgrind run to be 50-100x slower than a native one, and its threads to run one at a time.
 

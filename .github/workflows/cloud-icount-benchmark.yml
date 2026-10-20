@@ -1,4 +1,4 @@
-name: Cloud instructions benchmark
+name: Cloud icount benchmark
 
 on:
   push:
@@ -7,11 +7,11 @@ on:
 
 # Deterministic per-function instruction counts: test-callgrind's `benchmark`
 # example runs under Valgrind Callgrind with `hotpath-callgrind`, so the report
-# carries `functions_instructions` instead of timing. Uploaded to the separate
-# `instructions` series, judged by `hotpath/instructions-policy.toml`.
+# carries `functions_icount` (instruction counts) instead of timing. Uploaded to the separate
+# `icount` series, judged by `hotpath/icount-policy.toml`.
 jobs:
   benchmark:
-    name: cloud instructions benchmark
+    name: cloud icount benchmark
     # Fork pull requests get no `id-token: write`, so there is nothing to upload.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
@@ -24,7 +24,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          key: instructions-benchmark
+          key: icount-benchmark
       - name: Install valgrind
         run: |
           sudo apt-get update
@@ -41,7 +41,7 @@ jobs:
         env:
           HOTPATH_UPLOAD: fail-on-error
           HOTPATH_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
-          HOTPATH_BENCHMARK: instructions
+          HOTPATH_BENCHMARK: icount
           HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,profile=release
           HOTPATH_REPORT: auto,-threads
           HOTPATH_OUTPUT_FORMAT: none

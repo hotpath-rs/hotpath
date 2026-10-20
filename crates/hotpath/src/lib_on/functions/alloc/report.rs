@@ -174,7 +174,7 @@ pub(crate) fn build_functions_list_alloc(
         total_allocated: match profiling_mode {
             ProfilingMode::AllocBytes => Some(precision.bytes(grand_total)),
             ProfilingMode::AllocCount => Some(format_count(grand_total)),
-            ProfilingMode::Timing | ProfilingMode::Instructions => None,
+            ProfilingMode::Timing | ProfilingMode::Icount => None,
         },
         description,
         caller_name: config.caller_name.to_string(),

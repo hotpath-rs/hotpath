@@ -104,7 +104,7 @@ pub mod tests {
             first.functions_timing.is_none(),
             "timing is meaningless under Valgrind"
         );
-        let list = first.functions_instructions.expect("instructions section");
+        let list = first.functions_icount.expect("instructions section");
         assert!(
             list.tool
                 .as_deref()
@@ -150,7 +150,7 @@ pub mod tests {
             "{stderr}"
         );
 
-        let second = second.functions_instructions.expect("instructions section");
+        let second = second.functions_icount.expect("instructions section");
         for (name, _, _) in expected {
             assert_eq!(
                 total(&list, name),
@@ -175,7 +175,7 @@ pub mod tests {
         let read = |path: &str| -> JsonFunctionsList {
             let report: JsonReport =
                 serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-            report.functions_instructions.expect("instructions section")
+            report.functions_icount.expect("instructions section")
         };
         let (first_calls, first_total) = total(&read(&first), "sessions::work");
         let (second_calls, second_total) = total(&read(&second), "sessions::work");
@@ -198,7 +198,7 @@ pub mod tests {
             .json()
             .report();
 
-        assert!(report.functions_instructions.is_none());
+        assert!(report.functions_icount.is_none());
         let timing = report.functions_timing.expect("timing section");
         assert!(timing
             .data

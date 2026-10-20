@@ -400,6 +400,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y valgrind
-      - name: Run functions_instructions tests
+      - name: Run functions_icount tests
         run: |
-          cargo test --features hotpath --test functions_instructions -- --nocapture --test-threads=1
+          cargo test --features hotpath --test functions_icount -- --nocapture --test-threads=1

@@ -1227,7 +1227,7 @@ pub struct JsonReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub functions_cpu: Option<JsonFunctionsCpu>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub functions_instructions: Option<JsonFunctionsList>,
+    pub functions_icount: Option<JsonFunctionsList>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channels: Option<JsonChannelsList>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1266,7 +1266,7 @@ impl JsonReport {
             functions_timing: None,
             functions_alloc: None,
             functions_cpu: None,
-            functions_instructions: None,
+            functions_icount: None,
             channels: None,
             streams: None,
             futures: None,
