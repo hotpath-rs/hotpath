@@ -1,0 +1,61 @@
+name: Cloud instructions benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Deterministic per-function instruction counts: test-callgrind's `benchmark`
+# example runs under Valgrind Callgrind with `hotpath-callgrind`, so the report
+# carries `functions_instructions` instead of timing. Uploaded to the separate
+# `instructions` series, judged by `hotpath/instructions-policy.toml`.
+jobs:
+  benchmark:
+    name: cloud instructions benchmark
+    # Fork pull requests get no `id-token: write`, so there is nothing to upload.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: instructions-benchmark
+      - name: Install valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
+          valgrind --version
+      - name: Build benchmark
+        run: |
+          cargo build -q --release -p test-callgrind --example benchmark \
+            --features hotpath,hotpath-callgrind,hotpath-cloud
+      # Run from the workspace root (git info, policy lookup); the Callgrind
+      # dump goes to the runner's temp dir, named for hotpath by
+      # HOTPATH_CALLGRIND_OUT_FILE.
+      - name: Run benchmark under Callgrind and upload report
+        env:
+          HOTPATH_UPLOAD: fail-on-error
+          HOTPATH_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
+          HOTPATH_BENCHMARK: instructions
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,profile=release
+          HOTPATH_REPORT: auto,-threads
+          HOTPATH_OUTPUT_FORMAT: none
+          HOTPATH_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
+        run: |
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_CALLGRIND_OUT_FILE" \
+            target/release/examples/benchmark
+          test -s "$HOTPATH_UPLOAD_RESPONSE_PATH"
+      - name: Print the verdict
+        if: always()
+        run: |
+          if [ -s upload-response.json ]; then
+            jq '{verdict, dashboard_url}' upload-response.json
+          else
+            echo "no upload response, so no verdict"
+          fi
