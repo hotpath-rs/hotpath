@@ -111,6 +111,19 @@ flow = { avg = "5 ms", errors = 0, bytes_per_sec = "10 MB" }
 
 `bytes_per_sec` is a **minimum**, the rest are maximums. `match` runs against `label | operation | -`, so a pattern on the label alone matches every operation on it.
 
+### Threads
+
+Allocations and thread count of named [threads](threads.md), from builds with the `hotpath-alloc` feature.
+
+```toml
+[[threads.budgets]]
+match = "db-writer"
+alloc = { total = "64 MB" }
+count = { max = 1 }
+```
+
+`match` is the thread name (cut to 15 bytes on Linux). Threads sharing a name are checked together, and `count` is how many carry it.
+
 ## Options
 
 ### Rule keys

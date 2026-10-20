@@ -202,6 +202,33 @@ min_calls = 0
 
 Metrics: `avg`, `total`, percentiles, `errors`, `bytes_per_sec` (a drop is the regression). `ignore` matches `label | operation | -`, so `stdout*` matches every operation on it.
 
+### Threads
+
+Memory allocated by named [threads](threads.md), from builds with the `hotpath-alloc` feature.
+
+```toml
+[threads]
+names = ["db-writer", "rt-worker"]
+
+[threads.alloc]
+judged = false
+min_percent_change = 20
+metrics = ["total"]
+min_calls = 0
+```
+
+Metrics: `total`. Threads sharing a name, such as a pool's workers, are summed into one row; `min_calls` reads how many threads carry the name.
+
+**Only threads listed in `names` are compared**, matched exactly. An unnamed thread shows up as `thread_<id>` with an id that changes every run, so name the ones you want compared:
+
+```rust
+std::thread::Builder::new()
+    .name("db-writer".into())
+    .spawn(move || run_writer(rx))?;
+```
+
+On Linux a thread name is cut to 15 bytes, so `tokio-runtime-worker` shows up as `tokio-runtime-w`. List the name as the report shows it.
+
 ## Options
 
 ### Section keys
@@ -226,6 +253,8 @@ The resource tables (`[functions]`, `[sql]`, `[http]`, `[server]`, `[mutexes]`, 
 |---|---|
 | `ignore` | Patterns of entries that are never judged. `*` matches any run of characters, and a pattern must match the whole name. |
 | `min_percent_total` | Rows below this share of the run, in percent, are skipped as noise. Only `functions`, `sql`, `http` and `server` have it. |
+
+`[threads]` takes `names` instead of `ignore`, see [Threads](#threads).
 
 ## Pull request feedback
 
