@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.28.7] - 2026-10-20
+
+### 🚀 Features
+
+- Use a new fail_check config
+
+- Precise threads alloc data
+
+
+### 🐛 Bug Fixes
+
+- Hotpath::main does not drop attributes
+
+
+### 🚜 Refactor
+
+- DRY tests
+
+- DRY channel wrappers
+
+
+### ⚡ Performance
+
+- Compress reports for upload
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Use docker mirror
+
+- Use hosted markdown docs for skills
+
+- Update outdated docs
+
+- Fix CI
+
+- Mirror CI service images to GHCR
+
+- Pull service images from GHCR mirror
+
+- Transfer repo to hotpath-rs org
+
+- Judge thread allocations in the drain benchmark
+
+- Add SeaORM tests and docs
+
+- Fix CI audit
+
+- Release 0.28.7
+
+
 ## [0.28.6] - 2026-10-08
 
 ### 🚀 Features
