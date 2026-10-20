@@ -1207,6 +1207,8 @@ impl Drop for HotpathGuard {
                             None => {}
                         }
                     }
+                    // Counted only by hotpath's `hotpath-callgrind`.
+                    Section::FunctionsInstructions => {}
                     Section::Channels => {
                         if !channels_data.is_empty() {
                             report.channels = Some(report::collect_channels_json(
@@ -1461,6 +1463,8 @@ impl Drop for HotpathGuard {
                             }
                         }
                     }
+                    // Counted only by hotpath's `hotpath-callgrind`.
+                    Section::FunctionsInstructions => {}
                     Section::Channels => {
                         if matches!(format, Format::Table) {
                             let total = channels_data.len();
