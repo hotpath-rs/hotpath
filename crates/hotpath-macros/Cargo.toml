@@ -1,6 +1,6 @@
 [package]
 name = "hotpath-macros"
-version = "0.28.6"
+version = "0.28.7"
 edition = "2021"
 repository = "https://github.com/hotpath-rs/hotpath"
 description = "One profiler for CPU, time, memory, SQL, and async code - quickly find and debug performance bottlenecks. Proc macros crate."
