@@ -156,7 +156,7 @@ use gauge::{GaugeEntry, GaugeLog};
 
 // `wrap` endpoint wrapper under `hotpath-meta` (instrumented), plain sender otherwise.
 #[cfg(feature = "hotpath-meta")]
-type DebugEventTx = hotpath_meta::wrap::crossbeam::Sender<DebugEvent>;
+type DebugEventTx = hotpath_meta::wrap::crossbeam_channel::Sender<DebugEvent>;
 #[cfg(not(feature = "hotpath-meta"))]
 type DebugEventTx = CbSender<DebugEvent>;
 

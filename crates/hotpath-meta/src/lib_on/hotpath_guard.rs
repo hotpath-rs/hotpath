@@ -180,6 +180,9 @@ use crate::lib_on::report;
 use crate::lib_on::report::apply_limit;
 use crate::shared::{Section, SectionsMode};
 
+#[cfg(feature = "hotpath-cpu-meta")]
+use crate::dev_logging::{info, warn};
+
 use crate::functions::FunctionStatsConfig;
 
 cfg_if::cfg_if! {
@@ -454,6 +457,9 @@ impl HotpathGuardBuilder {
     }
 
     pub fn build(self) -> HotpathGuard {
+        #[cfg(feature = "dev-meta")]
+        crate::dev_logging::init_logging();
+
         crate::lib_on::functions::init_focus_filter();
 
         crate::lib_on::sampling::init_time_sampling_rate(&self.time_sampling);
@@ -905,31 +911,48 @@ impl Drop for HotpathGuard {
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
 
         #[cfg(feature = "hotpath-cpu-meta")]
-        let cpu_report: Option<Result<crate::functions::cpu::CpuReport, String>> =
-            if self.sections_mode.contains_or_auto(Section::FunctionsCpu) {
-                let caller_name = self
-                    .state
-                    .read()
-                    .map(|state| state.caller_name)
-                    .unwrap_or("unknown");
-                match crate::functions::cpu::autospawn::stop() {
-                    Ok(profile_path) => {
-                        match crate::functions::cpu::build_cpu_report_from_path(
-                            caller_name,
-                            &profile_path,
-                        ) {
-                            Some(r) => Some(Ok(r)),
-                            None => Some(Err(format!(
+        let cpu_report: Option<Result<crate::functions::cpu::CpuReport, String>> = if self
+            .sections_mode
+            .contains_or_auto(Section::FunctionsCpu)
+        {
+            let caller_name = self
+                .state
+                .read()
+                .map(|state| state.caller_name)
+                .unwrap_or("unknown");
+            match crate::functions::cpu::autospawn::stop() {
+                Ok(profile_path) => {
+                    match crate::functions::cpu::build_cpu_report_from_path(
+                        caller_name,
+                        &profile_path,
+                    ) {
+                        Some(r) => {
+                            info!(
+                                    "cpu report: caller={caller_name} total_samples={} attributed_samples={} stats_rows={}",
+                                    r.total_samples,
+                                    r.attributed_samples,
+                                    r.stats.len()
+                                );
+                            Some(Ok(r))
+                        }
+                        None => {
+                            let msg = format!(
                                 "no data parsed from samply profile {}",
                                 profile_path.display()
-                            ))),
+                            );
+                            warn!("cpu report: {msg}");
+                            Some(Err(msg))
                         }
                     }
-                    Err(e) => Some(Err(e)),
                 }
-            } else {
-                None
-            };
+                Err(e) => {
+                    warn!("cpu report: {e}");
+                    Some(Err(e))
+                }
+            }
+        } else {
+            None
+        };
 
         if let Some(f) = self.before_shutdown.take() {
             f();

@@ -15,7 +15,7 @@
 //! constructed inline; endpoints cloned before wrapping are orphaned.
 //!
 //! Returns [`Sender`]/[`Receiver`], re-exported as
-//! `hotpath_meta::wrap::crossbeam::{Sender, Receiver}`.
+//! `hotpath_meta::wrap::crossbeam_channel::{Sender, Receiver}`.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
