@@ -98,6 +98,7 @@ hotpath = "0.29"
 [features]
 hotpath = ["hotpath/hotpath"]
 hotpath-cpu = ["hotpath", "hotpath/hotpath-cpu"]
+hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
 hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
 hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]
 ```
