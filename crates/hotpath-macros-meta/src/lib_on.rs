@@ -495,6 +495,24 @@ fn unique_label_static(kind: &str, label: &LitStr) -> proc_macro2::TokenStream {
     }
 }
 
+/// `-> T` for a closure that runs a fn body, or nothing when `T` contains an
+/// `impl Trait`, which a closure cannot declare.
+fn closure_return_type(output: &syn::ReturnType) -> proc_macro2::TokenStream {
+    match output {
+        syn::ReturnType::Default => quote! { -> () },
+        syn::ReturnType::Type(_, ty) if contains_impl_trait(&quote!(#ty)) => quote! {},
+        syn::ReturnType::Type(_, ty) => quote! { -> #ty },
+    }
+}
+
+fn contains_impl_trait(tokens: &proc_macro2::TokenStream) -> bool {
+    tokens.clone().into_iter().any(|token| match token {
+        proc_macro2::TokenTree::Ident(ident) => ident == "impl",
+        proc_macro2::TokenTree::Group(group) => contains_impl_trait(&group.stream()),
+        _ => false,
+    })
+}
+
 fn fnv1a(bytes: &[u8]) -> u64 {
     bytes.iter().fold(0xcbf2_9ce4_8422_2325, |hash, &byte| {
         (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
@@ -672,10 +690,16 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         quote! {}
     };
 
+    // A `log = true` sync body runs in a closure, whose return type is
+    // otherwise inferred from the body: annotated with the fn's own, the body
+    // is still coerced to it (`Some(&string)` to `Option<&str>`). A closure
+    // cannot name an `impl Trait` return type, so those keep the inferred one.
+    let closure_ret = closure_return_type(&sig.output);
+
     let wrapped_body = if !is_async_fn {
         if enable_result_logging {
             quote! {
-                hotpath_meta::functions::measure_sync_log(#measurement_loc, || #block)
+                hotpath_meta::functions::measure_sync_log(#measurement_loc, || #closure_ret #block)
             }
         } else {
             quote! {
