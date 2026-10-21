@@ -10,30 +10,6 @@
 ))]
 compile_error!("the `hotpath-cpu` feature is only supported on macOS and Linux");
 
-#[cfg(all(feature = "hotpath-alloc", not(feature = "hotpath")))]
-compile_error!("the `hotpath-alloc` feature requires the `hotpath` feature");
-
-#[cfg(all(feature = "hotpath-cpu", not(feature = "hotpath")))]
-compile_error!("the `hotpath-cpu` feature requires the `hotpath` feature");
-
-#[cfg(all(feature = "hotpath-callgrind", not(feature = "hotpath")))]
-compile_error!("the `hotpath-callgrind` feature requires the `hotpath` feature");
-
-#[cfg(all(feature = "hotpath-prometheus", not(feature = "hotpath")))]
-compile_error!("the `hotpath-prometheus` feature requires the `hotpath` feature");
-
-#[cfg(all(feature = "hotpath-cloud", not(feature = "hotpath")))]
-compile_error!("the `hotpath-cloud` feature requires the `hotpath` feature");
-
-#[cfg(all(feature = "hotpath-alloc-meta", not(feature = "hotpath-meta")))]
-compile_error!("the `hotpath-alloc-meta` feature requires the `hotpath-meta` feature");
-
-#[cfg(all(feature = "hotpath-prometheus-meta", not(feature = "hotpath-meta")))]
-compile_error!("the `hotpath-prometheus-meta` feature requires the `hotpath-meta` feature");
-
-#[cfg(all(feature = "hotpath-cloud-meta", not(feature = "hotpath-meta")))]
-compile_error!("the `hotpath-cloud-meta` feature requires the `hotpath-meta` feature");
-
 // Referenced by the #[hotpath::main] expansion when the meta allocator layer
 // is enabled, so user crates can name hotpath_meta without depending on it.
 #[cfg(feature = "hotpath-meta")]

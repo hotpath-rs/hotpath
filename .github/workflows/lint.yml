@@ -38,6 +38,12 @@ jobs:
       - name: Lint custom features combination
         run: |
           cargo clippy -p test-custom-feature --features hotpath-profile --all-targets -- -D warnings
+      - name: Lint feature matrix without hotpath (cargo-hack each-feature)
+        run: |
+          cargo hack clippy -p hotpath \
+            --each-feature \
+            --exclude-features hotpath-meta,hotpath-alloc-meta,hotpath-mcp-meta,hotpath-prometheus-meta,hotpath-cloud-meta,dev,tui,cloud \
+            -- -D warnings
       - name: Lint feature matrix (cargo-hack each-feature)
         run: |
           cargo hack clippy -p hotpath --features hotpath,threads \

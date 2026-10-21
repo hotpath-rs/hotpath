@@ -11,10 +11,10 @@ categories = ["development-tools"]
 [features]
 default = []
 hotpath = ["dep:proc-macro2", "dep:quote", "dep:syn"]
-hotpath-alloc = []
+hotpath-alloc = ["hotpath"]
 hotpath-alloc-meta = []
-hotpath-cpu = []
-hotpath-callgrind = []
+hotpath-cpu = ["hotpath"]
+hotpath-callgrind = ["hotpath"]
 
 [lib]
 proc-macro = true
