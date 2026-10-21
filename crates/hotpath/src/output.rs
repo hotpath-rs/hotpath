@@ -212,6 +212,8 @@ pub enum ProfilingMode {
     AllocBytes,
     /// Allocation profiling with count as primary metric
     AllocCount,
+    /// Inclusive instructions executed, counted by Valgrind Callgrind
+    Icount,
 }
 
 impl fmt::Display for ProfilingMode {
@@ -220,6 +222,7 @@ impl fmt::Display for ProfilingMode {
             ProfilingMode::Timing => write!(f, "timing"),
             ProfilingMode::AllocBytes => write!(f, "alloc-bytes"),
             ProfilingMode::AllocCount => write!(f, "alloc-count"),
+            ProfilingMode::Icount => write!(f, "icount"),
         }
     }
 }
@@ -233,6 +236,7 @@ impl Serialize for ProfilingMode {
             ProfilingMode::Timing => serializer.serialize_str("timing"),
             ProfilingMode::AllocBytes => serializer.serialize_str("alloc-bytes"),
             ProfilingMode::AllocCount => serializer.serialize_str("alloc-count"),
+            ProfilingMode::Icount => serializer.serialize_str("icount"),
         }
     }
 }
@@ -247,9 +251,10 @@ impl<'de> Deserialize<'de> for ProfilingMode {
             "timing" => Ok(ProfilingMode::Timing),
             "alloc-bytes" => Ok(ProfilingMode::AllocBytes),
             "alloc-count" => Ok(ProfilingMode::AllocCount),
+            "icount" => Ok(ProfilingMode::Icount),
             _ => Err(serde::de::Error::unknown_variant(
                 &s,
-                &["timing", "alloc-bytes", "alloc-count"],
+                &["timing", "alloc-bytes", "alloc-count", "icount"],
             )),
         }
     }

@@ -846,6 +846,10 @@ impl HotpathGuard {
             crate::functions::cpu::autospawn::start();
         }
 
+        // Last, so guard setup is not counted.
+        #[cfg(feature = "hotpath-callgrind-meta")]
+        crate::functions::callgrind::start_session();
+
         Self {
             state: Arc::clone(&state_arc),
             format,
@@ -906,6 +910,21 @@ fn build_timing_list(
     }
 }
 
+#[cfg(feature = "hotpath-callgrind-meta")]
+fn build_icount_list(
+    report: &crate::functions::callgrind::IcountReport,
+    stats: &HashMap<u32, FunctionStats>,
+    config: &FunctionStatsConfig,
+    elapsed_ns: u64,
+) -> JsonFunctionsList {
+    let calls = stats
+        .values()
+        .filter(|s| !s.wrapper && s.has_data)
+        .map(|s| (s.name, (s.id, s.count)))
+        .collect();
+    crate::functions::callgrind::build_icount_list(report, &calls, config, elapsed_ns)
+}
+
 impl Drop for HotpathGuard {
     fn drop(&mut self) {
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
@@ -958,6 +977,15 @@ impl Drop for HotpathGuard {
             f();
         }
 
+        // After the callback (its measured calls are counted), before any
+        // report building.
+        #[cfg(feature = "hotpath-callgrind-meta")]
+        let icount_report = crate::functions::callgrind::finish_session();
+        #[cfg(feature = "hotpath-callgrind-meta")]
+        let counting_icount = icount_report.is_some();
+        #[cfg(not(feature = "hotpath-callgrind-meta"))]
+        let counting_icount = false;
+
         let wrapper_guard = self.wrapper_guard.take().unwrap();
         drop(wrapper_guard);
 
@@ -1007,7 +1035,13 @@ impl Drop for HotpathGuard {
         let sections: Vec<Section> = match &self.sections_mode {
             SectionsMode::Explicit(list) => list.clone(),
             SectionsMode::Auto { include, exclude } => {
-                let mut base = vec![Section::FunctionsTiming];
+                // Durations under Valgrind are meaningless, so its run
+                // reports instructions in their place.
+                let mut base = vec![if counting_icount {
+                    Section::FunctionsIcount
+                } else {
+                    Section::FunctionsTiming
+                }];
                 #[cfg(feature = "hotpath-alloc-meta")]
                 base.push(Section::FunctionsAlloc);
                 #[cfg(feature = "hotpath-cpu-meta")]
@@ -1203,6 +1237,36 @@ impl Drop for HotpathGuard {
                                 report.functions_cpu = Some(crate::json::JsonFunctionsCpu::Error {
                                     message: msg.clone(),
                                 });
+                            }
+                            None => {}
+                        }
+                    }
+                    Section::FunctionsIcount =>
+                    {
+                        #[cfg(feature = "hotpath-callgrind-meta")]
+                        match icount_report.as_ref() {
+                            Some(Ok(icount)) => {
+                                if let (Some(stats), Ok(state_guard)) =
+                                    (functions_stats.as_ref(), state.read())
+                                {
+                                    let total_elapsed =
+                                        end_time.duration_since(state_guard.start_time);
+                                    let config = make_functions_config(
+                                        &state_guard,
+                                        total_elapsed,
+                                        limit_for,
+                                        cloud_report,
+                                    );
+                                    report.functions_icount = Some(build_icount_list(
+                                        icount,
+                                        stats,
+                                        &config,
+                                        total_elapsed.as_nanos() as u64,
+                                    ));
+                                }
+                            }
+                            Some(Err(msg)) => {
+                                eprintln!("[hotpath-meta] icount report unavailable: {msg}");
                             }
                             None => {}
                         }
@@ -1458,6 +1522,53 @@ impl Drop for HotpathGuard {
                                     );
                                 }
                                 None => {}
+                            }
+                        }
+                    }
+                    Section::FunctionsIcount =>
+                    {
+                        #[cfg(feature = "hotpath-callgrind-meta")]
+                        if matches!(format, Format::Table) {
+                            match icount_report.as_ref() {
+                                Some(Ok(icount)) => {
+                                    if let (Some(stats), Ok(state_guard)) =
+                                        (functions_stats.as_ref(), state.read())
+                                    {
+                                        let total_elapsed =
+                                            end_time.duration_since(state_guard.start_time);
+                                        let config = make_functions_config(
+                                            &state_guard,
+                                            total_elapsed,
+                                            |limit| limit,
+                                            false,
+                                        );
+                                        let list = build_icount_list(
+                                            icount,
+                                            stats,
+                                            &config,
+                                            total_elapsed.as_nanos() as u64,
+                                        );
+                                        if list.data.is_empty() {
+                                            display_no_measurements_message_to(
+                                                &mut writer,
+                                                total_elapsed,
+                                                state_guard.caller_name,
+                                            );
+                                        } else {
+                                            display_functions_table_to(&mut writer, &list);
+                                        }
+                                    }
+                                }
+                                Some(Err(msg)) => {
+                                    let _ =
+                                        writeln!(writer, "icount - report unavailable: {msg}\n");
+                                }
+                                None => {
+                                    let _ = writeln!(
+                                        writer,
+                                        "icount - not running under valgrind --tool=callgrind\n"
+                                    );
+                                }
                             }
                         }
                     }

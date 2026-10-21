@@ -112,5 +112,6 @@ pub(crate) fn build_functions_list(
         data,
         included_count,
         total_count,
+        tool: None,
     }
 }

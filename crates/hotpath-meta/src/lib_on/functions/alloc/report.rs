@@ -174,7 +174,7 @@ pub(crate) fn build_functions_list_alloc(
         total_allocated: match profiling_mode {
             ProfilingMode::AllocBytes => Some(precision.bytes(grand_total)),
             ProfilingMode::AllocCount => Some(format_count(grand_total)),
-            ProfilingMode::Timing => None,
+            ProfilingMode::Timing | ProfilingMode::Icount => None,
         },
         description,
         caller_name: config.caller_name.to_string(),
@@ -182,6 +182,7 @@ pub(crate) fn build_functions_list_alloc(
         data,
         included_count,
         total_count,
+        tool: None,
     }
 }
 
@@ -290,5 +291,6 @@ pub(crate) fn build_functions_list_timing(
         data,
         included_count,
         total_count,
+        tool: None,
     }
 }

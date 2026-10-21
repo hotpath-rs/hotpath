@@ -7,8 +7,9 @@ on:
 
 # Transport-layer benchmark: the `hotpath-drain` `throughput` example runs
 # several producer threads against one consumer while `hotpath-meta` profiles
-# the queue's own hot paths (`push`, `sweep`, `drain_into`). Same shape as
-# `cloud-meta-benchmark.yml`, uploaded to the separate `drain` series. A
+# the queue's own hot paths (`push`, `sweep`, `drain_into`). It runs under
+# Valgrind Callgrind, so the report carries instruction counts and
+# allocations instead of timing. Uploaded to the separate `drain` series. A
 # regression fails the pull request's `hotpath / drain` check run
 # (`pr_check` in `hotpath/drain-policy.toml`), not the job.
 jobs:
@@ -16,7 +17,10 @@ jobs:
     name: cloud drain benchmark
     # Fork pull requests get no `id-token: write`, so there is nothing to upload.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    # Instruction counts depend on the Valgrind build, and reports only compare
+    # within one (`tool`), so the image and the package are pinned: an upgrade
+    # is a deliberate bump, not a silent gap in verdicts.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -28,15 +32,28 @@ jobs:
         id: rustc
         run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
-      - name: Run drain benchmark and upload report
+      - name: Install valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind=1:3.22.0-0ubuntu3
+          valgrind --version
+      - name: Build drain benchmark
+        run: |
+          cargo build -q --release -p hotpath-drain --example throughput \
+            --features hotpath-meta,hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
+      # Run from the workspace root (git info, policy lookup); the Callgrind
+      # dump goes to the runner's temp dir, named for hotpath-meta by
+      # HOTPATH_META_CALLGRIND_OUT_FILE.
+      - name: Run drain benchmark under Callgrind and upload report
         env:
           HOTPATH_META_UPLOAD: fail-on-error
           HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
           HOTPATH_META_BENCHMARK: drain
           HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
-          HOTPATH_META_EXCLUDE_WRAPPER: "true"
           HOTPATH_META_OUTPUT_FORMAT: none
+          HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
         run: |
-          cargo run -q --release -p hotpath-drain --example throughput \
-            --features hotpath-meta,hotpath-alloc-meta,hotpath-cloud-meta
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_META_CALLGRIND_OUT_FILE" \
+            target/release/examples/throughput
           test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"

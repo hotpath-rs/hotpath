@@ -115,6 +115,11 @@ pub struct JsonFunctionsList {
     pub total_count: usize,
     /// Number of entries in `data`.
     pub included_count: usize,
+    /// Tool that counted the values when hotpath did not measure them
+    /// itself, e.g. `callgrind-3.24.0` for `instructions`. Counts from
+    /// different tool versions are not comparable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1224,6 +1229,8 @@ pub struct JsonReport {
     pub functions_alloc: Option<JsonFunctionsList>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub functions_cpu: Option<JsonFunctionsCpu>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub functions_icount: Option<JsonFunctionsList>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channels: Option<JsonChannelsList>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1262,6 +1269,7 @@ impl JsonReport {
             functions_timing: None,
             functions_alloc: None,
             functions_cpu: None,
+            functions_icount: None,
             channels: None,
             streams: None,
             futures: None,
