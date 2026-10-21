@@ -132,6 +132,14 @@ pub mod tests {
             ("instructions::nested::first", 1, 1),
             ("instructions::nested::second", 1, 1),
         ];
+        // `avg` keeps two decimals of `total / calls`, not a truncated
+        // whole number.
+        for entry in &list.data {
+            let total: u64 = entry.total.parse().unwrap();
+            let avg = format!("{:.2}", total as f64 / entry.calls as f64);
+            assert_eq!(entry.avg, avg, "{} avg", entry.name);
+        }
+
         for (name, calls, spins) in expected {
             let (actual_calls, actual) = total(&list, name);
             assert_eq!(actual_calls, calls, "{name} calls");
