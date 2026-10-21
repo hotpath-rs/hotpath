@@ -262,9 +262,13 @@ pub(crate) fn build_icount_list(
                 name: name.to_string(),
                 calls: count,
                 sampled_calls: count,
-                avg: ir
-                    .checked_div(count)
-                    .map_or_else(|| "-".to_string(), |avg| avg.to_string()),
+                // Two decimals: a whole-number average of a short hot function
+                // (~33 per call) moves by 3% when the total moves by 1%.
+                avg: if count > 0 {
+                    format!("{:.2}", ir as f64 / count as f64)
+                } else {
+                    "-".to_string()
+                },
                 percentiles: HashMap::new(),
                 total: ir.to_string(),
                 percent_total: format!("{percentage:.2}%"),
