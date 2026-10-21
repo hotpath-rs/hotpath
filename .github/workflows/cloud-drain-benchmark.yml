@@ -50,7 +50,6 @@ jobs:
           HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
           HOTPATH_META_BENCHMARK: drain
           HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
-          HOTPATH_META_EXCLUDE_WRAPPER: "true"
           HOTPATH_META_OUTPUT_FORMAT: none
           HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
         run: |
