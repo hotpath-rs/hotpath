@@ -72,10 +72,15 @@ pub mod tests {
             .env("HOTPATH_CALLGRIND_OUT_FILE", out_file)
     }
 
-    /// The report and stderr of one Callgrind run of `instructions`.
+    /// The report and stderr of one Callgrind run of `instructions`. The
+    /// sampling rate is overridden to count-only under Valgrind; a fractional
+    /// one left in place makes `recursive`'s count vary between runs.
     fn callgrind_report() -> (JsonReport, String) {
         let dir = RunDir::new();
-        let output = under_callgrind("instructions", &dir).json().output();
+        let output = under_callgrind("instructions", &dir)
+            .env("HOTPATH_TIME_SAMPLING_RATE", "0.5")
+            .json()
+            .output();
         assert_success(&output);
         (
             parse_report(&String::from_utf8_lossy(&output.stdout)),
@@ -92,7 +97,7 @@ pub mod tests {
         (entry.calls, entry.total.parse().unwrap())
     }
 
-    // CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" HOTPATH_OUTPUT_FORMAT=json cargo run --release -p test-callgrind --example instructions --features hotpath,hotpath-callgrind
+    // CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" HOTPATH_TIME_SAMPLING_RATE=0.5 HOTPATH_OUTPUT_FORMAT=json cargo run --release -p test-callgrind --example instructions --features hotpath,hotpath-callgrind
     #[test]
     fn test_instructions_are_exact_and_attributed() {
         if !valgrind_available() {
@@ -104,6 +109,11 @@ pub mod tests {
         assert!(
             first.functions_timing.is_none(),
             "timing is meaningless under Valgrind"
+        );
+        let rates = first.time_sampling.as_ref().expect("time sampling rates");
+        assert!(
+            !rates.is_empty() && rates.values().all(|&r| r == 0.0),
+            "{rates:?}"
         );
         let list = first.functions_icount.expect("instructions section");
         assert!(
