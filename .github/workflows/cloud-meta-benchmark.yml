@@ -27,6 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      # The exact compiler goes into the report's metadata: `stable` moves, and
+      # a new rustc changes what a benchmark measures.
+      - name: Record rustc version
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
       # The uploader reports its own outcome: one `::notice::` / `::warning::`
       # / `::error::` annotation plus a step summary block. The response file
@@ -37,7 +42,7 @@ jobs:
           HOTPATH_META_UPLOAD: fail-on-error
           HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
           HOTPATH_META_BENCHMARK: meta
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,profile=release
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
           HOTPATH_META_EXCLUDE_WRAPPER: "true"
           HOTPATH_META_OUTPUT_FORMAT: none
           HOTPATH_OUTPUT_FORMAT: none
