@@ -64,6 +64,7 @@ pub mod tests {
             .features(FEATURES)
             .release()
             .env("HOTPATH_REPORT", "auto,-threads")
+            .env("HOTPATH_FUNCTIONS_LIMIT", "0")
             .env(
                 "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER",
                 format!("valgrind -q --tool=callgrind --callgrind-out-file={out_file}"),
@@ -140,7 +141,26 @@ pub mod tests {
                 "{name}: {actual} Ir, expected about {spins} x {unit}"
             );
         }
-        assert_eq!(list.data.len(), expected.len(), "{:#?}", list.data);
+        // Return type shapes the marker closure must compile for, each
+        // attributed once; they run no `spin`, so no ratio to check.
+        let shapes = [
+            "instructions::Worker::values",
+            "instructions::logged_slice",
+            "instructions::Worker::evens",
+            "instructions::Worker::cloned",
+            "instructions::Worker::parse_first",
+        ];
+        for name in shapes {
+            let (calls, total) = total(&list, name);
+            assert_eq!(calls, 1, "{name} calls");
+            assert!(total > 0, "{name} has no instructions");
+        }
+        assert_eq!(
+            list.data.len(),
+            expected.len() + shapes.len(),
+            "{:#?}",
+            list.data
+        );
         // alpha::generated and beta::generated share a marker: excluded and
         // reported, never merged into one count.
         assert!(

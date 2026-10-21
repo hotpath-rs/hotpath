@@ -773,12 +773,6 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    // A `log = true` sync body runs in a closure, whose return type is
-    // otherwise inferred from the body: annotated with the fn's own, the body
-    // is still coerced to it (`Some(&string)` to `Option<&str>`). A closure
-    // cannot name an `impl Trait` return type, so those keep the inferred one.
-    let closure_ret = closure_return_type(&sig.output);
-
     // Under `hotpath-callgrind` the body runs inside (sync) or is polled
     // through (async) a nested `#[inline(never)]` marker fn named after this
     // call site; Callgrind's dump attributes inclusive instructions to its
@@ -786,6 +780,12 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     // A sync `#[track_caller]` body keeps no marker: the closure would end
     // its caller propagation.
     let track_caller = attrs.iter().any(|a| a.path().is_ident("track_caller"));
+    // Sync bodies run inside closures (the marker below, `log = true`), whose
+    // return type is otherwise inferred from the body: annotated with the
+    // fn's own, the body is still coerced to it (`Some(&vec)` to
+    // `Option<&[T]>`). A closure cannot name an `impl Trait` return type, so
+    // those keep the inferred one.
+    let closure_ret = closure_return_type(&sig.output);
     let marker = (cfg!(feature = "hotpath-callgrind") && !(track_caller && !is_async_fn))
         .then(|| callgrind_marker(fn_ident, label.as_ref(), impl_type.as_ref()));
     let (marker_items, sync_body, async_body) = match &marker {
@@ -826,7 +826,7 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
                         });
                     }
                 },
-                quote! { #marker(|| #block) },
+                quote! { #marker(|| #closure_ret #block) },
                 quote! { hotpath::functions::CallgrindFuture::new(async #block, #marker) },
             )
         }

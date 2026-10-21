@@ -69,6 +69,41 @@ impl Worker {
     }
 }
 
+// The body's value is coerced to the declared return type (`&Vec<u64>` to
+// `&[u64]`), which the marker closure must keep doing.
+#[hotpath::measure_all]
+impl Worker {
+    fn values(&self) -> Option<(u64, &[u64])> {
+        let first = *self.values.first()?;
+        Some((first, &self.values))
+    }
+}
+
+// Return types a closure cannot or need not name the same way: an
+// `impl Trait` (kept inferred), `Self`, and an early `?` return.
+#[hotpath::measure_all]
+impl Worker {
+    fn evens(&self) -> impl Iterator<Item = &u64> + '_ {
+        self.values.iter().filter(|v| *v % 2 == 0)
+    }
+
+    fn cloned(&self) -> Self {
+        Worker {
+            values: self.values.clone(),
+        }
+    }
+
+    fn parse_first(&self, input: &str) -> Result<u64, std::num::ParseIntError> {
+        let parsed: u64 = input.parse()?;
+        Ok(parsed + self.values[0])
+    }
+}
+
+#[hotpath::measure(log = true)]
+fn logged_slice(worker: &Worker) -> Option<(u64, &[u64])> {
+    Some((worker.values.len() as u64, &worker.values))
+}
+
 trait Job {
     fn run(&self) -> u64;
 }
@@ -160,6 +195,11 @@ fn main() {
     total = total.wrapping_add(worker.inherent());
     total = total.wrapping_add(worker.run());
     *worker.first_mut() += 1;
+    total = total.wrapping_add(worker.values().map_or(0, |(_, v)| v.len() as u64));
+    total = total.wrapping_add(logged_slice(&worker).map_or(0, |(n, _)| n));
+    total = total.wrapping_add(worker.evens().count() as u64);
+    total = total.wrapping_add(worker.cloned().values.len() as u64);
+    total = total.wrapping_add(worker.parse_first("7").unwrap_or(0));
 
     let current = tokio::runtime::Builder::new_current_thread()
         .build()
