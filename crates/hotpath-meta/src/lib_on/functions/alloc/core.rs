@@ -23,6 +23,7 @@ pub(crate) const TID_ORPHANED_BASE: u64 = u64::MAX - MAX_THREADS as u64;
 
 /// Whether a tid is a synthetic identity of an orphaned slot rather than a
 /// live OS tid.
+#[cfg(feature = "threads")]
 pub(crate) fn is_orphaned_tid(tid: u64) -> bool {
     tid >= TID_ORPHANED_BASE
 }
