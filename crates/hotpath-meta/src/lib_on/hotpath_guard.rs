@@ -353,7 +353,8 @@ impl HotpathGuardBuilder {
     /// channels; per-resource setters override it. Env vars
     /// (`HOTPATH_META_TIME_SAMPLING_RATE` and per-resource variants) take precedence.
     /// Under `hotpath-alloc-meta`, function durations respect the rate while
-    /// allocation metrics stay exact.
+    /// allocation metrics stay exact. Under `hotpath-callgrind-meta` running in
+    /// Valgrind, every rate is forced to `0.0`.
     pub fn time_sampling_rate(mut self, rate: f64) -> Self {
         self.time_sampling.global = Some(rate);
         self

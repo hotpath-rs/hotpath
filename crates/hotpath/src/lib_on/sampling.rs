@@ -182,9 +182,21 @@ fn parse_rate_env(name: &str) -> Option<f64> {
 
 /// Resolves and locks in per-resource samplers. Precedence:
 /// per-resource env > global env > per-resource builder > global builder.
+/// Under Callgrind every resource is count-only regardless: durations are
+/// discarded there, and a fractional rate's random draw would send nested
+/// measured calls down the timed or untimed path at random, making their
+/// caller's instruction count differ between runs.
 pub(crate) fn init_time_sampling_rate(config: &TimeSamplingConfig) {
+    #[cfg(feature = "hotpath-callgrind")]
+    let count_only = crate::lib_on::functions::callgrind::active();
+    #[cfg(not(feature = "hotpath-callgrind"))]
+    let count_only = false;
+
     let global_env = parse_rate_env("HOTPATH_TIME_SAMPLING_RATE");
     let resolve = |env_name: &str, builder_rate: Option<f64>| {
+        if count_only {
+            return Some(Sampler::Never);
+        }
         parse_rate_env(env_name)
             .or(global_env)
             .or(builder_rate)
