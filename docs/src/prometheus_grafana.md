@@ -25,12 +25,12 @@ hotpath = "{{HOTPATH_VERSION}}"
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
-hotpath-prometheus = ["hotpath/hotpath-prometheus"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]
 ```
 
 ```bash
-cargo run --features='hotpath,hotpath-prometheus'
+cargo run --features='hotpath-prometheus'
 ```
 
 The exporter starts automatically with the profiler on `127.0.0.1:6772` (customizable with `HOTPATH_PROMETHEUS_PORT`, `HOTPATH_PROMETHEUS_HOST`). Verify it with:
@@ -354,5 +354,5 @@ Example:
 
 ```bash
 HOTPATH_PROMETHEUS_PORT=9100 HOTPATH_PROMETHEUS_AUTH_TOKEN=secret123 \
-cargo run --features='hotpath,hotpath-prometheus'
+cargo run --features='hotpath-prometheus'
 ```

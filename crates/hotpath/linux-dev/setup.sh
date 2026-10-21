@@ -20,6 +20,6 @@ docker run -d --name hotpath-linux \
 
 docker exec hotpath-linux \
     cargo build -p hotpath --bin hotpath-samply \
-        --features hotpath,hotpath-cpu --profile profiling
+        --features hotpath-cpu --profile profiling
 
 docker exec -it hotpath-linux bash

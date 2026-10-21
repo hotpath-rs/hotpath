@@ -14,10 +14,10 @@ cargo run --features=hotpath
 
 <img loading="lazy" src="{{#asset-hash images/hotpath-timing-report.png}}" alt="hotpath-rs timing profiling report showing per-function execution statistics">
 
-Use `--features='hotpath,hotpath-alloc'` to print memory usage report:
+Use `--features='hotpath-alloc'` to print memory usage report:
 
 ```bash
-cargo run --features='hotpath,hotpath-alloc'
+cargo run --features='hotpath-alloc'
 ```
 
 <img loading="lazy" src="{{#asset-hash images/hotpath-alloc-report.png}}" alt="hotpath-rs memory allocation profiling report showing per-function byte counts">
@@ -25,7 +25,7 @@ cargo run --features='hotpath,hotpath-alloc'
 By default, allocation reports sort and display by bytes. Set `HOTPATH_ALLOC_METRIC=count` to use allocation count as the primary metric instead:
 
 ```bash
-HOTPATH_ALLOC_METRIC=count cargo run --features='hotpath,hotpath-alloc'
+HOTPATH_ALLOC_METRIC=count cargo run --features='hotpath-alloc'
 ```
 
 ### `hotpath::main` vs `HotpathGuardBuilder` API
@@ -163,7 +163,7 @@ hotpath = "{{HOTPATH_VERSION}}"
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
 ```
 
 With this config, macros can be used directly in the code without any `cfg` gating, and builds without `--features=hotpath` are identical to builds that don't depend on `hotpath` at all.

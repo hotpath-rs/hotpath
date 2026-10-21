@@ -16,8 +16,8 @@ hotpath = "{{HOTPATH_VERSION}}"
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
-hotpath-cloud = ["hotpath/hotpath-cloud"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 ```
 
 Add a policy file. Every uploaded report carries the repository's policy, and an upload without one is refused. `hotpath cloud init` writes the default policy to `hotpath/policy.toml`:
@@ -75,7 +75,7 @@ jobs:
           HOTPATH_OUTPUT_FORMAT: none
         run: |
           cargo run -q --release --example my_benchmark \
-            --features hotpath,hotpath-alloc,hotpath-cloud
+            --features hotpath-alloc,hotpath-cloud
           test -s "$HOTPATH_UPLOAD_RESPONSE_PATH"
 ```
 
@@ -149,7 +149,7 @@ jobs:
           HOTPATH_OUTPUT_FORMAT: none
         run: |
           cargo run -q --release --example my_benchmark \
-            --features hotpath,hotpath-alloc,hotpath-cloud
+            --features hotpath-alloc,hotpath-cloud
           test -s "$HOTPATH_UPLOAD_RESPONSE_PATH"
 
   report:
@@ -174,7 +174,7 @@ jobs:
           HOTPATH_OUTPUT_PATH: report.json
         run: |
           cargo run -q --release --example my_benchmark \
-            --features hotpath,hotpath-alloc,hotpath-cloud
+            --features hotpath-alloc,hotpath-cloud
           test -s report.json
       - uses: actions/upload-artifact@v4
         with:

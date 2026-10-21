@@ -61,7 +61,7 @@ mod tests {
         run_upload_in(None, server, dir, env)
     }
 
-    // cargo run -p test-all-features --example basic_all_features --features hotpath,hotpath-cloud
+    // cargo run -p test-all-features --example basic_all_features --features hotpath-cloud
     fn run_upload_in(
         cwd: Option<&Path>,
         server: &ServerGuard,
@@ -70,7 +70,7 @@ mod tests {
     ) -> Output {
         let run = Example::new("test-all-features", "basic_all_features")
             .manifest_path(concat!(env!("CARGO_MANIFEST_DIR"), "/../../Cargo.toml"))
-            .features("hotpath,hotpath-cloud")
+            .features("hotpath-cloud")
             .env("HOTPATH_REPORT", "functions-timing")
             .json()
             .env("HOTPATH_OUTPUT_PATH", dir.join("report.json"))

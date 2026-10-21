@@ -5,7 +5,7 @@
 //! now tops the report instead.
 //!
 //! Run with:
-//!   cargo run --release -p test-cpu --example regex_compile_after --features hotpath,hotpath-cpu
+//!   cargo run --release -p test-cpu --example regex_compile_after --features hotpath-cpu
 
 use std::sync::LazyLock;
 

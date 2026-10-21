@@ -179,10 +179,8 @@ pub mod tests {
     // durations respect the rate while allocation metrics stay exact.
     #[test]
     fn test_alloc_mode_samples_durations_only() {
-        let report = run_example_with_features(
-            "hotpath,hotpath-alloc",
-            &[("HOTPATH_TIME_SAMPLING_RATE", "0.5")],
-        );
+        let report =
+            run_example_with_features("hotpath-alloc", &[("HOTPATH_TIME_SAMPLING_RATE", "0.5")]);
 
         let rates = report.time_sampling.as_ref().expect("No time_sampling");
         assert_eq!(rates.get("functions"), Some(&0.5));

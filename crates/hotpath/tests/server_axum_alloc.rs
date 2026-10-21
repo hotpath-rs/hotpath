@@ -20,7 +20,7 @@ pub mod tests {
 
     fn example(envs: &[(&str, &str)]) -> Example {
         Example::new("test-axum", "route_alloc")
-            .features("hotpath,hotpath-alloc")
+            .features("hotpath-alloc")
             .envs(envs)
     }
 

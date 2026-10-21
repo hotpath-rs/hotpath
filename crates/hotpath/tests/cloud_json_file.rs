@@ -10,14 +10,14 @@ mod tests {
     /// The fork case: a job that measures untrusted code gets no OIDC token, so
     /// it writes the JSON report for a trusted job to upload. Nothing may be
     /// posted, and the file must carry what an upload would have sent.
-    // cargo run -p test-all-features --example basic_all_features --features hotpath,hotpath-cloud
+    // cargo run -p test-all-features --example basic_all_features --features hotpath-cloud
     #[test]
     fn json_file_is_an_upload_payload() {
         let path = std::env::temp_dir().join("hotpath_cloud_json_file_test.json");
         let _ = std::fs::remove_file(&path);
 
         let output = Example::new("test-all-features", "basic_all_features")
-            .features("hotpath,hotpath-cloud")
+            .features("hotpath-cloud")
             .env("HOTPATH_REPORT", "functions-timing")
             .json()
             .env("HOTPATH_OUTPUT_PATH", &path)

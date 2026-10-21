@@ -7,13 +7,13 @@ description = "Tests with all feature flags enabled."
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
-hotpath-cpu = ["hotpath/hotpath-cpu"]
-hotpath-cloud = ["hotpath/hotpath-cloud"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-cpu = ["hotpath", "hotpath/hotpath-cpu"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 hotpath-meta = ["hotpath/hotpath-meta"]
-hotpath-alloc-meta = ["hotpath/hotpath-alloc-meta"]
-hotpath-cloud-meta = ["hotpath/hotpath-cloud-meta"]
-hotpath-prometheus = ["hotpath/hotpath-prometheus"]
+hotpath-alloc-meta = ["hotpath-meta", "hotpath/hotpath-alloc-meta"]
+hotpath-cloud-meta = ["hotpath-meta", "hotpath/hotpath-cloud-meta"]
+hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]
 
 # Gates the expected-to-fail `duplicate_labels_*` examples; a cfg, not a feature, so
 # `--all-features` stays green. Set by `hotpath/tests/unique_labels.rs`.

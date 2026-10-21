@@ -34,12 +34,12 @@ mod tests {
     /// The report's `meta` and the run's stderr. With `cwd` the example runs
     /// from that directory, which stands for the checkout.
     ///
-    /// cargo run -p test-all-features --example basic_all_features --features hotpath,hotpath-cloud
+    /// cargo run -p test-all-features --example basic_all_features --features hotpath-cloud
     fn run_example_in(cwd: Option<&Path>, envs: &[(&str, &str)]) -> (JsonMeta, String) {
         run_named_example_in("basic_all_features", cwd, envs)
     }
 
-    /// cargo run -p test-all-features --example no_locations --features hotpath,hotpath-cloud
+    /// cargo run -p test-all-features --example no_locations --features hotpath-cloud
     fn run_named_example_in(
         example: &str,
         cwd: Option<&Path>,
@@ -47,7 +47,7 @@ mod tests {
     ) -> (JsonMeta, String) {
         let mut run = Example::new("test-all-features", example)
             .manifest_path(concat!(env!("CARGO_MANIFEST_DIR"), "/../../Cargo.toml"))
-            .features("hotpath,hotpath-cloud")
+            .features("hotpath-cloud")
             .json()
             .env("HOTPATH_REPORT", "functions-timing")
             .env_remove("HOTPATH_UPLOAD")

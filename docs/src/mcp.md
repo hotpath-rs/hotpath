@@ -13,7 +13,7 @@ and get instant answers.
 Run your program with the MCP enabled alongside profiling:
 
 ```bash
-cargo run --features='hotpath,hotpath-alloc,hotpath-mcp'
+cargo run --features='hotpath-alloc,hotpath-mcp'
 ```
 
 ## Available tools
@@ -73,7 +73,7 @@ Example with custom configuration:
 
 ```bash
 HOTPATH_MCP_PORT=8080 HOTPATH_MCP_AUTH_TOKEN=secret123 \
-cargo run --features='hotpath,hotpath-mcp'
+cargo run --features='hotpath-mcp'
 ```
 
 ## Claude Code setup

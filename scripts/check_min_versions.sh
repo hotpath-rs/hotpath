@@ -87,7 +87,7 @@ PY
 echo "==> cargo +nightly update -Z direct-minimal-versions"
 cargo +nightly update -Z direct-minimal-versions
 
-echo "==> cargo +stable check -p hotpath --features 'hotpath,hotpath-alloc'"
-cargo +stable check -p hotpath --features 'hotpath,hotpath-alloc'
+echo "==> cargo +stable check -p hotpath --features 'hotpath-alloc'"
+cargo +stable check -p hotpath --features 'hotpath-alloc'
 
 echo "OK: min-versions check passed"

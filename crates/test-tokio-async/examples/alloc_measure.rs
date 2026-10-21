@@ -1,5 +1,5 @@
 //! Run with:
-//!   cargo run -p test-tokio-async --example alloc_measure --features hotpath,hotpath-alloc
+//!   cargo run -p test-tokio-async --example alloc_measure --features hotpath-alloc
 
 fn uninstrumented_1kb() -> Vec<u8> {
     let buf = vec![0u8; 1024];

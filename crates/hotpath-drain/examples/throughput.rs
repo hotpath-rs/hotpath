@@ -9,8 +9,8 @@
 //! Run with:
 //!   cargo run -p hotpath-drain --example throughput --release
 //!   cargo run -p hotpath-drain --example throughput --release --features hotpath-meta
-//!   cargo run -p hotpath-drain --example throughput --release --features hotpath-meta,hotpath-alloc-meta
-//!   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" cargo run -p hotpath-drain --example throughput --release --features hotpath-meta,hotpath-alloc-meta,hotpath-callgrind-meta
+//!   cargo run -p hotpath-drain --example throughput --release --features hotpath-alloc-meta
+//!   CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" cargo run -p hotpath-drain --example throughput --release --features hotpath-alloc-meta,hotpath-callgrind-meta
 
 use std::sync::{Arc, Barrier};
 use std::thread;

@@ -5,7 +5,7 @@
 //! exporter) alive after the workload completes.
 //!
 //! Run with:
-//!   cargo run -p test-all-features --example prometheus_system --features hotpath,hotpath-prometheus
+//!   cargo run -p test-all-features --example prometheus_system --features hotpath-prometheus
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;

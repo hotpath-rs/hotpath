@@ -10,8 +10,8 @@ hotpath = { workspace = true }
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-cloud = ["hotpath/hotpath-cloud"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
-hotpath-cpu = ["hotpath/hotpath-cpu"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-cpu = ["hotpath", "hotpath/hotpath-cpu"]
 hotpath-meta = ["hotpath/hotpath-meta"]
-hotpath-alloc-meta = ["hotpath/hotpath-alloc-meta"]
+hotpath-alloc-meta = ["hotpath-meta", "hotpath/hotpath-alloc-meta"]

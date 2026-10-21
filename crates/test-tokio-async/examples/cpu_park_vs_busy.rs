@@ -1,5 +1,5 @@
 //! Run with:
-//!   cargo run -p test-tokio-async --example cpu_park_vs_busy --features hotpath,hotpath-cpu
+//!   cargo run -p test-tokio-async --example cpu_park_vs_busy --features hotpath-cpu
 //!
 //! Single-thread example for comparing hotpath-cpu output with samply UI.
 //!

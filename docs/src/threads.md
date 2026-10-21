@@ -12,7 +12,7 @@ hotpath = "{{HOTPATH_VERSION}}"
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
 ```
 
 and attach the `#[hotpath::main]` macro to your entry point:
@@ -27,7 +27,7 @@ fn main() {
 Then run with profiling enabled:
 
 ```bash
-cargo run --features='hotpath,hotpath-alloc'
+cargo run --features='hotpath-alloc'
 ```
 
 A few things to know:

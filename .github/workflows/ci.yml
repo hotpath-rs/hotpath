@@ -44,28 +44,28 @@ jobs:
           cargo check --bin hotpath --features tui
       - name: Check hotpath-alloc
         run: |
-          cargo check --features "hotpath,hotpath-alloc"
+          cargo check --features "hotpath-alloc"
       - name: Check hotpath-mcp
         run: |
-          cargo check --features "hotpath,hotpath-mcp"
+          cargo check --features "hotpath-mcp"
       - name: Check hotpath-prometheus feature
         run: |
-          cargo check --features "hotpath,hotpath-prometheus"
+          cargo check --features "hotpath-prometheus"
       - name: Check hotpath-meta
         run: |
-          cargo check --features "hotpath,hotpath-alloc-meta,hotpath-meta"
+          cargo check --features "hotpath,hotpath-alloc-meta"
       - name: Run lib tests
         run: |
           cargo test --lib --features hotpath
       - name: Run lib tests (all profiling features)
         run: |
-          cargo test --lib --features hotpath,hotpath-alloc,hotpath-cloud,hotpath-cpu,hotpath-prometheus,hotpath-mcp
+          cargo test --lib --features hotpath-alloc,hotpath-cloud,hotpath-cpu,hotpath-prometheus,hotpath-mcp
       - name: Check TUI build
         run: |
           cargo check -p hotpath --bin hotpath --features=tui
       - name: Check meta TUI build
         run: |
-          cargo check --features='tui,hotpath,hotpath-meta,hotpath-alloc-meta,hotpath-mcp,hotpath-mcp-meta,dev' --bin hotpath
+          cargo check --features='tui,hotpath-alloc-meta,hotpath-mcp,hotpath-mcp-meta,dev' --bin hotpath
       - name: Check cloud CLI build
         run: |
           cargo check -p hotpath --bin hotpath --features=cloud
@@ -134,7 +134,7 @@ jobs:
           cargo test --features hotpath --test metrics_auth -- --nocapture --test-threads=1
       - name: Run cloud tests
         run: |
-          cargo test --lib --features hotpath,hotpath-cloud
+          cargo test --lib --features hotpath-cloud
           cargo test --features hotpath --test cloud_limit -- --nocapture --test-threads=1
           cargo test --features hotpath --test cloud_json_file -- --nocapture --test-threads=1
           cargo test --features hotpath --test cloud_upload_guard -- --nocapture --test-threads=1
@@ -264,13 +264,13 @@ jobs:
           key: ${{ matrix.rust }}
       - name: Run prometheus tests
         run: |
-          cargo test --features hotpath,hotpath-prometheus --test prometheus_metrics -- --nocapture --test-threads=1
-          cargo test --features hotpath,hotpath-prometheus --test prometheus_native -- --nocapture --test-threads=1
-          cargo test --features hotpath,hotpath-prometheus --test prometheus_subsystems -- --nocapture --test-threads=1
-          cargo test --features hotpath,hotpath-prometheus --test prometheus_flow -- --nocapture --test-threads=1
-          cargo test --features hotpath,hotpath-prometheus --test prometheus_io -- --nocapture --test-threads=1
-          cargo test --features hotpath,hotpath-prometheus --test prometheus_alloc -- --nocapture --test-threads=1
-          cargo test --features hotpath,hotpath-prometheus --test prometheus_system -- --nocapture --test-threads=1
+          cargo test --features hotpath-prometheus --test prometheus_metrics -- --nocapture --test-threads=1
+          cargo test --features hotpath-prometheus --test prometheus_native -- --nocapture --test-threads=1
+          cargo test --features hotpath-prometheus --test prometheus_subsystems -- --nocapture --test-threads=1
+          cargo test --features hotpath-prometheus --test prometheus_flow -- --nocapture --test-threads=1
+          cargo test --features hotpath-prometheus --test prometheus_io -- --nocapture --test-threads=1
+          cargo test --features hotpath-prometheus --test prometheus_alloc -- --nocapture --test-threads=1
+          cargo test --features hotpath-prometheus --test prometheus_system -- --nocapture --test-threads=1
       - name: Run io tests
         run: |
           cargo test --features hotpath --test io -- --nocapture --test-threads=1
@@ -342,12 +342,12 @@ jobs:
           sudo chmod u+s ~/.cargo/bin/samply
       - name: Build hotpath-samply wrapper
         run: |
-          cargo build -p hotpath --bin hotpath-samply --features "hotpath,hotpath-cpu"
+          cargo build -p hotpath --bin hotpath-samply --features "hotpath-cpu"
       - name: Run functions_cpu tests
         env:
           HOTPATH_SAMPLY_WRAPPER_BIN: ${{ github.workspace }}/target/debug/hotpath-samply
         run: |
-          cargo test --features "hotpath,hotpath-cpu" --test functions_cpu -- --nocapture --test-threads=1
+          cargo test --features "hotpath-cpu" --test functions_cpu -- --nocapture --test-threads=1
 
   cpu-linux:
     name: cpu tests (Linux)
@@ -373,18 +373,18 @@ jobs:
           chmod +x ~/.cargo/bin/samply
       - name: Build hotpath-samply wrapper
         run: |
-          cargo build -p hotpath --bin hotpath-samply --features "hotpath,hotpath-cpu"
+          cargo build -p hotpath --bin hotpath-samply --features "hotpath-cpu"
       - name: Run functions_cpu tests
         env:
           HOTPATH_SAMPLY_WRAPPER_BIN: ${{ github.workspace }}/target/debug/hotpath-samply
         run: |
-          setsid -w cargo test --features "hotpath,hotpath-cpu" --test functions_cpu -- --nocapture --test-threads=1
+          setsid -w cargo test --features "hotpath-cpu" --test functions_cpu -- --nocapture --test-threads=1
       - name: Update dependencies
         run: |
           cargo update
       - name: Build hotpath-samply wrapper (updated deps)
         run: |
-          cargo build -p hotpath --bin hotpath-samply --features "hotpath,hotpath-cpu"
+          cargo build -p hotpath --bin hotpath-samply --features "hotpath-cpu"
 
   callgrind-linux:
     name: callgrind tests (Linux)

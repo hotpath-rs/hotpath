@@ -2,7 +2,7 @@
 //!
 //! Profile with hotpath:
 //! ```bash
-//! cargo run -p test-tokio-async --example overview --features='hotpath,hotpath-alloc,hotpath-cpu'
+//! cargo run -p test-tokio-async --example overview --features='hotpath-alloc,hotpath-cpu'
 //! ```
 
 use std::hint::black_box;

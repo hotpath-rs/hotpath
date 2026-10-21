@@ -31,10 +31,10 @@ jobs:
           cargo clippy --all --all-features -- -D warnings
       - name: Doc (docs.rs features)
         run: |
-          RUSTDOCFLAGS="-D warnings" cargo doc -p hotpath --no-deps --features hotpath,hotpath-alloc
+          RUSTDOCFLAGS="-D warnings" cargo doc -p hotpath --no-deps --features hotpath-alloc
       - name: Lint (hotpath-alloc)
         run: |
-          cargo clippy --all --features "hotpath,hotpath-alloc" -- -D warnings
+          cargo clippy --all --features "hotpath-alloc" -- -D warnings
       - name: Lint custom features combination
         run: |
           cargo clippy -p test-custom-feature --features hotpath-profile --all-targets -- -D warnings

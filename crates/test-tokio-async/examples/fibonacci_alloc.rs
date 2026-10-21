@@ -1,5 +1,5 @@
 //! Run with:
-//!   cargo run -p test-tokio-async --example fibonacci_alloc --features hotpath,hotpath-alloc
+//!   cargo run -p test-tokio-async --example fibonacci_alloc --features hotpath-alloc
 
 #[hotpath::measure]
 fn fibonacci(n: u64) -> u64 {

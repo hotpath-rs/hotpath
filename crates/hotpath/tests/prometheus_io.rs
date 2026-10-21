@@ -11,11 +11,11 @@ pub mod tests {
     const METRICS_PORT: &str = "6785";
     const PROMETHEUS_PORT: &str = "6786";
 
-    // cargo run -p test-io --example basic_io_sync --features hotpath,hotpath-prometheus
+    // cargo run -p test-io --example basic_io_sync --features hotpath-prometheus
     #[test]
     fn test_io_families() {
         let _running = Example::new("test-io", "basic_io_sync")
-            .features("hotpath,hotpath-prometheus")
+            .features("hotpath-prometheus")
             .env("HOTPATH_METRICS_PORT", METRICS_PORT)
             .env("HOTPATH_PROMETHEUS_PORT", PROMETHEUS_PORT)
             .env("TEST_SLEEP_SECONDS", "15")

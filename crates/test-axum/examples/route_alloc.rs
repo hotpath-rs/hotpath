@@ -10,7 +10,7 @@
 //! both halves of the block still count towards the route.
 //!
 //! Run with:
-//!   cargo run -p test-axum --example route_alloc --features hotpath,hotpath-alloc
+//!   cargo run -p test-axum --example route_alloc --features hotpath-alloc
 //!
 //! `NESTED=1` additionally wraps a nested router with its own `AxumLayer`:
 //! the inner layer notices the outer scope, stays silent, and the request is

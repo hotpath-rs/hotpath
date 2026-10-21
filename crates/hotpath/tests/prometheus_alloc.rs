@@ -9,11 +9,11 @@ pub mod tests {
     const METRICS_PORT: &str = "6783";
     const PROMETHEUS_PORT: &str = "6784";
 
-    // cargo run -p test-all-features --example prometheus_flow --features hotpath,hotpath-alloc,hotpath-prometheus
+    // cargo run -p test-all-features --example prometheus_flow --features hotpath-alloc,hotpath-prometheus
     #[test]
     fn test_alloc_families() {
         let _running = Example::new("test-all-features", "prometheus_flow")
-            .features("hotpath,hotpath-alloc,hotpath-prometheus")
+            .features("hotpath-alloc,hotpath-prometheus")
             .env("HOTPATH_METRICS_PORT", METRICS_PORT)
             .env("HOTPATH_PROMETHEUS_PORT", PROMETHEUS_PORT)
             .env("TEST_SLEEP_SECONDS", "15")

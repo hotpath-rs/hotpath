@@ -43,7 +43,7 @@ hotpath-alloc = ["hotpath", "hotpath-macros/hotpath-alloc"]
 hotpath-cloud = ["hotpath", "dep:ureq", "ureq/rustls", "ureq/json", "dep:flate2"]
 cloud = ["json", "dep:eyre", "dep:clap", "dep:ureq", "ureq/json", "ureq/rustls", "serde_json/preserve_order"]
 tui = ["json", "dep:eyre", "dep:clap", "dep:reqwest", "reqwest/json", "reqwest/rustls", "dep:crossterm", "dep:ratatui", "dep:crossbeam-channel", "dep:tokio", "tokio/rt", "tokio/rt-multi-thread", "crossbeam", "dep:futures-util"]
-demo = ["hotpath", "hotpath-prometheus", "sqlx", "dep:sqlx", "diesel", "diesel/sqlite", "dep:libsqlite3-sys", "reqwest-0-13", "axum-0-8", "axum/tokio", "axum/http1", "tokio/net"]
+demo = ["hotpath-prometheus", "sqlx", "dep:sqlx", "diesel", "diesel/sqlite", "dep:libsqlite3-sys", "reqwest-0-13", "axum-0-8", "axum/tokio", "axum/http1", "tokio/net"]
 tokio = ["dep:tokio", "tokio/sync", "tokio/time"]
 futures = ["dep:futures-channel", "dep:futures-sink"]
 async-channel = ["dep:async-channel"]
@@ -123,7 +123,7 @@ quanta = { version = "0.12", optional = true }
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
 
 [package.metadata.docs.rs]
-features = ["hotpath", "hotpath-alloc"]
+features = ["hotpath-alloc"]
 
 [dev-dependencies]
 tokio = { version = "1.47", features = ["rt", "rt-multi-thread", "macros", "sync", "time"] }

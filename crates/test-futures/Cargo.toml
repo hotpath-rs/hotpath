@@ -12,8 +12,8 @@ tokio = { version = "1.0", features = ["full"] }
 [features]
 default = []
 hotpath = ["hotpath/hotpath"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
-hotpath-cpu = ["hotpath/hotpath-cpu"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-cpu = ["hotpath", "hotpath/hotpath-cpu"]
 hotpath-meta = ["hotpath/hotpath-meta"]
-hotpath-alloc-meta = ["hotpath/hotpath-alloc-meta"]
+hotpath-alloc-meta = ["hotpath-meta", "hotpath/hotpath-alloc-meta"]
 

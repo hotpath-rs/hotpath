@@ -5,7 +5,7 @@ RELEASE_FLAG=""
 if [ "${HOTPATH_BENCH_RELEASE:-}" = "true" ]; then
     RELEASE_FLAG="--release"
 fi
-BENCH_CMD="cargo run $RELEASE_FLAG -p hotpath --features=tui,hotpath,hotpath-alloc --bin hotpath"
+BENCH_CMD="cargo run $RELEASE_FLAG -p hotpath --features=tui,hotpath-alloc --bin hotpath"
 
 mkdir -p tmp
 

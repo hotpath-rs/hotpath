@@ -44,7 +44,7 @@ You can also monitor [streams and futures](data_flow.md) with the `stream!` and 
 Enable the `hotpath-alloc` feature:
 
 ```bash
-cargo run --features='hotpath,hotpath-alloc'
+cargo run --features='hotpath-alloc'
 ```
 
 `hotpath` then installs a tracking global allocator and reports allocation counts and bytes for every instrumented function. Async functions are measured per poll, so allocations are attributed correctly even when a future moves between Tokio worker threads.

@@ -22,19 +22,19 @@ tikv-jemallocator = { version = "0.6", optional = true }
 [features]
 default = []
 hotpath = ["hotpath/hotpath"]
-hotpath-prometheus = ["hotpath/hotpath-prometheus"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
-hotpath-cpu = ["hotpath/hotpath-cpu"]
+hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-cpu = ["hotpath", "hotpath/hotpath-cpu"]
 hotpath-meta = ["hotpath/hotpath-meta"]
-hotpath-alloc-meta = ["hotpath/hotpath-alloc-meta"]
+hotpath-alloc-meta = ["hotpath-meta", "hotpath/hotpath-alloc-meta"]
 dev = ["hotpath/dev"]
 mimalloc-alloc = ["dep:mimalloc"]
 jemalloc-alloc = ["dep:tikv-jemallocator"]
 
 [[example]]
 name = "mimalloc_allocator"
-required-features = ["hotpath", "hotpath-alloc", "mimalloc-alloc"]
+required-features = ["hotpath-alloc", "mimalloc-alloc"]
 
 [[example]]
 name = "jemalloc_allocator"
-required-features = ["hotpath", "hotpath-alloc", "jemalloc-alloc"]
+required-features = ["hotpath-alloc", "jemalloc-alloc"]

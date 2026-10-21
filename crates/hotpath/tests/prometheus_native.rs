@@ -119,11 +119,11 @@ pub mod tests {
             .unwrap_or_default()
     }
 
-    // cargo run -p test-tokio-async --example basic --features hotpath,hotpath-prometheus
+    // cargo run -p test-tokio-async --example basic --features hotpath-prometheus
     #[test]
     fn test_native_histograms_protobuf() {
         let _running = Example::new("test-tokio-async", "basic")
-            .features("hotpath,hotpath-prometheus")
+            .features("hotpath-prometheus")
             .env("HOTPATH_METRICS_PORT", METRICS_PORT)
             .env("HOTPATH_PROMETHEUS_PORT", PROMETHEUS_PORT)
             .env("TEST_SLEEP_SECONDS", "15")

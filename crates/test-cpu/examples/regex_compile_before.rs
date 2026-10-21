@@ -5,7 +5,7 @@
 //! hotspot. Compare with the `regex_compile_after` example.
 //!
 //! Run with:
-//!   cargo run --release -p test-cpu --example regex_compile_before --features hotpath,hotpath-cpu
+//!   cargo run --release -p test-cpu --example regex_compile_before --features hotpath-cpu
 
 use regex::Regex;
 

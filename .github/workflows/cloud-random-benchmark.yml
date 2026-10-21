@@ -45,7 +45,7 @@ jobs:
           HOTPATH_OUTPUT_FORMAT: none
         run: |
           cargo run -q --release -p test-axum --example benchmark_random \
-            --features hotpath,hotpath-alloc,hotpath-cloud
+            --features hotpath-alloc,hotpath-cloud
           test -s "$HOTPATH_UPLOAD_RESPONSE_PATH"
       # The file exists only when the report was uploaded: a failed or skipped
       # upload has no verdict.
@@ -83,7 +83,7 @@ jobs:
           HOTPATH_OUTPUT_PATH: random-report.json
         run: |
           cargo run -q --release -p test-axum --example benchmark_random \
-            --features hotpath,hotpath-alloc,hotpath-cloud
+            --features hotpath-alloc,hotpath-cloud
           test -s random-report.json
       - uses: actions/upload-artifact@v4
         with:

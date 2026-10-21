@@ -6,7 +6,7 @@
 //! alive after the workload completes.
 //!
 //! Run with:
-//!   cargo run -p test-all-features --example prometheus_flow --features hotpath,hotpath-prometheus
+//!   cargo run -p test-all-features --example prometheus_flow --features hotpath-prometheus
 
 use futures::StreamExt;
 use std::sync::Arc;
