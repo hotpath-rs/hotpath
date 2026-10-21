@@ -60,9 +60,8 @@ pub use output_on::format_debug_truncated;
 #[cfg(feature = "hotpath")]
 pub(crate) mod output_on;
 
-#[cfg(any(feature = "hotpath", feature = "utils"))]
-#[doc(hidden)]
-pub mod table;
+#[cfg(feature = "hotpath")]
+pub(crate) mod table;
 
 #[cfg(feature = "hotpath")]
 pub(crate) mod auth;

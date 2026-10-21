@@ -42,7 +42,7 @@ jobs:
         run: |
           cargo hack clippy -p hotpath --features hotpath,threads \
             --each-feature \
-            --exclude-features default,hotpath-meta,hotpath-alloc-meta,hotpath-mcp-meta,hotpath-prometheus-meta,dev,tui,utils,cloud \
+            --exclude-features default,hotpath-meta,hotpath-alloc-meta,hotpath-mcp-meta,hotpath-prometheus-meta,dev,tui,cloud \
             -- -D warnings
       - name: Audit
         run: |
