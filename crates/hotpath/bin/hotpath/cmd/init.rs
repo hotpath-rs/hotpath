@@ -12,9 +12,9 @@ const SKILL_URL_TAG_TEMPLATE: &str =
 pub(crate) enum Setup {
     /// `hotpath init`: profiling in the current repo.
     Profiling,
-    /// `hotpath init-ci`: the hotpath Cloud CI integration.
+    /// `hotpath init-cloud`: the hotpath Cloud CI integration.
     Ci,
-    /// `hotpath init-ci --forks`: the CI integration with the relay workflow
+    /// `hotpath init-cloud --forks`: the CI integration with the relay workflow
     /// that also covers pull requests from forks.
     CiForks,
     /// `hotpath init-grafana`: a Grafana dashboard on the Prometheus metrics.

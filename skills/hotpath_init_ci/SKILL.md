@@ -8,7 +8,7 @@ allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 
 Set up [hotpath Cloud](https://hotpath.rs/cloud) in the current Rust project. A GitHub Actions job runs a benchmark with hotpath profiling enabled and uploads the report. hotpath.rs compares each pull request's report with the default branch's, judges the difference under the repository's policy file and posts a comment on the pull request.
 
-This skill covers pull requests from branches of the same repository. For a public repository that wants to benchmark pull requests from forks, use the `hotpath_init_ci_forks` skill instead (`hotpath init-ci --forks`).
+This skill covers pull requests from branches of the same repository. For a public repository that wants to benchmark pull requests from forks, use the `hotpath_init_ci_forks` skill instead (`hotpath init-cloud --forks`).
 
 ## Documentation
 
@@ -35,7 +35,7 @@ The site documents the latest hotpath release, which can be newer than the versi
 
 - Find the crate(s), the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`, usually `main`) and the existing workflows in `.github/workflows/`.
 - Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented functions. If it is not, set it up first by following the `hotpath_init` skill (https://raw.githubusercontent.com/hotpath-rs/hotpath/main/skills/hotpath_init/SKILL.md), then continue here.
-- Check whether the repository is public or private (`gh repo view --json visibility`). For a public repository that accepts pull requests from forks, tell the user that fork pull requests will not be benchmarked by this setup and suggest `hotpath init-ci --forks`. Continue only if they confirm.
+- Check whether the repository is public or private (`gh repo view --json visibility`). For a public repository that accepts pull requests from forks, tell the user that fork pull requests will not be benchmarked by this setup and suggest `hotpath init-cloud --forks`. Continue only if they confirm.
 
 ### 2. Pick the benchmark
 

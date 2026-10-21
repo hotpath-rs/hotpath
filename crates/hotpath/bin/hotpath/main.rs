@@ -26,7 +26,7 @@ impl InitCliArgs {
 
 #[cfg(any(feature = "tui", feature = "cloud"))]
 #[derive(Parser, Debug)]
-pub(crate) struct InitCiCliArgs {
+pub(crate) struct InitCloudCliArgs {
     #[command(flatten)]
     pub(crate) init: InitCliArgs,
 
@@ -38,7 +38,7 @@ pub(crate) struct InitCiCliArgs {
 }
 
 #[cfg(any(feature = "tui", feature = "cloud"))]
-impl InitCiCliArgs {
+impl InitCloudCliArgs {
     fn run(&self) -> eyre::Result<()> {
         self.init.run(if self.forks {
             cmd::init::Setup::CiForks
@@ -69,7 +69,7 @@ pub(crate) enum HPSubcommand {
     #[command(
         about = "Set up the hotpath Cloud CI integration in the current repo via an AI agent session"
     )]
-    InitCi(InitCiCliArgs),
+    InitCloud(InitCloudCliArgs),
     #[command(
         about = "Set up a Grafana dashboard for the hotpath Prometheus metrics via an AI agent session"
     )]
@@ -114,7 +114,7 @@ fn main() -> eyre::Result<ExitCode> {
         #[cfg(feature = "tui")]
         Some(HPSubcommand::Console(args)) => args.run()?,
         Some(HPSubcommand::Init(args)) => args.run(cmd::init::Setup::Profiling)?,
-        Some(HPSubcommand::InitCi(args)) => args.run()?,
+        Some(HPSubcommand::InitCloud(args)) => args.run()?,
         Some(HPSubcommand::InitGrafana(args)) => args.run(cmd::init::Setup::Grafana)?,
         #[cfg(feature = "cloud")]
         Some(HPSubcommand::Cloud(args)) => return Ok(args.run()),
@@ -141,7 +141,7 @@ fn main() -> std::process::ExitCode {
     let mut args = std::env::args().skip(1);
 
     match args.next().as_deref() {
-        Some(command @ ("init" | "init-ci" | "init-grafana")) => {
+        Some(command @ ("init" | "init-cloud" | "init-grafana")) => {
             let result = parse_init_args(command, args)
                 .and_then(|(setup, agent)| cmd::init::run(setup, agent));
             match result {
@@ -164,7 +164,7 @@ Usage: hotpath <COMMAND>
 
 Commands:
   init --agent <claude|codex|opencode>     Configure hotpath in the current repo via an AI agent session
-  init-ci --agent <claude|codex|opencode> [--forks]
+  init-cloud --agent <claude|codex|opencode> [--forks]
                                            Set up the hotpath Cloud CI integration via an AI agent session
   init-grafana --agent <claude|codex|opencode>
                                            Set up a Grafana dashboard for the hotpath Prometheus metrics via an AI agent session
@@ -177,15 +177,17 @@ The 'cloud' command requires building with the 'cloud' feature."
     }
 }
 
-/// `init`, `init-ci` and `init-grafana` arguments without clap: `--agent NAME` or
-/// `--agent=NAME`, plus `--forks` for `init-ci`.
+/// `init`, `init-cloud` and `init-grafana` arguments without clap: `--agent NAME` or
+/// `--agent=NAME`, plus `--forks` for `init-cloud`.
 #[cfg(not(any(feature = "tui", feature = "cloud")))]
 fn parse_init_args(
     command: &str,
     mut args: impl Iterator<Item = String>,
 ) -> Result<(cmd::init::Setup, cmd::init::Agent), String> {
     let usage = || match command {
-        "init-ci" => "Usage: hotpath init-ci --agent <claude|codex|opencode> [--forks]".to_string(),
+        "init-cloud" => {
+            "Usage: hotpath init-cloud --agent <claude|codex|opencode> [--forks]".to_string()
+        }
         _ => format!("Usage: hotpath {command} --agent <claude|codex|opencode>"),
     };
     let mut agent = None;
@@ -193,7 +195,7 @@ fn parse_init_args(
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--agent" => agent = Some(args.next().ok_or_else(usage)?),
-            "--forks" if command == "init-ci" => forks = true,
+            "--forks" if command == "init-cloud" => forks = true,
             _ => match arg.strip_prefix("--agent=") {
                 Some(name) => agent = Some(name.to_string()),
                 None => return Err(usage()),
@@ -202,8 +204,8 @@ fn parse_init_args(
     }
     let agent = cmd::init::Agent::from_arg(&agent.ok_or_else(usage)?)?;
     let setup = match (command, forks) {
-        ("init-ci", true) => cmd::init::Setup::CiForks,
-        ("init-ci", false) => cmd::init::Setup::Ci,
+        ("init-cloud", true) => cmd::init::Setup::CiForks,
+        ("init-cloud", false) => cmd::init::Setup::Ci,
         ("init-grafana", _) => cmd::init::Setup::Grafana,
         _ => cmd::init::Setup::Profiling,
     };

@@ -10,7 +10,7 @@ Set up [hotpath Cloud](https://hotpath.rs/cloud) in the current Rust project, co
 
 A job triggered by a fork's pull request cannot upload, so the pull request job stores the report as an artifact and a relay workflow uploads it from a job that never checks out or runs code from the pull request. "Pull requests from forks" in the docs explains the design.
 
-This setup also covers pull requests from branches of the same repository. For a private repository, or one that does not need fork pull requests benchmarked, the simpler `hotpath_init_ci` skill is enough (`hotpath init-ci` without `--forks`).
+This setup also covers pull requests from branches of the same repository. For a private repository, or one that does not need fork pull requests benchmarked, the simpler `hotpath_init_ci` skill is enough (`hotpath init-cloud` without `--forks`).
 
 ## Documentation
 
