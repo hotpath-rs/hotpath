@@ -1,5 +1,5 @@
 //! JSON serializable types for the HTTP server, TUI and CLI consumers.
-//! Gated behind the `json` feature (implied by `hotpath`, `utils`, and
+//! Gated behind the `json` feature (implied by `hotpath`, `cloud`, and
 //! `tui`), so consumers can parse reports without the profiler.
 
 pub mod cloud_api;

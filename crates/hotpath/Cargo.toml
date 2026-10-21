@@ -13,11 +13,6 @@ name = "hotpath"
 path = "bin/hotpath/main.rs"
 
 [[bin]]
-name = "hotpath-utils"
-path = "bin/hotpath-utils/main.rs"
-required-features = ["utils"]
-
-[[bin]]
 name = "hotpath-samply"
 path = "bin/hotpath-samply/main.rs"
 
@@ -46,7 +41,6 @@ hotpath-mcp-meta = ["hotpath-meta/hotpath-mcp-meta", "hotpath-meta/axum-0-8"]
 hotpath-prometheus-meta = ["hotpath-meta/hotpath-prometheus-meta"]
 hotpath-alloc = ["hotpath-macros/hotpath-alloc"]
 hotpath-cloud = ["dep:ureq", "ureq/rustls", "ureq/json", "dep:flate2"]
-utils = ["json", "dep:eyre", "dep:clap", "dep:ureq", "ureq/json", "ureq/rustls", "ureq/gzip"]
 cloud = ["json", "dep:eyre", "dep:clap", "dep:ureq", "ureq/json", "ureq/rustls", "serde_json/preserve_order"]
 tui = ["json", "dep:eyre", "dep:clap", "dep:reqwest", "reqwest/json", "reqwest/rustls", "dep:crossterm", "dep:ratatui", "dep:crossbeam-channel", "dep:tokio", "tokio/rt", "tokio/rt-multi-thread", "crossbeam", "dep:futures-util"]
 demo = ["hotpath", "hotpath-prometheus", "sqlx", "dep:sqlx", "diesel", "diesel/sqlite", "dep:libsqlite3-sys", "reqwest-0-13", "axum-0-8", "axum/tokio", "axum/http1", "tokio/net"]

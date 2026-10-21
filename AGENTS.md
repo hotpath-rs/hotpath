@@ -70,7 +70,6 @@ TUI quickstart (details in `dev_docs/tui.md`): run a profiled example in one ter
 - `crates/hotpath-macros/src/lib.rs` - Procedural macro implementations
 - `crates/hotpath/src/lib_on/<subsystem>.rs` (+ same-named subdir) - One module per instrumented subsystem: `functions` (timing/alloc, + `functions/cpu/` for sampling), `channels`, `streams`, `futures`, `rw_locks`, `mutexes`, `sql`, `http`, `server`, `io`, `threads`, `tokio_runtime`, `debug`
 - `crates/hotpath/bin/hotpath/` - TUI binary (`cmd/console/` holds app state, views, HTTP client)
-- `crates/hotpath/bin/hotpath-utils/` - CLI for A/B benchmarks (`compare`) and CI PR comments (`profile-pr`)
 - `crates/hotpath/bin/hotpath-samply/` - CPU sampling wrapper binary
 
 ### Documentation
