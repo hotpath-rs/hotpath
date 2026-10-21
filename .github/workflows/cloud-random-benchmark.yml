@@ -26,8 +26,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      # The exact compiler goes into the report's metadata: `stable` moves, and
-      # a new rustc changes what a benchmark measures.
       - name: Record rustc version
         id: rustc
         run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
@@ -72,8 +70,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: dtolnay/rust-toolchain@stable
-      # The exact compiler goes into the report's metadata: `stable` moves, and
-      # a new rustc changes what a benchmark measures.
       - name: Record rustc version
         id: rustc
         run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
