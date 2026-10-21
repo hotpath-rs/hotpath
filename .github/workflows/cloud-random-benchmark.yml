@@ -26,6 +26,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Record rustc version
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
       # The uploader reports its own outcome: one `::notice::` / `::warning::`
       # / `::error::` annotation plus a step summary block, and with
@@ -37,7 +40,7 @@ jobs:
           HOTPATH_UPLOAD: fail-on-error
           HOTPATH_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
           HOTPATH_BENCHMARK: random
-          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,profile=release
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
           HOTPATH_EXCLUDE_WRAPPER: "true"
           HOTPATH_OUTPUT_FORMAT: none
         run: |
@@ -67,11 +70,14 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: dtolnay/rust-toolchain@stable
+      - name: Record rustc version
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
       - name: Run random benchmark and write report
         env:
           HOTPATH_BENCHMARK: random
-          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,profile=release
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
           HOTPATH_EXCLUDE_WRAPPER: "true"
           HOTPATH_OUTPUT_FORMAT: json
           HOTPATH_OUTPUT_PATH: random-report.json
