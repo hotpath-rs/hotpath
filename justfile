@@ -189,12 +189,12 @@ fetch-badges:
     set -euo pipefail
     DIR="docs/src/images"
     fetch() { sleep 2; echo "Fetching $2..."; curl -sL "https://img.shields.io/github/stars/${2}?style=social" -o "${DIR}/stars-${1}.svg"; }
+    fetch PostHog-posthog PostHog/posthog
     fetch rustfs-rustfs rustfs/rustfs
     fetch apache-opendal apache/opendal
     fetch maplibre-martin maplibre/martin
     fetch marc2332-freya marc2332/freya
     fetch parseablehq-parseable parseablehq/parseable
-    fetch MapleTechLabs-maple MapleTechLabs/maple
     fetch hotpath-rs-hotpath hotpath-rs/hotpath
 
     echo "Badges saved to ${DIR}/"

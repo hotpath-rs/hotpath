@@ -52,6 +52,10 @@ It helps you distinguish between functions that are slow because they wait on I/
 <div class="trusted-by">
   <p class="trusted-by-tagline">Used by <a href="/adoption">{{#adoption_count}} open-source projects</a>, including:</p>
   <div class="trusted-by-grid">
+    <a href="https://github.com/PostHog/posthog" target="_blank" rel="noopener noreferrer" class="trusted-by-project">
+      <span class="trusted-by-name">PostHog/posthog</span>
+      <img src="{{#asset-hash images/stars-PostHog-posthog.svg}}" alt="posthog GitHub stars">
+    </a>
     <a href="https://github.com/rustfs/rustfs" target="_blank" rel="noopener noreferrer" class="trusted-by-project">
       <span class="trusted-by-name">rustfs/rustfs</span>
       <img src="{{#asset-hash images/stars-rustfs-rustfs.svg}}" alt="rustfs GitHub stars">
@@ -71,10 +75,6 @@ It helps you distinguish between functions that are slow because they wait on I/
     <a href="https://github.com/parseablehq/parseable" target="_blank" rel="noopener noreferrer" class="trusted-by-project">
       <span class="trusted-by-name">parseablehq/parseable</span>
       <img src="{{#asset-hash images/stars-parseablehq-parseable.svg}}" alt="parseable GitHub stars">
-    </a>
-    <a href="https://github.com/MapleTechLabs/maple" target="_blank" rel="noopener noreferrer" class="trusted-by-project">
-      <span class="trusted-by-name">MapleTechLabs/maple</span>
-      <img src="{{#asset-hash images/stars-MapleTechLabs-maple.svg}}" alt="maple GitHub stars">
     </a>
   </div>
 </div>
