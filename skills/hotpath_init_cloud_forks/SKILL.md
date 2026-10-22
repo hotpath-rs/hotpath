@@ -93,7 +93,7 @@ Create `.github/workflows/hotpath-relay.yml` from the workflow in that section, 
 
 - The `workflows:` entry is exactly the `name:` of the benchmark workflow of step 5.
 - `benchmark`, `artifact_name` and `report_file` match what the `report` job of step 5 uses.
-- The relay is pinned to `hotpath-relay.yml@v0.28.7`, whatever tag the docs workflow shows, never `@main`. The pin must be the release tag of the `hotpath` version the benchmark builds with: if the project's `Cargo.lock` resolves another version, use that version's tag instead. If the repository pins its actions by commit hash, use the commit the tag points to (`git ls-remote https://github.com/hotpath-rs/hotpath refs/tags/v0.28.7`) with the tag in the comment: `@<commit sha> # v0.28.7`.
+- The relay is pinned to `hotpath-relay.yml@v0.29.0`, whatever tag the docs workflow shows, never `@main`. The pin must be the release tag of the `hotpath` version the benchmark builds with: if the project's `Cargo.lock` resolves another version, use that version's tag instead. If the repository pins its actions by commit hash, use the commit the tag points to (`git ls-remote https://github.com/hotpath-rs/hotpath refs/tags/v0.29.0`) with the tag in the comment: `@<commit sha> # v0.29.0`.
 
 A regression never fails the job. If the user wants the pull request's `hotpath / <benchmark>` check to fail, or to block merges, follow "Failing the job" in https://hotpath.rs/ci_integration and "Pull request check" in https://hotpath.rs/regression_policy, and validate the policy after the edit.
 

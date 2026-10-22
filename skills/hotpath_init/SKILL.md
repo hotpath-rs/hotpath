@@ -49,7 +49,7 @@ In the target crate's `Cargo.toml`:
 
 ```toml
 [dependencies]
-hotpath = "0.28"
+hotpath = "0.29"
 
 [features]
 hotpath = ["hotpath/hotpath"]
@@ -58,7 +58,7 @@ hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]
 hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 ```
 
-Enable the extra hotpath cargo features on the dependency (`tokio`, a channel or lock library, an SQL or HTTP integration, ...) that the pages fetched in step 1 name for the primitives the project uses. Pick the HTTP and axum features matching the project's major versions. For example: `hotpath = { version = "0.28", features = ["tokio"] }`.
+Enable the extra hotpath cargo features on the dependency (`tokio`, a channel or lock library, an SQL or HTTP integration, ...) that the pages fetched in step 1 name for the primitives the project uses. Pick the HTTP and axum features matching the project's major versions. For example: `hotpath = { version = "0.29", features = ["tokio"] }`.
 
 Use this version, not the one the docs snippets show. If the project already depends on `hotpath`, keep its version.
 
