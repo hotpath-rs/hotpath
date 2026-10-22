@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.29.0] - 2026-10-22
+
+### 🚀 Features
+
+- [**breaking**] Remove hotpath-utils CLI
+
+- Per-function instruction counts via Callgrind
+
+- Disable time measurements in Callgrind mode
+
+
+### 🐛 Bug Fixes
+
+- Keep return type coercion in log = true bodies
+
+- Add decimal precision for icount metric
+
+- Ensure correct feature flags combination
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Add compiler info to metadata
+
+- Set cargo homepage
+
+- [**breaking**] Rename CLI method
+
+- Release 0.29.0
+
+
 ## [0.28.7] - 2026-10-20
 
 ### 🚀 Features
