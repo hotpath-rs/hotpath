@@ -107,7 +107,7 @@ Fetch every page listed for the task; add the pages of any other subsystem the t
 
 ## Rules
 
-- Never enable the `hotpath` feature by default (`default = []`); profiling must stay opt-in.
+- Never add `hotpath` or any `hotpath-*` feature to the crate's `default` features; profiling must stay opt-in. Keep the existing default features as they are.
 - Verify instrumentation changes compile both ways: `cargo check` and `cargo check --features hotpath`.
 - Wrapper macros return `hotpath::wrap::` types; when they leak into signatures or struct fields, update them and tell the user they are plain no-op wrappers with the feature off.
 - Cite the docs page you relied on when you answer a question.
