@@ -52,22 +52,22 @@ Benchmark reports are persisted in `hotpath Cloud`, making it easy to share resu
 
 ### AI Setup (Recommended)
 
-The quickest way to set up `hotpath Cloud` is to let your own AI coding agent do it. Install the `hotpath` CLI and run `init-ci` inside your project repo:
+The quickest way to set up `hotpath Cloud` is to let your own AI coding agent do it. Install the `hotpath` CLI and run `init-cloud` inside your project repo:
 
 ```bash
 cargo install hotpath --version '^{{HOTPATH_VERSION}}'
-hotpath init-ci --agent claude # or --agent codex / --agent opencode
+hotpath init-cloud --agent claude # or --agent codex / --agent opencode
 ```
 
-`hotpath init-ci` downloads the [hotpath_init_ci agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_init_ci/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file and a GitHub Actions benchmark workflow, so every pull request gets a performance comment.
+`hotpath init-cloud` downloads the [hotpath_init_cloud agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_init_cloud/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file and a GitHub Actions benchmark workflow, so every pull request gets a performance comment.
 
 Use `--forks` for public repositories that want to benchmark pull requests from forks. Fork pull requests need a [separate setup](ci_integration.md#pull-requests-from-forks) for security reasons:
 
 ```bash
-hotpath init-ci --agent claude --forks
+hotpath init-cloud --agent claude --forks
 ```
 
-For private repositories, or if you don't need benchmarks on pull requests from forks, run `hotpath init-ci` without `--forks`.
+For private repositories, or if you don't need benchmarks on pull requests from forks, run `hotpath init-cloud` without `--forks`.
 
 Your agent remains in control: you review and approve edits through its regular permission prompts. Requires `curl` and the `claude`, `codex` or `opencode` CLI on `PATH`.
 
