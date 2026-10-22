@@ -5,6 +5,7 @@
 <div class="hero-badges">
   <a href="https://github.com/hotpath-rs/hotpath" target="_blank" rel="noopener noreferrer"><img src="{{#asset-hash images/stars-hotpath-rs-hotpath.svg}}" alt="GitHub Stars"></a>
   <a href="https://crates.io/crates/hotpath" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/crates/d/hotpath?cacheSeconds=86400" alt="crates.io downloads"></a>
+  <a href="https://hotpath.rs/app/repos/hotpath-rs/hotpath" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/endpoint?url=https://hotpath.rs/badge.json" alt="hotpath"></a>
 </div>
 
 <div class="hero-row">
