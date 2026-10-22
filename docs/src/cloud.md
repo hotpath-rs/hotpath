@@ -59,7 +59,7 @@ cargo install hotpath --version '^{{HOTPATH_VERSION}}'
 hotpath init-cloud --agent claude # or --agent codex / --agent opencode
 ```
 
-`hotpath init-cloud` downloads the [hotpath_init_ci agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_init_ci/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file and a GitHub Actions benchmark workflow, so every pull request gets a performance comment.
+`hotpath init-cloud` downloads the [hotpath_init_cloud agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_init_cloud/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file and a GitHub Actions benchmark workflow, so every pull request gets a performance comment.
 
 Use `--forks` for public repositories that want to benchmark pull requests from forks. Fork pull requests need a [separate setup](ci_integration.md#pull-requests-from-forks) for security reasons:
 

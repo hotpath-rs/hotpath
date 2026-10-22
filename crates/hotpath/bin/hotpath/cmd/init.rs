@@ -13,10 +13,10 @@ pub(crate) enum Setup {
     /// `hotpath init`: profiling in the current repo.
     Profiling,
     /// `hotpath init-cloud`: the hotpath Cloud CI integration.
-    Ci,
+    Cloud,
     /// `hotpath init-cloud --forks`: the CI integration with the relay workflow
     /// that also covers pull requests from forks.
-    CiForks,
+    CloudForks,
     /// `hotpath init-grafana`: a Grafana dashboard on the Prometheus metrics.
     Grafana,
 }
@@ -25,8 +25,8 @@ impl Setup {
     fn skill(&self) -> &'static str {
         match self {
             Self::Profiling => "hotpath_init",
-            Self::Ci => "hotpath_init_ci",
-            Self::CiForks => "hotpath_init_ci_forks",
+            Self::Cloud => "hotpath_init_cloud",
+            Self::CloudForks => "hotpath_init_cloud_forks",
             Self::Grafana => "hotpath_init_grafana",
         }
     }
@@ -34,8 +34,8 @@ impl Setup {
     fn kickoff_prompt(&self) -> &'static str {
         match self {
             Self::Profiling => "Set up hotpath profiling in this repo.",
-            Self::Ci => "Set up the hotpath Cloud CI integration in this repo.",
-            Self::CiForks => {
+            Self::Cloud => "Set up the hotpath Cloud CI integration in this repo.",
+            Self::CloudForks => {
                 "Set up the hotpath Cloud CI integration in this repo, covering pull requests from forks."
             }
             Self::Grafana => "Set up a hotpath Grafana dashboard for this repo.",
@@ -206,12 +206,12 @@ mod tests {
     fn branch_url_uses_minor_version() {
         let url = skill_url(
             SKILL_URL_BRANCH_TEMPLATE,
-            Setup::Ci.skill(),
+            Setup::Cloud.skill(),
             minor_version("0.21.4"),
         );
         assert_eq!(
             url,
-            "https://raw.githubusercontent.com/hotpath-rs/hotpath/init-v0.21/skills/hotpath_init_ci/SKILL.md"
+            "https://raw.githubusercontent.com/hotpath-rs/hotpath/init-v0.21/skills/hotpath_init_cloud/SKILL.md"
         );
     }
 

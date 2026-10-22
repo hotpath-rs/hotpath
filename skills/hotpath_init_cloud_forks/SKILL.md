@@ -1,5 +1,5 @@
 ---
-name: hotpath_init_ci_forks
+name: hotpath_init_cloud_forks
 description: Set up the hotpath Cloud CI integration in a public Rust project that benchmarks pull requests from forks. Adds the hotpath-cloud feature, a regression policy file, a GitHub Actions benchmark workflow that writes hotpath reports as artifacts and a relay workflow that uploads them, so every pull request, forks included, gets a performance comment. Use when the user wants to add hotpath Cloud to an open source project or benchmark pull requests from forks.
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
@@ -10,7 +10,7 @@ Set up [hotpath Cloud](https://hotpath.rs/cloud) in the current Rust project, co
 
 A job triggered by a fork's pull request cannot upload, so the pull request job stores the report as an artifact and a relay workflow uploads it from a job that never checks out or runs code from the pull request. "Pull requests from forks" in the docs explains the design.
 
-This setup also covers pull requests from branches of the same repository. For a private repository, or one that does not need fork pull requests benchmarked, the simpler `hotpath_init_ci` skill is enough (`hotpath init-cloud` without `--forks`).
+This setup also covers pull requests from branches of the same repository. For a private repository, or one that does not need fork pull requests benchmarked, the simpler `hotpath_init_cloud` skill is enough (`hotpath init-cloud` without `--forks`).
 
 ## Documentation
 

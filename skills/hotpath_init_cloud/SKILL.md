@@ -1,5 +1,5 @@
 ---
-name: hotpath_init_ci
+name: hotpath_init_cloud
 description: Set up the hotpath Cloud CI integration in a Rust project whose pull requests come from branches of the same repository (private repositories, or public ones that do not benchmark fork pull requests). Adds the hotpath-cloud feature, a regression policy file and a GitHub Actions benchmark workflow that uploads hotpath reports, so every pull request gets a performance comment. Use when the user wants to add hotpath Cloud, benchmark pull requests in CI or set up performance regression checks.
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
@@ -8,7 +8,7 @@ allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 
 Set up [hotpath Cloud](https://hotpath.rs/cloud) in the current Rust project. A GitHub Actions job runs a benchmark with hotpath profiling enabled and uploads the report. hotpath.rs compares each pull request's report with the default branch's, judges the difference under the repository's policy file and posts a comment on the pull request.
 
-This skill covers pull requests from branches of the same repository. For a public repository that wants to benchmark pull requests from forks, use the `hotpath_init_ci_forks` skill instead (`hotpath init-cloud --forks`).
+This skill covers pull requests from branches of the same repository. For a public repository that wants to benchmark pull requests from forks, use the `hotpath_init_cloud_forks` skill instead (`hotpath init-cloud --forks`).
 
 ## Documentation
 

@@ -59,7 +59,7 @@ Adopters pin the reusable relay workflow to the release tag, so these point at t
   ("{{HOTPATH_RELEASE_TAG}}", "vX.Y.Z"),
   ```
 
-- `skills/hotpath_init_ci_forks/SKILL.md` - every `vX.Y.Z` occurrence (the `hotpath-relay.yml@vX.Y.Z` pin and the pinning instructions)
+- `skills/hotpath_init_cloud_forks/SKILL.md` - every `vX.Y.Z` occurrence (the `hotpath-relay.yml@vX.Y.Z` pin and the pinning instructions)
 - `.github/workflows/hotpath-relay.yml` - the `hotpath-relay.yml@vX.Y.Z` pin in the usage comment at the top
 
 Leave `.github/workflows/cloud-random-benchmark-relay.yml` on `@main`: it tests the relay on the default branch.

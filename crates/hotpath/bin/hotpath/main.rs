@@ -41,9 +41,9 @@ pub(crate) struct InitCloudCliArgs {
 impl InitCloudCliArgs {
     fn run(&self) -> eyre::Result<()> {
         self.init.run(if self.forks {
-            cmd::init::Setup::CiForks
+            cmd::init::Setup::CloudForks
         } else {
-            cmd::init::Setup::Ci
+            cmd::init::Setup::Cloud
         })
     }
 }
@@ -204,8 +204,8 @@ fn parse_init_args(
     }
     let agent = cmd::init::Agent::from_arg(&agent.ok_or_else(usage)?)?;
     let setup = match (command, forks) {
-        ("init-cloud", true) => cmd::init::Setup::CiForks,
-        ("init-cloud", false) => cmd::init::Setup::Ci,
+        ("init-cloud", true) => cmd::init::Setup::CloudForks,
+        ("init-cloud", false) => cmd::init::Setup::Cloud,
         ("init-grafana", _) => cmd::init::Setup::Grafana,
         _ => cmd::init::Setup::Profiling,
     };
