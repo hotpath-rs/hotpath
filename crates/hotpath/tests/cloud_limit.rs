@@ -29,12 +29,12 @@ mod tests {
         run.envs(env).report()
     }
 
-    // cargo run -p test-all-features --example basic_all_features --features hotpath,hotpath-alloc,hotpath-cloud
+    // cargo run -p test-all-features --example basic_all_features --features hotpath-alloc,hotpath-cloud
     fn run_all_features(upload: bool, env: &[(&str, &str)]) -> JsonReport {
         run_example(
             "test-all-features",
             "basic_all_features",
-            "hotpath,hotpath-alloc,hotpath-cloud",
+            "hotpath-alloc,hotpath-cloud",
             upload,
             env,
         )
@@ -42,12 +42,12 @@ mod tests {
 
     // Display limits only survive without the cloud feature: with it on, a JSON
     // report is an upload payload and carries every entry.
-    // cargo run -p test-all-features --example basic_all_features --features hotpath,hotpath-alloc
+    // cargo run -p test-all-features --example basic_all_features --features hotpath-alloc
     fn run_all_features_no_cloud(env: &[(&str, &str)]) -> JsonReport {
         run_example(
             "test-all-features",
             "basic_all_features",
-            "hotpath,hotpath-alloc",
+            "hotpath-alloc",
             false,
             env,
         )
@@ -58,15 +58,9 @@ mod tests {
         run_example("test-axum", "route_scope", "hotpath", false, env)
     }
 
-    // cargo run -p test-axum --example route_scope --features hotpath,hotpath-cloud
+    // cargo run -p test-axum --example route_scope --features hotpath-cloud
     fn run_route_scope(upload: bool, env: &[(&str, &str)]) -> JsonReport {
-        run_example(
-            "test-axum",
-            "route_scope",
-            "hotpath,hotpath-cloud",
-            upload,
-            env,
-        )
+        run_example("test-axum", "route_scope", "hotpath-cloud", upload, env)
     }
 
     struct Counts {

@@ -1,5 +1,5 @@
 //! Run with:
-//!   cargo run -p test-tokio-async --example custom_allocator --features hotpath,hotpath-alloc
+//!   cargo run -p test-tokio-async --example custom_allocator --features hotpath-alloc
 
 #[cfg(feature = "hotpath-alloc")]
 mod alloc_demo {

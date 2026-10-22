@@ -39,7 +39,7 @@ cargo run -p test-tokio-async --example basic --features hotpath
 cargo run -p test-channels-tokio --example basic_tokio --features hotpath
 
 # Profiling modes are combined via features, e.g.
-cargo run -p test-tokio-async --features='hotpath,hotpath-alloc' --example basic
+cargo run -p test-tokio-async --features='hotpath-alloc' --example basic
 ```
 
 Just recipes:

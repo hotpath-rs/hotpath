@@ -6,7 +6,7 @@ edition = "2021"
 description = "Tests that hotpath compiles when enabled via a custom features combination."
 
 [features]
-hotpath-profile = ["hotpath/hotpath", "hotpath/hotpath-alloc"]
+hotpath-profile = ["hotpath/hotpath-alloc"]
 
 [dependencies]
 hotpath = { path = "../hotpath", features = ["tokio"] }

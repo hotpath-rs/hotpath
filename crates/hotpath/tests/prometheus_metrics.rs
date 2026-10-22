@@ -47,11 +47,11 @@ pub mod tests {
         );
     }
 
-    // cargo run -p test-tokio-async --example basic --features hotpath,hotpath-prometheus
+    // cargo run -p test-tokio-async --example basic --features hotpath-prometheus
     #[test]
     fn test_prometheus_endpoint() {
         let _running = Example::new("test-tokio-async", "basic")
-            .features("hotpath,hotpath-prometheus")
+            .features("hotpath-prometheus")
             .env("HOTPATH_METRICS_PORT", METRICS_PORT)
             .env("HOTPATH_PROMETHEUS_PORT", PROMETHEUS_PORT)
             .env("HOTPATH_PROMETHEUS_AUTH_TOKEN", TOKEN)

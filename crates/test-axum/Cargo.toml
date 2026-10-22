@@ -16,6 +16,6 @@ reqwest = { version = "0.13", default-features = false }
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
-hotpath-cloud = ["hotpath/hotpath-cloud"]
-hotpath-prometheus = ["hotpath/hotpath-prometheus"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
+hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]

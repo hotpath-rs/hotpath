@@ -11,11 +11,11 @@ pub mod tests {
     const METRICS_PORT: &str = "6793";
     const PROMETHEUS_PORT: &str = "6794";
 
-    // cargo run -p test-axum --example route_scope --features hotpath,hotpath-prometheus
+    // cargo run -p test-axum --example route_scope --features hotpath-prometheus
     #[test]
     fn test_sql_http_server_families() {
         let _running = Example::new("test-axum", "route_scope")
-            .features("hotpath,hotpath-prometheus")
+            .features("hotpath-prometheus")
             .env("HOTPATH_METRICS_PORT", METRICS_PORT)
             .env("HOTPATH_PROMETHEUS_PORT", PROMETHEUS_PORT)
             .env("TEST_SLEEP_SECONDS", "15")
@@ -136,11 +136,11 @@ pub mod tests {
         );
     }
 
-    // cargo run -p test-axum --example route_alloc --features hotpath,hotpath-alloc,hotpath-prometheus
+    // cargo run -p test-axum --example route_alloc --features hotpath-alloc,hotpath-prometheus
     #[test]
     fn test_server_alloc_families() {
         let _running = Example::new("test-axum", "route_alloc")
-            .features("hotpath,hotpath-alloc,hotpath-prometheus")
+            .features("hotpath-alloc,hotpath-prometheus")
             .env("HOTPATH_METRICS_PORT", METRICS_PORT)
             .env("HOTPATH_PROMETHEUS_PORT", PROMETHEUS_PORT)
             .env("TEST_SLEEP_SECONDS", "15")

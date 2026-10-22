@@ -11,4 +11,4 @@ regex = "1"
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-cpu = ["hotpath/hotpath-cpu"]
+hotpath-cpu = ["hotpath", "hotpath/hotpath-cpu"]

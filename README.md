@@ -93,12 +93,12 @@ hotpath = "0.28"
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-cpu = ["hotpath/hotpath-cpu"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
-hotpath-prometheus = ["hotpath/hotpath-prometheus"]
+hotpath-cpu = ["hotpath", "hotpath/hotpath-cpu"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]
 ```
 
-This config ensures that the lib has no compile time or runtime overhead unless explicitly enabled via a `hotpath` feature. All the lib dependencies are optional (i.e. not compiled) and all macros are noop unless profiling is enabled.
+This config ensures that the lib has no compile time or runtime overhead unless explicitly enabled via one of the `hotpath` features. Every profiling feature also enables `hotpath`, so a single flag like `--features=hotpath-alloc` is enough. All the lib dependencies are optional (i.e. not compiled) and all macros are noop unless profiling is enabled.
 
 #### Basic setup
 
@@ -135,7 +135,7 @@ async fn main() {
 Now, run your program with `hotpath` (and optionally `hotpath-alloc` features):
 
 ```bash
-cargo run --features='hotpath,hotpath-alloc'
+cargo run --features='hotpath-alloc'
 ```
 
 On exit it will print a report with timings, memory allocations and thread usage metrics:

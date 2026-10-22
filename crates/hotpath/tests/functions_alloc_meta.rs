@@ -5,14 +5,14 @@ mod common;
 pub mod tests {
     use crate::common::example::Example;
 
-    // cargo run -p test-tokio-async --example basic --features hotpath,hotpath-alloc,hotpath-meta,hotpath-alloc-meta
+    // cargo run -p test-tokio-async --example basic --features hotpath-alloc,hotpath-alloc-meta
     #[test]
     fn test_combined_alloc_and_alloc_meta_output() {
         let meta_output = std::env::temp_dir().join("hotpath_functions_alloc_meta_test.txt");
         let _ = std::fs::remove_file(&meta_output);
 
         let report = Example::new("test-tokio-async", "basic")
-            .features("hotpath,hotpath-alloc,hotpath-meta,hotpath-alloc-meta")
+            .features("hotpath-alloc,hotpath-alloc-meta")
             .env("HOTPATH_REPORT", "functions-alloc")
             .env("HOTPATH_META_REPORT", "functions-alloc")
             .env("HOTPATH_META_OUTPUT_PATH", &meta_output)

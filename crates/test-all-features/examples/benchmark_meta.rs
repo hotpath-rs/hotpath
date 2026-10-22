@@ -13,7 +13,7 @@
 //! reads data out of the profiler.
 //!
 //! Run with:
-//!   cargo run --release -p test-all-features --example benchmark_meta --features hotpath,hotpath-alloc,hotpath-meta,hotpath-alloc-meta,hotpath-prometheus
+//!   cargo run --release -p test-all-features --example benchmark_meta --features hotpath-alloc,hotpath-alloc-meta,hotpath-prometheus
 
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::{Arc, Mutex};

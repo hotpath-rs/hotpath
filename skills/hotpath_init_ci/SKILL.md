@@ -88,7 +88,7 @@ A regression never fails the job. If the user wants the pull request's `hotpath 
 ```bash
 cargo check                                                    # feature off still compiles
 HOTPATH_BENCHMARK=my_benchmark HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=/tmp/hotpath-report.json \
-  cargo run --release --example my_benchmark --features hotpath,hotpath-alloc,hotpath-cloud
+  cargo run --release --example my_benchmark --features hotpath-alloc,hotpath-cloud
 jq '{benchmark: .meta.benchmark, policy: .meta.policy.path}' /tmp/hotpath-report.json
 ```
 

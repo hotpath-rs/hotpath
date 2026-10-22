@@ -185,7 +185,7 @@ In addition to time-based profiling, `hotpath` can track memory allocations. Thi
 Run your program with the allocation tracking feature to print a similar report:
 
 ```
-cargo run --features='hotpath,hotpath-alloc'
+cargo run --features='hotpath-alloc'
 ```
 
 <img loading="lazy" src="{{#asset-hash images/hotpath-alloc-report.png}}" alt="hotpath-rs memory allocation profiling report showing per-function byte counts">
@@ -221,7 +221,7 @@ fn main() {
 ```
 
 ```bash
-cargo run --features='hotpath,hotpath-alloc'
+cargo run --features='hotpath-alloc'
 ```
 
 The report now shows per-function allocation stats measured through jemalloc: every allocation is counted by the tracking wrapper, then served by jemalloc instead of the system allocator.

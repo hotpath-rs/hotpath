@@ -45,7 +45,7 @@ cargo run --example benchmark_noop --features hotpath --release
 #### Allocations
 
 ```bash
-cargo run --example benchmark_alloc --features='hotpath,hotpath-alloc' --release
+cargo run --example benchmark_alloc --features='hotpath-alloc' --release
 ```
 
 #### Instant
@@ -156,7 +156,7 @@ cargo build --example benchmark_noop --features hotpath --profile profiling && H
 #### Allocations
 
 ```bash
-cargo build --example benchmark_alloc --features='hotpath,hotpath-alloc' --profile profiling && samply record './target/profiling/examples/benchmark_alloc'
+cargo build --example benchmark_alloc --features='hotpath-alloc' --profile profiling && samply record './target/profiling/examples/benchmark_alloc'
 ```
 
 ## Building the documentation
@@ -190,13 +190,13 @@ CI runs on `ubuntu-latest` against Rust `1.89`, `stable`, and `nightly`. You can
 cargo check
 cargo check --all-features
 cargo check --features hotpath
-cargo check --features "hotpath,hotpath-alloc"
-cargo check --features "hotpath,hotpath-mcp"
-cargo check --features "hotpath,hotpath-prometheus"
-cargo check --features "hotpath,hotpath-alloc-meta,hotpath-meta"
-cargo check --features "hotpath,hotpath-alloc,hotpath-meta,hotpath-alloc-meta"
+cargo check --features "hotpath-alloc"
+cargo check --features "hotpath-mcp"
+cargo check --features "hotpath-prometheus"
+cargo check --features "hotpath,hotpath-alloc-meta"
+cargo check --features "hotpath-alloc,hotpath-alloc-meta"
 cargo check -p hotpath --bin hotpath --features=tui
-cargo check --features='tui,hotpath,hotpath-meta,hotpath-alloc-meta,hotpath-mcp,hotpath-mcp-meta,dev' --bin hotpath
+cargo check --features='tui,hotpath-alloc-meta,hotpath-mcp,hotpath-mcp-meta,dev' --bin hotpath
 cargo check -p hotpath --bin hotpath --features=cloud
 ```
 
@@ -206,8 +206,8 @@ cargo check -p hotpath --bin hotpath --features=cloud
 cargo fmt --all --check
 cargo clippy --all --features hotpath -- -D warnings
 cargo clippy --all --all-features -- -D warnings
-cargo clippy --all --features "hotpath,hotpath-alloc" -- -D warnings
-RUSTDOCFLAGS="-D warnings" cargo doc -p hotpath --no-deps --features hotpath,hotpath-alloc
+cargo clippy --all --features "hotpath-alloc" -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc -p hotpath --no-deps --features hotpath-alloc
 ```
 
 ### Miri
@@ -231,7 +231,7 @@ Integration tests live in `crates/hotpath/tests/` and run one file at a time, fo
 
 ```bash
 cargo test --features hotpath --test functions_timing -- --nocapture --test-threads=1
-cargo test --features hotpath,hotpath-prometheus --test prometheus_metrics -- --nocapture --test-threads=1
+cargo test --features hotpath-prometheus --test prometheus_metrics -- --nocapture --test-threads=1
 ```
 
 Or run all integration tests at once with the `test_all` recipe in the `justfile`:

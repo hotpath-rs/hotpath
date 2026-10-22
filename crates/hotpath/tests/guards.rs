@@ -76,10 +76,10 @@ pub mod tests {
         }
     }
 
-    // HOTPATH_OUTPUT_FORMAT=none cargo run -p test-smol-async --example all_guards --features hotpath,hotpath-alloc
+    // HOTPATH_OUTPUT_FORMAT=none cargo run -p test-smol-async --example all_guards --features hotpath-alloc
     #[test]
     fn test_measure_impl_guards_example_runs() {
-        example("hotpath,hotpath-alloc")
+        example("hotpath-alloc")
             .env("HOTPATH_OUTPUT_FORMAT", "none")
             .stdout();
     }
@@ -92,13 +92,11 @@ pub mod tests {
         assert_futures_present(&report);
     }
 
-    // HOTPATH_OUTPUT_FORMAT=json HOTPATH_REPORT=functions-timing,functions-alloc,futures cargo run -p test-smol-async --example all_guards --features hotpath,hotpath-alloc
+    // HOTPATH_OUTPUT_FORMAT=json HOTPATH_REPORT=functions-timing,functions-alloc,futures cargo run -p test-smol-async --example all_guards --features hotpath-alloc
     #[test]
     fn test_measure_impl_guards_json_hotpath_alloc() {
-        let report = run_all_guards_json(
-            "hotpath,hotpath-alloc",
-            "functions-timing,functions-alloc,futures",
-        );
+        let report =
+            run_all_guards_json("hotpath-alloc", "functions-timing,functions-alloc,futures");
 
         assert_functions_present(&report);
         assert_futures_present(&report);

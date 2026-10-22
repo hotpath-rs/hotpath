@@ -1,5 +1,5 @@
 //! Run with:
-//!   cargo run -p test-tokio-async --example jemalloc_allocator --features hotpath,hotpath-alloc,jemalloc-alloc
+//!   cargo run -p test-tokio-async --example jemalloc_allocator --features hotpath-alloc,jemalloc-alloc
 
 #[hotpath::measure]
 fn alloc_work() {

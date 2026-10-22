@@ -5,7 +5,7 @@
 //! allocations shrinking accordingly.
 //!
 //! Run with:
-//!   cargo run --release -p test-alloc --example string_clones_after --features hotpath,hotpath-alloc
+//!   cargo run --release -p test-alloc --example string_clones_after --features hotpath-alloc
 
 use std::sync::{mpsc, Arc};
 

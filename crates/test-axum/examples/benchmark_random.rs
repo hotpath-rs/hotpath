@@ -12,7 +12,7 @@
 //! reports it compares. `RANDOM_BENCHMARK_SEED=<u64>` replays a draw.
 //!
 //! Run with:
-//!   cargo run --release -p test-axum --example benchmark_random --features hotpath,hotpath-alloc
+//!   cargo run --release -p test-axum --example benchmark_random --features hotpath-alloc
 
 use std::collections::HashMap;
 use std::io::{Read, Write};

@@ -56,10 +56,10 @@ mod tests {
         assert!(expected, "{what}: {s:?} is not in the display format");
     }
 
-    // cargo run -p test-all-features --example basic_all_features --features hotpath,hotpath-alloc,hotpath-cloud
+    // cargo run -p test-all-features --example basic_all_features --features hotpath-alloc,hotpath-cloud
     #[test]
     fn cloud_report_renders_exact_values() {
-        let report = run_with_features("hotpath,hotpath-alloc,hotpath-cloud");
+        let report = run_with_features("hotpath-alloc,hotpath-cloud");
 
         let timing = report.functions_timing.expect("functions_timing section");
         assert!(!timing.data.is_empty());
@@ -158,10 +158,10 @@ mod tests {
         }
     }
 
-    // cargo run -p test-all-features --example basic_all_features --features hotpath,hotpath-alloc
+    // cargo run -p test-all-features --example basic_all_features --features hotpath-alloc
     #[test]
     fn display_format_kept_without_the_cloud_feature() {
-        let report = run_with_features("hotpath,hotpath-alloc");
+        let report = run_with_features("hotpath-alloc");
 
         let timing = report.functions_timing.expect("functions_timing section");
         assert!(!timing.data.is_empty());

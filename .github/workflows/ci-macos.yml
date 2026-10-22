@@ -30,7 +30,7 @@ jobs:
       - name: Build with hotpath feature
         run: cargo build --features hotpath
       - name: Build with hotpath-alloc feature
-        run: cargo build --features='hotpath,hotpath-alloc'
+        run: cargo build --features='hotpath-alloc'
       - name: Run lib tests
         run: |
           cargo test --lib --features hotpath

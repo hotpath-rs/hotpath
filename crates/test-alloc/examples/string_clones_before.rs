@@ -4,7 +4,7 @@
 //! thread allocating ~5 GB. Compare with the `string_clones_after` example.
 //!
 //! Run with:
-//!   cargo run --release -p test-alloc --example string_clones_before --features hotpath,hotpath-alloc
+//!   cargo run --release -p test-alloc --example string_clones_before --features hotpath-alloc
 
 use std::sync::mpsc;
 

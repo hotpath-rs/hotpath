@@ -8,7 +8,7 @@ pub mod tests {
 
     fn example_of(package: &str, name: &str) -> Example {
         Example::new(package, name)
-            .features("hotpath,hotpath-alloc")
+            .features("hotpath-alloc")
             .env("HOTPATH_REPORT", "functions-alloc")
     }
 
@@ -16,7 +16,7 @@ pub mod tests {
         example_of("test-tokio-async", name)
     }
 
-    // cargo run -p test-tokio-async --example basic --features hotpath,hotpath-alloc
+    // cargo run -p test-tokio-async --example basic --features hotpath-alloc
     #[test]
     fn test_basic_alloc_output() {
         for _ in 0..2 {
@@ -36,7 +36,7 @@ pub mod tests {
         }
     }
 
-    // cargo run -p test-tokio-async --example early_returns --features hotpath,hotpath-alloc
+    // cargo run -p test-tokio-async --example early_returns --features hotpath-alloc
     #[test]
     fn test_early_returns_alloc_output() {
         for _ in 0..2 {
@@ -53,7 +53,7 @@ pub mod tests {
         }
     }
 
-    // cargo run -p test-smol-async --example basic_smol --features hotpath,hotpath-alloc -- --nocapture
+    // cargo run -p test-smol-async --example basic_smol --features hotpath-alloc -- --nocapture
     #[test]
     fn test_async_smol_alloc_profiling_output() {
         let stdout = example_of("test-smol-async", "basic_smol")
@@ -66,7 +66,7 @@ pub mod tests {
         );
     }
 
-    // cargo run -p test-tokio-async --example limit --features hotpath,hotpath-alloc
+    // cargo run -p test-tokio-async --example limit --features hotpath-alloc
     #[test]
     fn test_limit_output() {
         let stdout = example("limit").stdout();
@@ -91,14 +91,14 @@ pub mod tests {
         }
     }
 
-    // cargo run -p test-tokio-async --example multithread_alloc --features hotpath,hotpath-alloc
+    // cargo run -p test-tokio-async --example multithread_alloc --features hotpath-alloc
     #[test]
     fn test_multithread_alloc_no_panic() {
         let test_cases = [
-            ("hotpath,hotpath-alloc", None),
-            ("hotpath,hotpath-alloc", None),
-            ("hotpath,hotpath-alloc", Some("true")),
-            ("hotpath,hotpath-alloc", Some("true")),
+            ("hotpath-alloc", None),
+            ("hotpath-alloc", None),
+            ("hotpath-alloc", Some("true")),
+            ("hotpath-alloc", Some("true")),
         ];
 
         for (features, alloc_cumulative) in test_cases {
@@ -124,7 +124,7 @@ pub mod tests {
         }
     }
 
-    // HOTPATH_METRICS_PORT=6775 TEST_SLEEP_SECONDS=10 cargo run -p test-tokio-async --example basic --features hotpath,hotpath-alloc
+    // HOTPATH_METRICS_PORT=6775 TEST_SLEEP_SECONDS=10 cargo run -p test-tokio-async --example basic --features hotpath-alloc
     #[test]
     fn test_data_endpoints() {
         use hotpath::json::JsonFunctionsList;
@@ -204,7 +204,7 @@ pub mod tests {
         }
     }
 
-    // cargo run -p test-tokio-async --example basic --features hotpath,hotpath-alloc
+    // cargo run -p test-tokio-async --example basic --features hotpath-alloc
     #[test]
     fn test_alloc_total_bytes_not_inflated() {
         let report = example("basic").report();
@@ -230,7 +230,7 @@ pub mod tests {
         );
     }
 
-    // cargo run -p test-tokio-async --example basic --features hotpath,hotpath-alloc
+    // cargo run -p test-tokio-async --example basic --features hotpath-alloc
     #[test]
     fn test_async_alloc_is_reported() {
         let report = example("basic")
@@ -253,7 +253,7 @@ pub mod tests {
         );
     }
 
-    // cargo run -p test-tokio-async --example alloc_measure --features hotpath,hotpath-alloc
+    // cargo run -p test-tokio-async --example alloc_measure --features hotpath-alloc
     #[test]
     fn test_alloc_uninstrumented_children_tracked() {
         let report = example("alloc_measure")
@@ -293,7 +293,7 @@ pub mod tests {
         assert_bytes("instrumented_1kb", 1024);
     }
 
-    // cargo run -p test-tokio-async --example custom_allocator --features hotpath,hotpath-alloc
+    // cargo run -p test-tokio-async --example custom_allocator --features hotpath-alloc
     #[test]
     fn test_custom_allocator_via_main_macro() {
         let report = example("custom_allocator")
@@ -330,7 +330,7 @@ pub mod tests {
         );
     }
 
-    // cargo run -p test-alloc --example first_call_registration --features hotpath,hotpath-alloc
+    // cargo run -p test-alloc --example first_call_registration --features hotpath-alloc
     #[test]
     fn test_first_call_registration_reports_only_measured_allocs() {
         let report = example_of("test-alloc", "first_call_registration")

@@ -54,13 +54,13 @@ test_all:
     cargo test --features hotpath --test toasty_sqlite -- --nocapture --test-threads=1
     cargo test --features hotpath --test toasty_pg -- --nocapture --test-threads=1
     cargo test --features hotpath --test debug -- --nocapture --test-threads=1
-    cargo test --features hotpath,hotpath-prometheus --test prometheus_metrics -- --nocapture --test-threads=1
-    cargo test --features hotpath,hotpath-prometheus --test prometheus_native -- --nocapture --test-threads=1
-    cargo test --features hotpath,hotpath-prometheus --test prometheus_subsystems -- --nocapture --test-threads=1
-    cargo test --features hotpath,hotpath-prometheus --test prometheus_flow -- --nocapture --test-threads=1
-    cargo test --features hotpath,hotpath-prometheus --test prometheus_io -- --nocapture --test-threads=1
-    cargo test --features hotpath,hotpath-prometheus --test prometheus_alloc -- --nocapture --test-threads=1
-    cargo test --features hotpath,hotpath-prometheus --test prometheus_system -- --nocapture --test-threads=1
+    cargo test --features hotpath-prometheus --test prometheus_metrics -- --nocapture --test-threads=1
+    cargo test --features hotpath-prometheus --test prometheus_native -- --nocapture --test-threads=1
+    cargo test --features hotpath-prometheus --test prometheus_subsystems -- --nocapture --test-threads=1
+    cargo test --features hotpath-prometheus --test prometheus_flow -- --nocapture --test-threads=1
+    cargo test --features hotpath-prometheus --test prometheus_io -- --nocapture --test-threads=1
+    cargo test --features hotpath-prometheus --test prometheus_alloc -- --nocapture --test-threads=1
+    cargo test --features hotpath-prometheus --test prometheus_system -- --nocapture --test-threads=1
     cargo test --features hotpath --test cloud_limit -- --nocapture --test-threads=1
     cargo test --features hotpath --test cloud_json_file -- --nocapture --test-threads=1
     cargo test --features hotpath --test cloud_upload_guard -- --nocapture --test-threads=1
@@ -71,7 +71,7 @@ test_all:
 # Scrape with `docker compose up -d prometheus grafana`; on native Linux add HOTPATH_PROMETHEUS_HOST=0.0.0.0.
 # Run the TUI in demo mode with the Prometheus exporter on port 6772.
 demo:
-    cargo run --bin hotpath --features tui,hotpath,hotpath-alloc,hotpath-prometheus,demo,dev,hotpath-meta,hotpath-alloc-meta,hotpath-prometheus-meta -- console
+    cargo run --bin hotpath --features tui,hotpath-alloc,hotpath-prometheus,demo,dev,hotpath-alloc-meta,hotpath-prometheus-meta -- console
 
 # Open the demo Grafana dashboard fed by the native-histogram Prometheus.
 grafana:

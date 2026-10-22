@@ -1,5 +1,5 @@
 //! Run with:
-//!   cargo run -p test-all-features --example no_locations --features hotpath,hotpath-cloud
+//!   cargo run -p test-all-features --example no_locations --features hotpath-cloud
 //!
 //! A guard built by hand around code that registers no source location: no
 //! measured function, channel, lock or future. The report then has nothing to

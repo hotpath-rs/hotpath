@@ -53,9 +53,9 @@ hotpath = "0.28"
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
-hotpath-prometheus = ["hotpath/hotpath-prometheus"]
-hotpath-cloud = ["hotpath/hotpath-cloud"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 ```
 
 Enable the extra hotpath cargo features on the dependency (`tokio`, a channel or lock library, an SQL or HTTP integration, ...) that the pages fetched in step 1 name for the primitives the project uses. Pick the HTTP and axum features matching the project's major versions. For example: `hotpath = { version = "0.28", features = ["tokio"] }`.
@@ -118,7 +118,7 @@ cargo check --features hotpath    # feature on
 cargo run --features hotpath      # prints report on exit
 ```
 
-Optionally verify alloc mode: `cargo run --features 'hotpath,hotpath-alloc'`.
+Optionally verify alloc mode: `cargo run --features 'hotpath-alloc'`.
 
 Report what was instrumented and mention next steps, with their docs links: the live TUI and report options (https://hotpath.rs/profiling_modes) and the environment variables (https://hotpath.rs/configuration). Report sections need no configuration, so mention `HOTPATH_REPORT` only if the user wants to restrict output.
 

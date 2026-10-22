@@ -161,6 +161,7 @@ impl Precision {
         }
     }
 
+    #[cfg(feature = "threads")]
     pub(crate) fn bytes_signed(self, bytes: i64) -> String {
         let sign = if bytes < 0 { "-" } else { "" };
         format!("{sign}{}", self.bytes(bytes.unsigned_abs()))

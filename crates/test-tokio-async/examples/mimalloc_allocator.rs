@@ -1,5 +1,5 @@
 //! Run with:
-//!   cargo run -p test-tokio-async --example mimalloc_allocator --features hotpath,hotpath-alloc,mimalloc-alloc
+//!   cargo run -p test-tokio-async --example mimalloc_allocator --features hotpath-alloc,mimalloc-alloc
 
 #[hotpath::measure]
 fn alloc_work() {

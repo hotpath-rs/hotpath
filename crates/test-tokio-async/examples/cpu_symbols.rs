@@ -4,7 +4,7 @@
 //! Run:
 //! ```bash
 //! cargo run -p test-tokio-async --example cpu_symbols \
-//!   --features 'hotpath,hotpath-cpu' --release
+//!   --features 'hotpath-cpu' --release
 //! ```
 
 use std::hint::black_box;

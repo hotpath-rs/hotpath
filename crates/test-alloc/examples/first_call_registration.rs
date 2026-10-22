@@ -4,7 +4,7 @@
 //! call and nothing for the other callees.
 //!
 //! Run with:
-//!   cargo run -p test-alloc --example first_call_registration --features hotpath,hotpath-alloc
+//!   cargo run -p test-alloc --example first_call_registration --features hotpath-alloc
 
 #[hotpath::measure]
 fn callee_a(x: u64) -> u64 {

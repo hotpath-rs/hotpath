@@ -150,11 +150,11 @@ hotpath = "{{HOTPATH_VERSION}}"
 
 [features]
 hotpath = ["hotpath/hotpath"]
-hotpath-alloc = ["hotpath/hotpath-alloc"]
-hotpath-prometheus = ["hotpath/hotpath-prometheus"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]
 ```
 
-This config ensures that the lib has no compile time or runtime overhead unless explicitly enabled via a `hotpath` feature. All the lib dependencies are optional (i.e. not compiled) and all macros are noop unless profiling is enabled.
+This config ensures that the lib has no compile time or runtime overhead unless explicitly enabled via one of the `hotpath` features. Every profiling feature also enables `hotpath`, so a single flag like `--features=hotpath-alloc` is enough. All the lib dependencies are optional (i.e. not compiled) and all macros are noop unless profiling is enabled.
 
 ### Basic setup
 
@@ -191,7 +191,7 @@ async fn main() {
 Now, run your program with `hotpath` (and optionally `hotpath-alloc`) feature:
 
 ```bash
-cargo run --features='hotpath,hotpath-alloc'
+cargo run --features='hotpath-alloc'
 ```
 
 On exit it will print a report with timings, memory allocations and thread usage metrics:
@@ -249,7 +249,7 @@ Other than the SSH demo an easy way to quickly try the [ratatui.rs](https://rata
 First, install `hotpath` CLI with auto-instrumentation and demo mode enabled:
 
 ```bash
-cargo install hotpath --features='tui,hotpath,hotpath-alloc,demo' --version '^{{HOTPATH_VERSION}}'
+cargo install hotpath --features='tui,hotpath-alloc,demo' --version '^{{HOTPATH_VERSION}}'
 ```
 
 Then launch the TUI:

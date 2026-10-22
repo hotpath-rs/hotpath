@@ -29,7 +29,6 @@ use crate::json::{
 };
 use crate::output::format_duration;
 use crate::streams::{get_stream_logs, get_streams_json};
-use crate::threads::get_threads_json;
 
 // Accepts both a JSON number and its string form ("3"), so clients that
 // stringify tool parameters keep working.
@@ -571,10 +570,18 @@ Sampled at configurable interval (HOTPATH_THREADS_INTERVAL_MS env var, default 2
     async fn threads(&self) -> Result<CallToolResult, McpError> {
         log_debug("Tool called: threads");
 
-        let threads = get_threads_json(crate::output::Precision::Display);
-        Ok(CallToolResult::success(vec![Content::text(to_json(
-            &threads,
-        )?)]))
+        #[cfg(feature = "threads")]
+        {
+            let threads = crate::threads::get_threads_json(crate::output::Precision::Display);
+            Ok(CallToolResult::success(vec![Content::text(to_json(
+                &threads,
+            )?)]))
+        }
+
+        #[cfg(not(feature = "threads"))]
+        Ok(CallToolResult::error(vec![Content::text(
+            "Thread monitoring not available - enable threads feature",
+        )]))
     }
 
     #[tool(description = r#"Get detailed timing logs for a specific function.

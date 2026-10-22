@@ -62,13 +62,13 @@ The configuration is temporary and resets after reboot. Consider persisting it v
 Another caveat when using `samply` with `hotpath` on Linux is that you must prefix the profiled command with `setsid -w`. So instead of:
 
 ```bash
-cargo run --features='hotpath,hotpath-alloc,hotpath-cpu'
+cargo run --features='hotpath-alloc,hotpath-cpu'
 ```
 
 you should run:
 
 ```bash
-setsid -w cargo run --features='hotpath,hotpath-alloc,hotpath-cpu'
+setsid -w cargo run --features='hotpath-alloc,hotpath-cpu'
 ```
 
 Otherwise the parent process may exit before `hotpath` finishes the profiling report.
@@ -87,7 +87,7 @@ debug = true
 Now run your example with an additional `hotpath-cpu` flag: 
 
 ```bash
-cargo run --features='hotpath,hotpath-alloc,hotpath-cpu' --profile profiling
+cargo run --features='hotpath-alloc,hotpath-cpu' --profile profiling
 ```
 
 it will output a CPU usage report (in addition to wall-clock time and allocations):

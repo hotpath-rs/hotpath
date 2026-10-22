@@ -35,15 +35,15 @@ hotpath = [
   "dep:libc",
 ]
 hotpath-meta = ["dep:hotpath-meta", "hotpath-meta/hotpath-meta", "hotpath-meta/crossbeam", "hotpath-drain?/hotpath-meta"]
-hotpath-alloc-meta = ["dep:hotpath-meta", "hotpath-meta/hotpath-meta", "hotpath-meta/crossbeam", "hotpath-meta/hotpath-alloc-meta", "hotpath-macros/hotpath-alloc-meta", "hotpath-drain?/hotpath-alloc-meta"]
-hotpath-cloud-meta = ["hotpath-meta/hotpath-cloud-meta"]
-hotpath-mcp-meta = ["hotpath-meta/hotpath-mcp-meta", "hotpath-meta/axum-0-8"]
-hotpath-prometheus-meta = ["hotpath-meta/hotpath-prometheus-meta"]
-hotpath-alloc = ["hotpath-macros/hotpath-alloc"]
-hotpath-cloud = ["dep:ureq", "ureq/rustls", "ureq/json", "dep:flate2"]
+hotpath-alloc-meta = ["hotpath-meta", "hotpath-meta/hotpath-alloc-meta", "hotpath-macros/hotpath-alloc-meta", "hotpath-drain?/hotpath-alloc-meta"]
+hotpath-cloud-meta = ["hotpath-meta", "hotpath-meta/hotpath-cloud-meta"]
+hotpath-mcp-meta = ["hotpath-meta", "hotpath-meta/hotpath-mcp-meta", "hotpath-meta/axum-0-8"]
+hotpath-prometheus-meta = ["hotpath-meta", "hotpath-meta/hotpath-prometheus-meta"]
+hotpath-alloc = ["hotpath", "hotpath-macros/hotpath-alloc"]
+hotpath-cloud = ["hotpath", "dep:ureq", "ureq/rustls", "ureq/json", "dep:flate2"]
 cloud = ["json", "dep:eyre", "dep:clap", "dep:ureq", "ureq/json", "ureq/rustls", "serde_json/preserve_order"]
 tui = ["json", "dep:eyre", "dep:clap", "dep:reqwest", "reqwest/json", "reqwest/rustls", "dep:crossterm", "dep:ratatui", "dep:crossbeam-channel", "dep:tokio", "tokio/rt", "tokio/rt-multi-thread", "crossbeam", "dep:futures-util"]
-demo = ["hotpath", "hotpath-prometheus", "sqlx", "dep:sqlx", "diesel", "diesel/sqlite", "dep:libsqlite3-sys", "reqwest-0-13", "axum-0-8", "axum/tokio", "axum/http1", "tokio/net"]
+demo = ["hotpath-prometheus", "sqlx", "dep:sqlx", "diesel", "diesel/sqlite", "dep:libsqlite3-sys", "reqwest-0-13", "axum-0-8", "axum/tokio", "axum/http1", "tokio/net"]
 tokio = ["dep:tokio", "tokio/sync", "tokio/time"]
 futures = ["dep:futures-channel", "dep:futures-sink"]
 async-channel = ["dep:async-channel"]
@@ -60,8 +60,8 @@ diesel = ["dep:diesel"]
 "axum-0-8" = ["dep:axum", "axum/matched-path", "dep:tower-layer", "dep:tower-service", "dep:pin-project-lite"]
 threads = []
 dev = ["dep:time", "time/formatting", "time/local-offset"]
-hotpath-cpu = ["hotpath-macros/hotpath-cpu", "dep:object", "dep:rustc-demangle", "dep:flate2"]
-hotpath-callgrind = ["hotpath-macros/hotpath-callgrind"]
+hotpath-cpu = ["hotpath", "hotpath-macros/hotpath-cpu", "dep:object", "dep:rustc-demangle", "dep:flate2"]
+hotpath-callgrind = ["hotpath", "hotpath-macros/hotpath-callgrind"]
 hotpath-mcp = ["hotpath", "dep:rmcp", "dep:tokio", "tokio/rt", "tokio/net", "dep:axum", "axum/http1", "axum/tokio", "dep:tokio-util", "dep:schemars"]
 hotpath-prometheus = ["hotpath", "dep:prost"]
 
@@ -123,7 +123,7 @@ quanta = { version = "0.12", optional = true }
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
 
 [package.metadata.docs.rs]
-features = ["hotpath", "hotpath-alloc"]
+features = ["hotpath-alloc"]
 
 [dev-dependencies]
 tokio = { version = "1.47", features = ["rt", "rt-multi-thread", "macros", "sync", "time"] }

@@ -8,11 +8,11 @@ pub mod tests {
 
     fn example(name: &str) -> Example {
         Example::new("test-tokio-async", name)
-            .features("hotpath,hotpath-cpu")
+            .features("hotpath-cpu")
             .env("HOTPATH_REPORT", "functions-cpu")
     }
 
-    // cargo run -p test-tokio-async --example cpu_basic --features hotpath,hotpath-cpu
+    // cargo run -p test-tokio-async --example cpu_basic --features hotpath-cpu
     #[test]
     fn test_cpu_basic_output() {
         let stdout = example("cpu_basic").stdout();
@@ -20,7 +20,7 @@ pub mod tests {
         assert_contains_all(&stdout, &["cpu_basic::heavy_work", "cpu_basic::light_work"]);
     }
 
-    // HOTPATH_OUTPUT_FORMAT=json HOTPATH_REPORT=functions-cpu cargo run -p test-tokio-async --example cpu_symbols --features hotpath,hotpath-cpu
+    // HOTPATH_OUTPUT_FORMAT=json HOTPATH_REPORT=functions-cpu cargo run -p test-tokio-async --example cpu_symbols --features hotpath-cpu
     #[test]
     fn test_cpu_symbols_output() {
         let stdout = example("cpu_symbols").json().stdout();
@@ -41,7 +41,7 @@ pub mod tests {
         }
     }
 
-    // cargo run -p test-tokio-async --example cpu_inline --features hotpath,hotpath-cpu
+    // cargo run -p test-tokio-async --example cpu_inline --features hotpath-cpu
     #[test]
     fn test_cpu_inline_default_strips_user_inline() {
         let stdout = example("cpu_inline")
@@ -55,7 +55,7 @@ pub mod tests {
         );
     }
 
-    // HOTPATH_KEEP_INLINE=1 cargo run -p test-tokio-async --example cpu_inline --features hotpath,hotpath-cpu
+    // HOTPATH_KEEP_INLINE=1 cargo run -p test-tokio-async --example cpu_inline --features hotpath-cpu
     #[test]
     fn test_cpu_inline_keep_inline_preserves_user_inline() {
         let stdout = example("cpu_inline")
@@ -74,7 +74,7 @@ pub mod tests {
         );
     }
 
-    // cargo run -p test-tokio-async --example cpu_labels --features hotpath,hotpath-cpu
+    // cargo run -p test-tokio-async --example cpu_labels --features hotpath-cpu
     #[test]
     fn test_cpu_labels_output() {
         let stdout = example("cpu_labels").stdout();

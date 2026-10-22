@@ -40,7 +40,7 @@ jobs:
       - name: Build drain benchmark
         run: |
           cargo build -q --release -p hotpath-drain --example throughput \
-            --features hotpath-meta,hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
+            --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
       # Run from the workspace root (git info, policy lookup); the Callgrind
       # dump goes to the runner's temp dir, named for hotpath-meta by
       # HOTPATH_META_CALLGRIND_OUT_FILE.

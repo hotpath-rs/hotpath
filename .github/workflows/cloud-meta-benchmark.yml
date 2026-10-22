@@ -46,5 +46,5 @@ jobs:
           HOTPATH_OUTPUT_FORMAT: none
         run: |
           cargo run -q --release -p test-all-features --example benchmark_meta \
-            --features hotpath,hotpath-alloc,hotpath-meta,hotpath-alloc-meta,hotpath-cloud-meta,hotpath-prometheus
+            --features hotpath-alloc,hotpath-alloc-meta,hotpath-cloud-meta,hotpath-prometheus
           test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"

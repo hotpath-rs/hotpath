@@ -9,11 +9,11 @@ pub mod tests {
     const METRICS_PORT: &str = "6779";
     const PROMETHEUS_PORT: &str = "6780";
 
-    // cargo run -p test-all-features --example prometheus_system --features hotpath,hotpath-prometheus
+    // cargo run -p test-all-features --example prometheus_system --features hotpath-prometheus
     #[test]
     fn test_threads_tokio_gauge_families() {
         let _running = Example::new("test-all-features", "prometheus_system")
-            .features("hotpath,hotpath-prometheus")
+            .features("hotpath-prometheus")
             .env("HOTPATH_METRICS_PORT", METRICS_PORT)
             .env("HOTPATH_PROMETHEUS_PORT", PROMETHEUS_PORT)
             .env("TEST_SLEEP_SECONDS", "20")

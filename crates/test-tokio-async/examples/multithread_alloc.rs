@@ -1,5 +1,5 @@
 //! Run with:
-//!   cargo run -p test-tokio-async --example multithread_alloc --features hotpath,hotpath-alloc
+//!   cargo run -p test-tokio-async --example multithread_alloc --features hotpath-alloc
 
 use std::thread;
 use std::time::Duration;
