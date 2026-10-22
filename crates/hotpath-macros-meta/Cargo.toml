@@ -4,6 +4,7 @@ version = "0.28.7"
 edition = "2021"
 description = "Hotpath meta - a version of hotpath used to profile the profiler itself. Not intended for external use. Proc macros crate."
 repository = "https://github.com/hotpath-rs/hotpath"
+homepage = "https://hotpath.rs"
 readme = "README.md"
 license = "MIT"
 categories = ["development-tools"]
