@@ -138,7 +138,7 @@ The quickest way to set up hotpath is to let your own AI coding agent do it. Pas
 Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup
 ```
 
-The agent inspects your project, including workspaces and any existing hotpath setup, adds the feature-gated dependency, instruments `main` and a small starting set of hot functions, channels and locks, and verifies that everything compiles with profiling enabled and disabled. When the project has a workload that exits, it runs it and shows you the first report; it does not start long-running servers just to get one. It then explains how to run profiling and the live TUI. For a GitHub repository, it finally asks once whether to also set up [hotpath Cloud](cloud.md) to benchmark pull requests in CI; nothing for Cloud is added unless you agree.
+The agent inspects your project, including workspaces and any existing hotpath setup, adds the feature-gated dependency, instruments `main` and a small starting set of hot functions, channels and locks, and verifies that everything compiles with profiling enabled and disabled. When the project has a workload that exits, it runs it and shows you the first report. It then explains how to run profiling and the live TUI. It finally asks once whether to optionally set up [hotpath Cloud](cloud.md) to benchmark pull requests in CI.
 
 The prompt is a one-time project setup. The `hotpath-rs` [agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath-rs/SKILL.md) is what stays: reusable hotpath knowledge your agent loads in every later session. To install it, for example in a repo that already uses hotpath, run:
 
