@@ -1,6 +1,6 @@
 # Set up hotpath profiling in a Rust project
 
-Instructions for an AI coding agent. Set up [hotpath](https://hotpath.rs) profiling in the current Rust project. The setup is fully feature-gated: zero compile-time and runtime overhead unless the `hotpath` feature is explicitly enabled. All macros are no-ops when the feature is off, so no `cfg_attr` wrapping is needed.
+Instructions for an AI coding agent. Set up [hotpath](https://hotpath.rs) profiling in the current Rust project. Run the commands yourself instead of asking the user to run them, except where a step says to ask. The setup is fully feature-gated: zero compile-time and runtime overhead unless the `hotpath` feature is explicitly enabled. All macros are no-ops when the feature is off, so no `cfg_attr` wrapping is needed.
 
 The goal is a small, working starting setup that produces a useful report, not full coverage. Adapt the steps to the project; the rules at the end are the parts that must hold.
 
