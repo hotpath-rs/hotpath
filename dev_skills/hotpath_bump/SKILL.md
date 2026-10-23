@@ -46,7 +46,7 @@ All six crates always share the same version; never bump one without the others.
   ("{{HOTPATH_VERSION}}", "X.Y"),
   ```
 
-- `README.md` - every version occurrence (`cargo install hotpath --version '^X.Y'`, `hotpath = "X.Y"`)
+- `README.md` - every version occurrence (`hotpath = "X.Y"`)
 
 The docs and the agent pages in `docs/agent/` use the `{{HOTPATH_VERSION}}` and `{{HOTPATH_RELEASE_TAG}}` placeholders, which the backend fills from its `middleware.rs` entries above and below; never hardcode a version there.
 
