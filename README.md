@@ -14,7 +14,7 @@ ssh demo.hotpath.rs
 Or let your own AI agent configure profiling in a repo, paste into Claude Code, Codex, OpenCode or Cursor:
 
 ```
-Fetch and follow https://hotpath.rs/agent/setup.md
+Fetch and follow https://hotpath.rs/agent/setup
 ```
 
 [hotpath-rs](https://hotpath.rs) is an easy-to-configure Rust performance profiling toolkit that shows exactly where your code spends time, burns CPU, and allocates memory.
@@ -74,7 +74,7 @@ https://github.com/user-attachments/assets/2e890417-2b43-4b1b-8657-a5ef3b458153
 The quickest way to set up hotpath is to let your own AI coding agent do it. Paste this prompt into Claude Code, Codex, OpenCode, Cursor or any other coding agent, inside your project repo:
 
 ```text
-Fetch and follow https://hotpath.rs/agent/setup.md
+Fetch and follow https://hotpath.rs/agent/setup
 ```
 
 The agent installs the [hotpath-rs agent skill](skills/hotpath-rs/SKILL.md), inspects your project, adds the feature-gated dependency, instruments `main` and a starting set of functions, channels and locks, then verifies that everything compiles with profiling enabled and disabled. You review and approve each edit through the agent's regular permission prompts.

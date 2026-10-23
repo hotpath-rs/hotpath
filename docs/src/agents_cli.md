@@ -2,7 +2,7 @@
 
 `hotpath cloud` is the command line client of the `hotpath Cloud` API. It gives a coding agent, a script or a CI step the same judgement the pull request comment shows, as JSON: which report was compared with which baseline, under which policy, what regressed, which budgets broke, and the verdict. An agent can push a change, wait for the benchmark, read the verdict and fix what regressed, without opening the dashboard.
 
-Give your agent the `hotpath-rs` [agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath-rs/SKILL.md) (`npx skills add hotpath-rs/hotpath`): it points the agent to the [step-by-step workflow](https://hotpath.rs/agent/cloud_cli.md) for these commands, waiting for a benchmark, reading the verdict and fixing what regressed.
+Give your agent the `hotpath-rs` [agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath-rs/SKILL.md) (`npx skills add hotpath-rs/hotpath`): it points the agent to the [step-by-step workflow](https://hotpath.rs/agent/cloud_cli) for these commands, waiting for a benchmark, reading the verdict and fixing what regressed.
 
 ## Install and authenticate
 

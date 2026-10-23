@@ -35,7 +35,7 @@ The site documents the latest hotpath release, which can be newer than the versi
 
 ### 1. Inspect the project
 
-- Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented code. If it is not, stop and tell the user to set up profiling first (https://hotpath.rs/agent/init_lib.md); do not instrument the project as part of building the dashboard.
+- Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented code. If it is not, stop and tell the user to set up profiling first (https://hotpath.rs/agent/init_lib); do not instrument the project as part of building the dashboard.
 - Record which subsystems the project instruments. They decide which dashboard rows to build:
 
 | Instrumentation in the code | Dashboard row |

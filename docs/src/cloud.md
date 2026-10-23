@@ -55,7 +55,7 @@ Benchmark reports are persisted in `hotpath Cloud`, making it easy to share resu
 The quickest way to set up `hotpath Cloud` is to let your own AI coding agent do it. Paste this prompt into your coding agent, inside your project repo:
 
 ```text
-Fetch and follow https://hotpath.rs/agent/init_cloud.md
+Fetch and follow https://hotpath.rs/agent/init_cloud
 ```
 
 The agent adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file and a GitHub Actions benchmark workflow, so every pull request gets a performance comment. For public repositories, it asks whether pull requests from forks should be benchmarked too: they need a [separate setup](ci_integration.md#pull-requests-from-forks) with a relay workflow for security reasons.
