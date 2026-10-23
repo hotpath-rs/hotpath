@@ -11,7 +11,7 @@ Try the TUI demo via SSH - no installation required:
 ssh demo.hotpath.rs
 ```
 
-Or let your own AI agent configure profiling in a repo, paste into Claude Code, Codex, OpenCode or Cursor:
+Or let your AI coding agent set up profiling for you, paste into Claude Code, Codex, OpenCode or Cursor:
 
 ```
 Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup
@@ -77,15 +77,15 @@ The quickest way to set up hotpath is to let your own AI coding agent do it. Pas
 Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup
 ```
 
-The agent inspects your project, including workspaces and any existing hotpath setup, adds the feature-gated dependency, instruments `main` and a small starting set of hot functions, channels and locks, and verifies that everything compiles with profiling enabled and disabled. When the project has a workload that exits, it runs it and shows you the first report; it does not start long-running servers just to get one. It then explains how to run profiling and the live TUI. For a GitHub repository, it finally asks once whether to also set up [hotpath Cloud](https://hotpath.rs/cloud) to benchmark pull requests in CI; nothing for Cloud is added unless you agree. You review and approve each edit through the agent's regular permission prompts.
+The agent inspects your project, including workspaces and any existing hotpath setup, adds the feature-gated dependency, instruments `main` and a small starting set of hot functions, channels and locks, and verifies that everything compiles with profiling enabled and disabled. When the project has a workload that exits, it runs it and shows you the first report; it does not start long-running servers just to get one. It then explains how to run profiling and the live TUI. For a GitHub repository, it finally asks once whether to also set up [hotpath Cloud](https://hotpath.rs/cloud) to benchmark pull requests in CI; nothing for Cloud is added unless you agree.
 
-To give your agent lasting hotpath knowledge, install the [hotpath-rs agent skill](skills/hotpath-rs/SKILL.md):
+The prompt is a one-time project setup. The `hotpath-rs` [agent skill](skills/hotpath-rs/SKILL.md) is what stays: reusable hotpath knowledge your agent loads in every later session. To install it, for example in a repo that already uses hotpath, run:
 
 ```bash
 npx skills add hotpath-rs/hotpath --skill hotpath-rs
 ```
 
-The skill maps every hotpath task, from instrumenting a crate to fixing a regression flagged in CI, to the documentation page that covers it.
+The skill maps every hotpath task, from instrumenting a crate to fixing a regression flagged in CI, to the documentation page that covers it, so your agent fetches the current docs instead of relying on its memory. Your agent remains in control: you review and approve edits through its regular permission prompts.
 
 ### Manual installation
 
