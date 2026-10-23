@@ -36,7 +36,7 @@ timing = { sql_per_request = 5 }
 message = "too many SQL queries per request, check for N+1 calls"
 ```
 
-The [`hotpath cloud`](agents_cli.md) CLI and dedicated [AI skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_cloud/SKILL.md) bring the same feedback loop to coding agents. Agents can analyze benchmark results, identify regressions, and use the profiling data to guide performance optimization:
+The [`hotpath cloud`](agents_cli.md) CLI and the `hotpath-rs` [agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath-rs/SKILL.md) bring the same feedback loop to coding agents. Agents can analyze benchmark results, identify regressions, and use the profiling data to guide performance optimization:
 
 <img loading="lazy" src="{{#asset-hash images/cloud-agent-diff.webp}}" alt="AI agent summarizing a hotpath Cloud diff">
 
@@ -52,24 +52,15 @@ Benchmark reports are persisted in `hotpath Cloud`, making it easy to share resu
 
 ### AI Setup (Recommended)
 
-The quickest way to set up `hotpath Cloud` is to let your own AI coding agent do it. Install the `hotpath` CLI and run `init-cloud` inside your project repo:
+The quickest way to set up `hotpath Cloud` is to let your own AI coding agent do it. Paste this prompt into your coding agent, inside your project repo:
 
-```bash
-cargo install hotpath --version '^{{HOTPATH_VERSION}}'
-hotpath init-cloud --agent claude # or --agent codex / --agent opencode
+```text
+Fetch and follow https://hotpath.rs/agent/init_cloud.md
 ```
 
-`hotpath init-cloud` downloads the [hotpath_init_cloud agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_init_cloud/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file and a GitHub Actions benchmark workflow, so every pull request gets a performance comment.
+The agent adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file and a GitHub Actions benchmark workflow, so every pull request gets a performance comment. For public repositories, it asks whether pull requests from forks should be benchmarked too: they need a [separate setup](ci_integration.md#pull-requests-from-forks) with a relay workflow for security reasons.
 
-Use `--forks` for public repositories that want to benchmark pull requests from forks. Fork pull requests need a [separate setup](ci_integration.md#pull-requests-from-forks) for security reasons:
-
-```bash
-hotpath init-cloud --agent claude --forks
-```
-
-For private repositories, or if you don't need benchmarks on pull requests from forks, run `hotpath init-cloud` without `--forks`.
-
-Your agent remains in control: you review and approve edits through its regular permission prompts. Requires `curl` and the `claude`, `codex` or `opencode` CLI on `PATH`.
+Your agent remains in control: you review and approve edits through its regular permission prompts.
 
 ### Manual setup
 

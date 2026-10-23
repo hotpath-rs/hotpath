@@ -19,27 +19,37 @@
     <p class="ssh-demo-label">Or let your own AI agent configure profiling in a repo:</p>
     <div class="terminal-shell terminal-shell-multi">
       <div class="terminal-tabs">
-        <button class="terminal-tab active" data-agent="claude&nbsp;&nbsp;" onclick="hotpathInitAgent('claude&nbsp;&nbsp;')">Claude</button>
-        <button class="terminal-tab" data-agent="codex&nbsp;&nbsp;&nbsp;" onclick="hotpathInitAgent('codex&nbsp;&nbsp;&nbsp;')">Codex</button>
-        <button class="terminal-tab" data-agent="opencode" onclick="hotpathInitAgent('opencode')">OpenCode</button>
+        <button class="terminal-tab active" data-panel="skill" onclick="hotpathSetupTab('skill')">Install skill</button>
+        <button class="terminal-tab" data-panel="prompt" onclick="hotpathSetupTab('prompt')">Paste into your agent</button>
+        <button class="terminal-tab terminal-copy" onclick="hotpathSetupCopy(this)">Copy</button>
       </div>
-      <div class="terminal-line">
+      <div class="terminal-line" data-panel="skill">
         <span class="terminal-prompt">$</span>
-        <span class="terminal-command">cargo install hotpath</span>
+        <span class="terminal-command">npx skills add hotpath-rs/hotpath</span>
       </div>
-      <div class="terminal-line">
-        <span class="terminal-prompt">$</span>
-        <span class="terminal-command">hotpath init --agent <span id="init-agent-name">claude&nbsp;&nbsp;</span></span>
+      <div class="terminal-line" data-panel="prompt" hidden>
+        <span class="terminal-prompt">&gt;</span>
+        <span class="terminal-command">Fetch and follow https://hotpath.rs/agent/setup.md</span>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-function hotpathInitAgent(agent) {
-  document.getElementById('init-agent-name').textContent = agent;
-  document.querySelectorAll('.terminal-tab').forEach(function (tab) {
-    tab.classList.toggle('active', tab.dataset.agent === agent);
+function hotpathSetupTab(panel) {
+  document.querySelectorAll('.terminal-tab[data-panel]').forEach(function (tab) {
+    tab.classList.toggle('active', tab.dataset.panel === panel);
+  });
+  document.querySelectorAll('.terminal-line[data-panel]').forEach(function (line) {
+    line.hidden = line.dataset.panel !== panel;
+  });
+}
+
+function hotpathSetupCopy(button) {
+  var line = document.querySelector('.terminal-line[data-panel]:not([hidden]) .terminal-command');
+  navigator.clipboard.writeText(line.textContent).then(function () {
+    button.textContent = 'Copied';
+    setTimeout(function () { button.textContent = 'Copy'; }, 1500);
   });
 }
 </script>
@@ -130,16 +140,21 @@ or use the live TUI dashboard to monitor real-time performance and async data fl
 
 ### AI Setup (Recommended)
 
-The quickest way to set up hotpath is to let your own AI coding agent do it. Install the `hotpath` CLI and run `init` inside your project repo:
+The quickest way to set up hotpath is to let your own AI coding agent do it. Paste this prompt into Claude Code, Codex, OpenCode, Cursor or any other coding agent, inside your project repo:
 
-```bash
-cargo install hotpath --version '^{{HOTPATH_VERSION}}'
-hotpath init --agent claude # or --agent codex / --agent opencode
+```text
+Fetch and follow https://hotpath.rs/agent/setup.md
 ```
 
-`hotpath init` downloads the [hotpath_init agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath_init/SKILL.md) from GitHub and starts your installed Claude Code, Codex or OpenCode with it as setup instructions. The agent inspects your project, adds the dependency, instruments `main` and a starting set of functions, channels and locks, then verifies that everything compiles with profiling enabled and disabled.
+The agent installs the `hotpath-rs` [agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath-rs/SKILL.md), inspects your project, adds the dependency, instruments `main` and a starting set of functions, channels and locks, then verifies that everything compiles with profiling enabled and disabled.
 
-Your agent remains in control: you review and approve edits through its regular permission prompts. Requires `curl` and the `claude`, `codex` or `opencode` CLI on `PATH`.
+To only install the skill, run:
+
+```bash
+npx skills add hotpath-rs/hotpath
+```
+
+The skill maps every hotpath task, from instrumenting a crate to fixing a regression flagged in CI, to the documentation page that covers it, so your agent fetches the current docs instead of relying on its memory. Your agent remains in control: you review and approve edits through its regular permission prompts.
 
 ### Manual installation
 

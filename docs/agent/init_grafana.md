@@ -1,16 +1,10 @@
----
-name: hotpath_init_grafana
-description: Build a Grafana dashboard JSON for a Rust project profiled with hotpath. Writes the dashboard file with context-aware panels (SQL and HTTP time per route, N+1 detection, memory and time per request, channel queues, lock contention, Tokio workers, per-thread CPU and allocations, profiling overhead) limited to what the project instruments. Only builds the dashboard, does not configure Prometheus, Grafana or the hotpath metrics endpoint. Use when the user wants a Grafana dashboard for hotpath metrics.
-allowed-tools: Bash, Read, Edit, Write, Glob, Grep
----
+# Build a hotpath Grafana dashboard
 
-# Initialize a hotpath Grafana dashboard
-
-Build a [Grafana](https://grafana.com) dashboard on top of the metrics that [hotpath](https://hotpath.rs) exposes through its Prometheus endpoint. The dashboard is organized in performance layers: SQL queries and outbound HTTP calls attributed to the axum route that issued them, memory and time per request, then channels, locks, the Tokio runtime and threads. Each panel answers a concrete question instead of plotting raw series.
+Instructions for an AI coding agent. Build a [Grafana](https://grafana.com) dashboard on top of the metrics that [hotpath](https://hotpath.rs) exposes through its Prometheus endpoint. The dashboard is organized in performance layers: SQL queries and outbound HTTP calls attributed to the axum route that issued them, memory and time per request, then channels, locks, the Tokio runtime and threads. Each panel answers a concrete question instead of plotting raw series.
 
 ## Scope
 
-This skill only builds the dashboard JSON file. It does not configure Prometheus, Grafana or the app's metrics endpoint: no scrape jobs, data sources, auth tokens, Grafana API imports or Prometheus restarts. Those setups differ between projects (local, docker-compose, Kubernetes, Grafana Cloud, ...) and are owned by whoever runs the infrastructure, so the skill assumes they are already in place:
+This setup only builds the dashboard JSON file. It does not configure Prometheus, Grafana or the app's metrics endpoint: no scrape jobs, data sources, auth tokens, Grafana API imports or Prometheus restarts. Those setups differ between projects (local, docker-compose, Kubernetes, Grafana Cloud, ...) and are owned by whoever runs the infrastructure, so it assumes they are already in place:
 
 - the app runs with the `hotpath-prometheus` feature and exposes `/metrics`;
 - Prometheus scrapes it with native histograms enabled;
@@ -20,13 +14,13 @@ If any of these is missing, point the user to https://hotpath.rs/prometheus_graf
 
 ## Documentation
 
-The hotpath docs are the reference for every metric, label and environment variable; this skill holds the procedure and the dashboard queries, which the docs do not have. Every page of https://hotpath.rs is served as markdown when requested with an `Accept: text/markdown` header:
+The hotpath docs are the reference for every metric, label and environment variable; this page holds the procedure and the dashboard queries, which the docs do not have. Every page of https://hotpath.rs is served as markdown when requested with an `Accept: text/markdown` header:
 
 ```bash
 curl -sL -H 'Accept: text/markdown' https://hotpath.rs/prometheus_grafana
 ```
 
-Fetch https://hotpath.rs/prometheus_grafana before building the dashboard, and check every metric and label name a panel uses against its "Available metrics" tables instead of relying on memory. Keep `-L` (some pages redirect) and the header (there are no `.md` URLs). A `#fragment` is not sent to the server: fetch the whole page and find the heading.
+Fetch https://hotpath.rs/prometheus_grafana before building the dashboard, and check every metric and label name a panel uses against its "Available metrics" tables instead of relying on memory. Keep `-L` (some pages redirect) and the header. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 
 The site documents the latest hotpath release, which can be newer than the version the project uses. Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
 
@@ -41,7 +35,7 @@ The site documents the latest hotpath release, which can be newer than the versi
 
 ### 1. Inspect the project
 
-- Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented code. If it is not, stop and tell the user to set up profiling first with `hotpath init` (https://hotpath.rs/); do not instrument the project as part of this skill.
+- Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented code. If it is not, stop and tell the user to set up profiling first (https://hotpath.rs/agent/init_lib.md); do not instrument the project as part of building the dashboard.
 - Record which subsystems the project instruments. They decide which dashboard rows to build:
 
 | Instrumentation in the code | Dashboard row |
