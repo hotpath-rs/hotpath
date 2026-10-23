@@ -32,12 +32,12 @@ curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/functions
 Step-by-step instructions written for coding agents. They are not part of the public docs navigation and only exist as markdown:
 
 ```bash
-curl -fsSL https://hotpath.rs/agent/init_lib
+curl -fsSL https://hotpath.rs/agent/setup
 ```
 
 | Page | Procedure |
 |---|---|
-| https://hotpath.rs/agent/init_lib | add hotpath to a crate: dependency and feature passthrough, `main`, a starting set of instrumented functions, channels, locks, SQL, HTTP, axum and I/O, verification, then an optional hotpath Cloud offer |
+| https://hotpath.rs/agent/setup | add hotpath to a crate: dependency and feature passthrough, `main`, a starting set of instrumented functions, channels, locks, SQL, HTTP, axum and I/O, verification, then an optional hotpath Cloud offer |
 | https://hotpath.rs/agent/init_cloud | hotpath Cloud CI: benchmark choice, `hotpath-cloud` feature, policy file, GitHub Actions workflow, the relay workflow for pull requests from forks, README badge |
 | https://hotpath.rs/agent/init_grafana | a Grafana dashboard JSON with panels for what the project instruments |
 | https://hotpath.rs/agent/cloud_cli | the `hotpath cloud` CLI loop: wait for a benchmark, read the verdict, fix regressions and broken budgets |
@@ -92,7 +92,7 @@ Fetch every page listed for the task; add the pages of any other subsystem the t
 
 | Task | Pages |
 |---|---|
-| Add hotpath to a crate, cargo features passthrough | `/agent/init_lib` |
+| Add hotpath to a crate, cargo features passthrough | `/agent/setup` |
 | Instrument functions, methods, modules, impl blocks or code blocks | `/functions` |
 | Profile async functions | `/functions`, `/data_flow` |
 | Measure memory and allocations, or combine with a custom global allocator | `/functions` |
