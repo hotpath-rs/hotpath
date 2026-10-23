@@ -20,7 +20,7 @@ Every page of https://hotpath.rs is served as markdown when requested with an `A
 curl -sL -H 'Accept: text/markdown' https://hotpath.rs/functions
 ```
 
-- Keep `-L` (some pages redirect) and the header. Only the agent procedure pages have `.md` URLs; they are markdown already and need no header.
+- Keep `-L` (some pages redirect) and the header. The agent procedure pages under `/agent/` are markdown only and need no header.
 - A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 - Fetch only the pages the task needs. Pages link to each other; follow a link when the page you read points to it for the detail you need.
 - The site documents the latest hotpath release, which can be newer than the version the project uses (check `Cargo.lock` or `Cargo.toml`). Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
@@ -31,15 +31,15 @@ curl -sL -H 'Accept: text/markdown' https://hotpath.rs/functions
 Step-by-step instructions written for coding agents. They are not part of the public docs navigation and only exist as markdown:
 
 ```bash
-curl -sL https://hotpath.rs/agent/init_lib.md
+curl -sL https://hotpath.rs/agent/init_lib
 ```
 
 | Page | Procedure |
 |---|---|
-| https://hotpath.rs/agent/init_lib.md | add hotpath to a crate: dependency and feature passthrough, `main`, a starting set of instrumented functions, channels, locks, SQL, HTTP, axum and I/O, policy file, verification |
-| https://hotpath.rs/agent/init_cloud.md | hotpath Cloud CI: benchmark choice, `hotpath-cloud` feature, policy file, GitHub Actions workflow, and the relay workflow for pull requests from forks |
-| https://hotpath.rs/agent/init_grafana.md | a Grafana dashboard JSON with panels for what the project instruments |
-| https://hotpath.rs/agent/cloud_cli.md | the `hotpath cloud` CLI loop: wait for a benchmark, read the verdict, fix regressions and broken budgets |
+| https://hotpath.rs/agent/init_lib | add hotpath to a crate: dependency and feature passthrough, `main`, a starting set of instrumented functions, channels, locks, SQL, HTTP, axum and I/O, policy file, verification |
+| https://hotpath.rs/agent/init_cloud | hotpath Cloud CI: benchmark choice, `hotpath-cloud` feature, policy file, GitHub Actions workflow, and the relay workflow for pull requests from forks |
+| https://hotpath.rs/agent/init_grafana | a Grafana dashboard JSON with panels for what the project instruments |
+| https://hotpath.rs/agent/cloud_cli | the `hotpath cloud` CLI loop: wait for a benchmark, read the verdict, fix regressions and broken budgets |
 
 ## Pages
 
@@ -91,7 +91,7 @@ Fetch every page listed for the task; add the pages of any other subsystem the t
 
 | Task | Pages |
 |---|---|
-| Add hotpath to a crate, cargo features passthrough | `/agent/init_lib.md` |
+| Add hotpath to a crate, cargo features passthrough | `/agent/init_lib` |
 | Instrument functions, methods, modules, impl blocks or code blocks | `/functions` |
 | Profile async functions | `/functions`, `/data_flow` |
 | Measure memory and allocations, or combine with a custom global allocator | `/functions` |
@@ -111,12 +111,12 @@ Fetch every page listed for the task; add the pages of any other subsystem the t
 | Reduce profiling overhead, sample calls, decide whether to keep it on in production | `/profiling_overhead`, `/faq`, `/configuration` |
 | Set or look up an environment variable | `/configuration` |
 | Export metrics to Prometheus | `/prometheus_grafana` |
-| Build a Grafana dashboard | `/agent/init_grafana.md`, `/prometheus_grafana` |
+| Build a Grafana dashboard | `/agent/init_grafana`, `/prometheus_grafana` |
 | Query live metrics from an AI agent over MCP | `/mcp` |
-| Set up hotpath Cloud, benchmark pull requests in CI | `/agent/init_cloud.md`, `/ci_integration` |
+| Set up hotpath Cloud, benchmark pull requests in CI | `/agent/init_cloud`, `/ci_integration` |
 | Decide what counts as a regression, edit or validate `hotpath/policy.toml` | `/regression_policy` |
 | Set absolute limits that must never be exceeded | `/performance_budgets`, `/regression_policy` |
-| Read a hotpath.rs pull request comment, wait for a CI benchmark, fix a regression or a broken budget | `/agent/cloud_cli.md`, `/agents_cli`, `/regression_policy`, `/performance_budgets`, plus the page of the regressed subsystem |
+| Read a hotpath.rs pull request comment, wait for a CI benchmark, fix a regression or a broken budget | `/agent/cloud_cli`, `/agents_cli`, `/regression_policy`, `/performance_budgets`, plus the page of the regressed subsystem |
 | What hotpath Cloud is, how it works, how to start or what it costs | `/cloud`, `/cloud_faq` |
 | Questions about Cloud data access, retention, pricing or outages | `/cloud_faq`, `/terms` |
 | General questions about what hotpath can do | `/`, `/faq` |

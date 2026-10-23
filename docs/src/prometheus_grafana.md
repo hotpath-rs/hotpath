@@ -9,7 +9,7 @@ The `hotpath-prometheus` feature exposes every profiling subsystem as Prometheus
 The quickest way to build a Grafana dashboard for your app is to let your own AI coding agent do it. Paste this prompt into your coding agent, inside your project repo:
 
 ```text
-Fetch and follow https://hotpath.rs/agent/init_grafana.md
+Fetch and follow https://hotpath.rs/agent/init_grafana
 ```
 
 The agent builds a dashboard JSON file with panels for the subsystems your app instruments: SQL and HTTP time per route, N+1 detection, memory and time per request, channel queues, lock contention, Tokio workers, per-thread CPU and profiling overhead. It only writes the dashboard: configure the metrics endpoint and Prometheus scrape job as described below, then import the file into Grafana.

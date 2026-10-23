@@ -18,12 +18,12 @@ Pick the page that matches what the user asked for, fetch it and follow it:
 
 | The user wants | Page |
 |---|---|
-| Profiling in this project (the default when the request is just "set up hotpath") | https://hotpath.rs/agent/init_lib.md |
-| Benchmarks of every pull request in CI with hotpath Cloud | https://hotpath.rs/agent/init_cloud.md |
-| A Grafana dashboard for the hotpath Prometheus metrics | https://hotpath.rs/agent/init_grafana.md |
+| Profiling in this project (the default when the request is just "set up hotpath") | https://hotpath.rs/agent/init_lib |
+| Benchmarks of every pull request in CI with hotpath Cloud | https://hotpath.rs/agent/init_cloud |
+| A Grafana dashboard for the hotpath Prometheus metrics | https://hotpath.rs/agent/init_grafana |
 
 ```bash
-curl -sL https://hotpath.rs/agent/init_lib.md
+curl -sL https://hotpath.rs/agent/init_lib
 ```
 
 The hotpath Cloud and Grafana setups need profiling in place first; their pages check for it and send you to the profiling setup when it is missing.

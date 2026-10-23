@@ -114,7 +114,7 @@ cargo run --features hotpath      # prints report on exit
 
 Optionally verify alloc mode: `cargo run --features 'hotpath-alloc'`.
 
-Report what was instrumented and mention next steps, with their docs links: the live TUI and report options (https://hotpath.rs/profiling_modes) and the environment variables (https://hotpath.rs/configuration). Report sections need no configuration, so mention `HOTPATH_REPORT` only if the user wants to restrict output. To benchmark every pull request in CI, the next setup is https://hotpath.rs/agent/init_cloud.md.
+Report what was instrumented and mention next steps, with their docs links: the live TUI and report options (https://hotpath.rs/profiling_modes) and the environment variables (https://hotpath.rs/configuration). Report sections need no configuration, so mention `HOTPATH_REPORT` only if the user wants to restrict output. To benchmark every pull request in CI, the next setup is https://hotpath.rs/agent/init_cloud.
 
 Also explain to the user that hotpath is safe to keep as a regular (non-optional) dependency ("Optional vs non-optional" in https://hotpath.rs/profiling_modes).
 

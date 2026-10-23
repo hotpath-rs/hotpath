@@ -29,7 +29,7 @@
       </div>
       <div class="terminal-line" data-panel="prompt" hidden>
         <span class="terminal-prompt">&gt;</span>
-        <span class="terminal-command">Fetch and follow https://hotpath.rs/agent/setup.md</span>
+        <span class="terminal-command">Fetch and follow https://hotpath.rs/agent/setup</span>
       </div>
     </div>
   </div>
@@ -143,7 +143,7 @@ or use the live TUI dashboard to monitor real-time performance and async data fl
 The quickest way to set up hotpath is to let your own AI coding agent do it. Paste this prompt into Claude Code, Codex, OpenCode, Cursor or any other coding agent, inside your project repo:
 
 ```text
-Fetch and follow https://hotpath.rs/agent/setup.md
+Fetch and follow https://hotpath.rs/agent/setup
 ```
 
 The agent installs the `hotpath-rs` [agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath-rs/SKILL.md), inspects your project, adds the dependency, instruments `main` and a starting set of functions, channels and locks, then verifies that everything compiles with profiling enabled and disabled.
