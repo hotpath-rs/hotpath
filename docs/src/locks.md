@@ -9,6 +9,8 @@
 
 Both the `rw_lock!` and `mutex!` macros are noop unless the `hotpath` feature is activated.
 
+The [guide to Mutex and RwLock contention](/blog/profiling-rust-guide#profiling-mutex-and-rwlock-contention) uses this report to find a long-held lock guard and fix it.
+
 ## RwLocks
 
 ### rw_lock! macro

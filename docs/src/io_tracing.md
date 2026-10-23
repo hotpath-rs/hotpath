@@ -12,6 +12,8 @@
 
 The `io!` macro is noop unless the `hotpath` feature is activated.
 
+The [I/O section of the Rust profiling guide](/blog/profiling-rust-guide#profiling-io-reads-and-writes) uses this report to find a misconfigured Brotli encoder in maplibre/martin.
+
 ## io! macro
 
 Wrap any value implementing `std::io::Read`, `std::io::Write`, `tokio::io::AsyncRead`, or `tokio::io::AsyncWrite` (async traits require the `tokio` feature). The wrapper delegates every operation to the wrapped value, so it is a drop-in replacement.

@@ -4,6 +4,8 @@
 
 `hotpath` profiles outgoing HTTP requests made with [reqwest](https://crates.io/crates/reqwest) or [ureq](https://crates.io/crates/ureq), helping you identify slow endpoints, frequent request patterns, and failing calls. Requests are grouped by normalized endpoint, so parameter-varied requests to the same route are reported together: 1,000 calls to `GET example.com/users/{id}` appear as a single entry with call count, error count, average latency, percentiles, and total execution time.
 
+The [guide to profiling slow HTTP calls in Rust](/blog/profiling-rust-guide#profiling-slow-http-calls-in-rust) uses this report to spot sequential requests and run them in parallel.
+
 ## Wrapping the reqwest client
 
 Add `hotpath` with the feature matching your `reqwest` crate version to your `Cargo.toml`:

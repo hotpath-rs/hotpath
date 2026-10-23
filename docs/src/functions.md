@@ -180,7 +180,7 @@ If `hotpath` feature is disabled, the code inside block will still execute.
 
 ## Memory and allocations profiling
 
-In addition to time-based profiling, `hotpath` can track memory allocations. This feature uses a custom global allocator from [allocation-counter crate](https://github.com/fornwall/allocation-counter) to intercept all memory allocations and provides detailed statistics about memory usage per function.
+In addition to time-based profiling, `hotpath` can track memory allocations. This feature uses a custom global allocator from [allocation-counter crate](https://github.com/fornwall/allocation-counter) to intercept all memory allocations and provides detailed statistics about memory usage per function. The [Rust memory profiling guide](/blog/profiling-rust-guide#memory-allocations) uses this report to remove `String` clone allocations.
 
 Run your program with the allocation tracking feature to print a similar report:
 

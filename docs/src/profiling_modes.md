@@ -1,6 +1,6 @@
 # Profiling modes: static reports and live monitoring
 
-`hotpath` supports two complementary approaches to Rust performance profiling and runtime monitoring.
+`hotpath` supports two complementary approaches to Rust performance profiling and runtime monitoring. Not sure which profiling technique fits your bottleneck? The [complete guide to profiling Rust](/blog/profiling-rust-guide#which-rust-profiling-technique-do-you-need) walks through each one on a real example.
 
 ## Static reports
 

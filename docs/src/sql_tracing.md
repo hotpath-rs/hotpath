@@ -6,6 +6,8 @@
 
 The same profiling backend powers sqlx (and SeaORM, which runs on top of it), Diesel, and the Toasty ORM, with more integrations coming soon. Instrumentation is inactive unless the `hotpath` feature is enabled.
 
+The [Rust profiling guide](/blog/profiling-rust-guide#profiling-sql-query-performance) uses this report to find and fix an N+1 query pattern.
+
 ## Normalizing SQL queries 
 
 Queries are grouped by normalized text:

@@ -2,7 +2,7 @@
 
 `hotpath` provides sampling-based CPU profiling for Rust using [samply](https://github.com/mstange/samply). Unlike pure CPU sampling, hotpath instrumentation shows how your program spends time, letting you tell apart CPU-bound, I/O-bound, and memory-bound bottlenecks. This guide covers installing samply, configuring permissions on macOS and Linux, and reading the CPU usage report.
 
-By comparing the CPU report against the timing and allocation reports, you can pin down what kind of bottleneck you have: high wall-clock time but low CPU samples means I/O-bound (waiting), high CPU samples means CPU-bound (computing), and high allocation counts point to memory pressure. See [Sampling comparison](/blog/sampling_comparison) for a detailed explanation of how the profiling modes differ.
+By comparing the CPU report against the timing and allocation reports, you can pin down what kind of bottleneck you have: high wall-clock time but low CPU samples means I/O-bound (waiting), high CPU samples means CPU-bound (computing), and high allocation counts point to memory pressure. See [Sampling comparison](/blog/sampling_comparison) for a detailed explanation of how the profiling modes differ, and the [CPU sampling section of the Rust profiling guide](/blog/profiling-rust-guide#cpu-sampling), where the CPU report exposes repeated `Regex` compilation.
 
 CPU profiling requires some additional system configuration, covered below.
 
