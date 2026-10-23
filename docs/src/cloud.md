@@ -55,16 +55,28 @@ Benchmark reports are persisted in `hotpath Cloud`, making it easy to share resu
 The quickest way to set up `hotpath Cloud` is to let your own AI coding agent do it. Paste this prompt into your coding agent, inside your project repo:
 
 ```text
-Fetch and follow https://hotpath.rs/agent/init_cloud
+Set up hotpath Cloud CI in this Rust project using the instructions at https://hotpath.rs/agent/init_cloud
 ```
 
-The agent adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file and a GitHub Actions benchmark workflow, so every pull request gets a performance comment. For public repositories, it asks whether pull requests from forks should be benchmarked too: they need a [separate setup](ci_integration.md#pull-requests-from-forks) with a relay workflow for security reasons.
+If the project does not use hotpath yet, the agent sets up profiling first. It then picks a benchmark with a fixed workload (asking you when the choice is not obvious), adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file (an existing one is kept), a GitHub Actions benchmark workflow and the [README badge](#readme-badge), and runs the benchmark locally to verify the report. For public repositories, it asks whether pull requests from forks should be benchmarked too: they need a [separate setup](ci_integration.md#pull-requests-from-forks) with a relay workflow for security reasons.
+
+The agent does not commit, install the GitHub App or upload anything for you. Install the hotpath GitHub App from <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a> and merge the workflow: the first push to the default branch uploads the baseline, and from then on every pull request gets a performance comment.
 
 Your agent remains in control: you review and approve edits through its regular permission prompts.
 
 ### Manual setup
 
 Follow the [CI integration](ci_integration.md) guide to add the benchmark workflow by hand.
+
+### README badge
+
+Link your repository's hotpath Cloud page from its README:
+
+```markdown
+[![hotpath-cloud](https://img.shields.io/endpoint?url=https://hotpath.rs/badge-cloud.json)](https://hotpath.rs/app/repos/OWNER/NAME)
+```
+
+Replace `OWNER/NAME` with your GitHub repository. The page opens once the hotpath GitHub App is installed on the repository. Reports of a public repository are public by default; for a private repository the page opens only for users with access to it.
 
 ## Pricing
 

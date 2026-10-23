@@ -1,6 +1,6 @@
 ---
 name: hotpath-rs
-description: Set up and use hotpath, the Rust profiler. Knows which hotpath.rs documentation page to fetch for every task - function timing and allocations, CPU sampling, threads, channels, streams, futures, locks, SQL, HTTP clients, axum servers, byte-level I/O, Tokio runtime metrics, debug helpers, reports, the live TUI, profiling overhead, environment variables, MCP, Prometheus and Grafana, and hotpath Cloud CI, regression policies and performance budgets, plus step-by-step agent setup procedures for profiling, hotpath Cloud and Grafana dashboards. Use when the user wants to set up hotpath, profile, instrument, read a hotpath report or a hotpath.rs pull request comment, fix a performance regression, configure hotpath, or answer any question about hotpath.
+description: Set up, use and troubleshoot hotpath, the feature-gated Rust profiler, by fetching the matching hotpath.rs documentation page or agent procedure. Use when the user wants to add hotpath to a project, instrument Rust code with hotpath, read a hotpath report or a hotpath.rs pull request comment, investigate or fix a performance regression flagged by hotpath, configure hotpath Cloud CI, policies or budgets, or asks anything about hotpath. Not for general Rust performance questions in projects that do not use or want hotpath.
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
@@ -36,8 +36,8 @@ curl -sL https://hotpath.rs/agent/init_lib
 
 | Page | Procedure |
 |---|---|
-| https://hotpath.rs/agent/init_lib | add hotpath to a crate: dependency and feature passthrough, `main`, a starting set of instrumented functions, channels, locks, SQL, HTTP, axum and I/O, policy file, verification |
-| https://hotpath.rs/agent/init_cloud | hotpath Cloud CI: benchmark choice, `hotpath-cloud` feature, policy file, GitHub Actions workflow, and the relay workflow for pull requests from forks |
+| https://hotpath.rs/agent/init_lib | add hotpath to a crate: dependency and feature passthrough, `main`, a starting set of instrumented functions, channels, locks, SQL, HTTP, axum and I/O, verification, then an optional hotpath Cloud offer |
+| https://hotpath.rs/agent/init_cloud | hotpath Cloud CI: benchmark choice, `hotpath-cloud` feature, policy file, GitHub Actions workflow, the relay workflow for pull requests from forks, README badge |
 | https://hotpath.rs/agent/init_grafana | a Grafana dashboard JSON with panels for what the project instruments |
 | https://hotpath.rs/agent/cloud_cli | the `hotpath cloud` CLI loop: wait for a benchmark, read the verdict, fix regressions and broken budgets |
 
