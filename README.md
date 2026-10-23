@@ -11,11 +11,10 @@ Try the TUI demo via SSH - no installation required:
 ssh demo.hotpath.rs
 ```
 
-Or let your own AI agent configure profiling in a repo:
+Or let your own AI agent configure profiling in a repo, paste into Claude Code, Codex, OpenCode or Cursor:
 
 ```
-cargo install hotpath
-hotpath init --agent claude # or --agent codex / --agent opencode
+Fetch and follow https://hotpath.rs/agent/setup.md
 ```
 
 [hotpath-rs](https://hotpath.rs) is an easy-to-configure Rust performance profiling toolkit that shows exactly where your code spends time, burns CPU, and allocates memory.
@@ -72,16 +71,21 @@ https://github.com/user-attachments/assets/2e890417-2b43-4b1b-8657-a5ef3b458153
 
 ### AI Setup (Recommended)
 
-The quickest way to set up hotpath is to let your own AI coding agent do it. Install the `hotpath` CLI and run `init` inside your project repo:
+The quickest way to set up hotpath is to let your own AI coding agent do it. Paste this prompt into Claude Code, Codex, OpenCode, Cursor or any other coding agent, inside your project repo:
 
-```bash
-cargo install hotpath --version '^0.29'
-hotpath init --agent claude # or --agent codex / --agent opencode
+```text
+Fetch and follow https://hotpath.rs/agent/setup.md
 ```
 
-`hotpath init` downloads the [hotpath_init agent skill](skills/hotpath_init/SKILL.md) from GitHub and starts an interactive Claude Code, Codex or OpenCode session with it as setup instructions. The agent inspects your project, adds the feature-gated dependency, instruments `main` and a starting set of functions, channels and locks, then verifies that everything compiles with profiling enabled and disabled. You review and approve each edit through the agent's regular permission prompts. Requires `curl` and the `claude`, `codex` or `opencode` CLI on `PATH`.
+The agent installs the [hotpath-rs agent skill](skills/hotpath-rs/SKILL.md), inspects your project, adds the feature-gated dependency, instruments `main` and a starting set of functions, channels and locks, then verifies that everything compiles with profiling enabled and disabled. You review and approve each edit through the agent's regular permission prompts.
 
-You can also use the skill directly, without the hotpath CLI: copy it to `~/.claude/skills/hotpath_init/SKILL.md` and run `/hotpath_init` in a Claude Code session.
+To only install the skill, run:
+
+```bash
+npx skills add hotpath-rs/hotpath
+```
+
+The skill maps every hotpath task, from instrumenting a crate to fixing a regression flagged in CI, to the documentation page that covers it.
 
 ### Manual installation
 

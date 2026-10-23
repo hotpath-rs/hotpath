@@ -1,6 +1,6 @@
 ---
 name: hotpath_bump
-description: Bump the hotpath version number across the workspace and related files. Updates the versions of all six published crates (drain included) in Cargo.toml files (exact patch version), version references in the backend middleware, hotpath_init skill, and README (major.minor only), and the relay workflow release tag pins (exact `vX.Y.Z` tag). Use when the user wants to bump, bump the version, or release a new hotpath version.
+description: Bump the hotpath version number across the workspace and related files. Updates the versions of all six published crates (drain included) in Cargo.toml files (exact patch version), version references in the backend middleware and README (major.minor only), and the relay workflow release tag pins (exact `vX.Y.Z` tag). Use when the user wants to bump, bump the version, or release a new hotpath version.
 allowed-tools: Bash, Read, Edit, Grep, Glob
 ---
 
@@ -46,8 +46,9 @@ All six crates always share the same version; never bump one without the others.
   ("{{HOTPATH_VERSION}}", "X.Y"),
   ```
 
-- `skills/hotpath_init/SKILL.md` - every version occurrence (`hotpath = "X.Y"`, `hotpath = { version = "X.Y", ... }`)
-- `README.md` - every version occurrence (`cargo install hotpath --version '^X.Y'`, `hotpath = "X.Y"`)
+- `README.md` - every version occurrence (`hotpath = "X.Y"`)
+
+The docs and the agent pages in `docs/agent/` use the `{{HOTPATH_VERSION}}` and `{{HOTPATH_RELEASE_TAG}}` placeholders, which the backend fills from its `middleware.rs` entries above and below; never hardcode a version there.
 
 ## 3. Relay release tag - `vX.Y.Z`
 
@@ -59,7 +60,6 @@ Adopters pin the reusable relay workflow to the release tag, so these point at t
   ("{{HOTPATH_RELEASE_TAG}}", "vX.Y.Z"),
   ```
 
-- `skills/hotpath_init_cloud_forks/SKILL.md` - every `vX.Y.Z` occurrence (the `hotpath-relay.yml@vX.Y.Z` pin and the pinning instructions)
 - `.github/workflows/hotpath-relay.yml` - the `hotpath-relay.yml@vX.Y.Z` pin in the usage comment at the top
 
 Leave `.github/workflows/cloud-random-benchmark-relay.yml` on `@main`: it tests the relay on the default branch.
@@ -69,7 +69,7 @@ Leave `.github/workflows/cloud-random-benchmark-relay.yml` on `@main`: it tests 
 Search for stragglers with the old version, excluding lockfiles, target dirs, and third-party code:
 
 ```bash
-rg -n 'OLD_X\.OLD_Y' Cargo.toml README.md skills/ crates/hotpath/Cargo.toml crates/hotpath-macros/Cargo.toml crates/hotpath-meta/Cargo.toml crates/hotpath-macros-meta/Cargo.toml crates/hotpath-drain/Cargo.toml crates/hotpath-drain-meta/Cargo.toml
+rg -n 'OLD_X\.OLD_Y' Cargo.toml README.md crates/hotpath/Cargo.toml crates/hotpath-macros/Cargo.toml crates/hotpath-meta/Cargo.toml crates/hotpath-macros-meta/Cargo.toml crates/hotpath-drain/Cargo.toml crates/hotpath-drain-meta/Cargo.toml
 rg -n 'OLD_X\.OLD_Y' ../hotpath-backend/src/config/middleware.rs .github/workflows/hotpath-relay.yml
 ```
 

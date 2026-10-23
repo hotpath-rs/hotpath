@@ -1,6 +1,6 @@
 ---
-name: hotpath
-description: Use hotpath, the Rust profiler, in a project that already has it or is adding it. Knows which hotpath.rs documentation page to fetch for every task - function timing and allocations, CPU sampling, threads, channels, streams, futures, locks, SQL, HTTP clients, axum servers, byte-level I/O, Tokio runtime metrics, debug helpers, reports, the live TUI, profiling overhead, environment variables, MCP, Prometheus and Grafana, and hotpath Cloud CI, regression policies and performance budgets. Use when the user wants to profile, instrument, read a hotpath report, configure hotpath, or answer any question about hotpath.
+name: hotpath-rs
+description: Set up and use hotpath, the Rust profiler. Knows which hotpath.rs documentation page to fetch for every task - function timing and allocations, CPU sampling, threads, channels, streams, futures, locks, SQL, HTTP clients, axum servers, byte-level I/O, Tokio runtime metrics, debug helpers, reports, the live TUI, profiling overhead, environment variables, MCP, Prometheus and Grafana, and hotpath Cloud CI, regression policies and performance budgets, plus step-by-step agent setup procedures for profiling, hotpath Cloud and Grafana dashboards. Use when the user wants to set up hotpath, profile, instrument, read a hotpath report or a hotpath.rs pull request comment, fix a performance regression, configure hotpath, or answer any question about hotpath.
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
@@ -8,9 +8,9 @@ allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 
 [hotpath](https://hotpath.rs) is a feature-gated Rust profiler: every macro is a no-op and no dependency is compiled unless the `hotpath` cargo feature is enabled. This skill does not hold the API. It maps tasks to the documentation pages that do; fetch the matching pages before writing code or answering, and follow them instead of relying on memory.
 
-For a first-time setup in a crate that does not depend on hotpath yet, the `hotpath_init` skill holds the procedure (or run `hotpath init`).
+Setup and multi-step workflows have their own agent pages (see "Agent procedures" below): fetch the matching one and follow it step by step.
 
-hotpath Cloud benchmarks every pull request in CI, compares the reports with their baseline under a regression policy and performance budgets, and posts the verdict as a pull request comment and check. Start any Cloud task with https://hotpath.rs/cloud, then follow the Cloud pages below. For reading Cloud verdicts and fixing regressions, the `hotpath_cloud` skill holds the CLI workflow.
+hotpath Cloud benchmarks every pull request in CI, compares the reports with their baseline under a regression policy and performance budgets, and posts the verdict as a pull request comment and check. Start any Cloud task with https://hotpath.rs/cloud, then follow the Cloud pages below.
 
 ## Fetching the docs
 
@@ -20,11 +20,26 @@ Every page of https://hotpath.rs is served as markdown when requested with an `A
 curl -sL -H 'Accept: text/markdown' https://hotpath.rs/functions
 ```
 
-- Keep `-L` (some pages redirect) and the header (there are no `.md` URLs).
+- Keep `-L` (some pages redirect) and the header. Only the agent procedure pages have `.md` URLs; they are markdown already and need no header.
 - A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 - Fetch only the pages the task needs. Pages link to each other; follow a link when the page you read points to it for the detail you need.
 - The site documents the latest hotpath release, which can be newer than the version the project uses (check `Cargo.lock` or `Cargo.toml`). Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
 - When the docs and your memory of the API disagree, the docs win.
+
+## Agent procedures
+
+Step-by-step instructions written for coding agents. They are not part of the public docs navigation and only exist as markdown:
+
+```bash
+curl -sL https://hotpath.rs/agent/init_lib.md
+```
+
+| Page | Procedure |
+|---|---|
+| https://hotpath.rs/agent/init_lib.md | add hotpath to a crate: dependency and feature passthrough, `main`, a starting set of instrumented functions, channels, locks, SQL, HTTP, axum and I/O, policy file, verification |
+| https://hotpath.rs/agent/init_cloud.md | hotpath Cloud CI: benchmark choice, `hotpath-cloud` feature, policy file, GitHub Actions workflow, and the relay workflow for pull requests from forks |
+| https://hotpath.rs/agent/init_grafana.md | a Grafana dashboard JSON with panels for what the project instruments |
+| https://hotpath.rs/agent/cloud_cli.md | the `hotpath cloud` CLI loop: wait for a benchmark, read the verdict, fix regressions and broken budgets |
 
 ## Pages
 
@@ -32,7 +47,7 @@ curl -sL -H 'Accept: text/markdown' https://hotpath.rs/functions
 
 | Page | Covers |
 |---|---|
-| https://hotpath.rs/ | overview, feature list, AI setup with `hotpath init`, manual installation, basic setup, example report |
+| https://hotpath.rs/ | overview, feature list, AI setup, manual installation, basic setup, example report |
 | https://hotpath.rs/profiling_modes | static reports, `#[hotpath::main]` vs `HotpathGuardBuilder`, report configuration, timed shutdown, live TUI dashboard, optional vs non-optional dependency |
 | https://hotpath.rs/profiling_overhead | zero overhead when disabled, overhead per profiled type (functions, locks, channels, futures, streams), time sampling to reduce overhead |
 | https://hotpath.rs/functions | `#[hotpath::main]`, `#[hotpath::measure]`, async functions and `future = true`, `#[hotpath::measure_all]`, `#[hotpath::skip]`, `measure_block!`, memory and allocation profiling modes, custom inner allocator, `CountingAllocator` with `HotpathGuardBuilder` |
@@ -76,7 +91,7 @@ Fetch every page listed for the task; add the pages of any other subsystem the t
 
 | Task | Pages |
 |---|---|
-| Add hotpath to a crate, cargo features passthrough | `hotpath_init` skill, `/`, `/profiling_modes` |
+| Add hotpath to a crate, cargo features passthrough | `/agent/init_lib.md` |
 | Instrument functions, methods, modules, impl blocks or code blocks | `/functions` |
 | Profile async functions | `/functions`, `/data_flow` |
 | Measure memory and allocations, or combine with a custom global allocator | `/functions` |
@@ -95,12 +110,13 @@ Fetch every page listed for the task; add the pages of any other subsystem the t
 | Log values, debug prints or custom gauges | `/debug` |
 | Reduce profiling overhead, sample calls, decide whether to keep it on in production | `/profiling_overhead`, `/faq`, `/configuration` |
 | Set or look up an environment variable | `/configuration` |
-| Export metrics to Prometheus, build Grafana dashboards | `/prometheus_grafana` (the `hotpath_init_grafana` skill builds a dashboard) |
+| Export metrics to Prometheus | `/prometheus_grafana` |
+| Build a Grafana dashboard | `/agent/init_grafana.md`, `/prometheus_grafana` |
 | Query live metrics from an AI agent over MCP | `/mcp` |
-| Benchmark pull requests in CI | `/cloud`, `/ci_integration` (the `hotpath_init_cloud` and `hotpath_init_cloud_forks` skills set it up) |
+| Set up hotpath Cloud, benchmark pull requests in CI | `/agent/init_cloud.md`, `/ci_integration` |
 | Decide what counts as a regression, edit or validate `hotpath/policy.toml` | `/regression_policy` |
 | Set absolute limits that must never be exceeded | `/performance_budgets`, `/regression_policy` |
-| Read a hotpath.rs pull request comment, fix a regression or a broken budget | `/agents_cli` (the `hotpath_cloud` skill holds the workflow), `/regression_policy`, `/performance_budgets`, plus the page of the regressed subsystem |
+| Read a hotpath.rs pull request comment, wait for a CI benchmark, fix a regression or a broken budget | `/agent/cloud_cli.md`, `/agents_cli`, `/regression_policy`, `/performance_budgets`, plus the page of the regressed subsystem |
 | What hotpath Cloud is, how it works, how to start or what it costs | `/cloud`, `/cloud_faq` |
 | Questions about Cloud data access, retention, pricing or outages | `/cloud_faq`, `/terms` |
 | General questions about what hotpath can do | `/`, `/faq` |

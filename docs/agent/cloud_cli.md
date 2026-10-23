@@ -1,22 +1,16 @@
----
-name: hotpath_cloud
-description: Read hotpath Cloud performance verdicts with the `hotpath cloud` CLI and fix Rust performance regressions. Fetches the benchmark report of a commit or pull request, compares it with its baseline under the repository's regression policy and performance budgets, and lists what regressed and which budgets broke, as JSON. Use when the user wants to check a pull request's performance, wait for a CI benchmark, investigate a hotpath.rs PR comment, fix a performance regression or a broken budget, or validate a hotpath policy file.
-allowed-tools: Bash, Read, Edit, Write, Glob, Grep
----
+# Read hotpath Cloud verdicts and fix performance regressions
 
-# hotpath Cloud CLI
-
-`hotpath cloud` is the command line client of hotpath.rs. CI uploads a hotpath benchmark report on every push to the default branch and every pull request. hotpath.rs compares each pull request report with its baseline (the report of the base branch), judges it under the repository's policy file and posts a comment on the pull request. The CLI returns the same judgement as JSON.
+Instructions for an AI coding agent. `hotpath cloud` is the command line client of hotpath.rs. CI uploads a hotpath benchmark report on every push to the default branch and every pull request. hotpath.rs compares each pull request report with its baseline (the report of the base branch), judges it under the repository's policy file and posts a comment on the pull request. The CLI returns the same judgement as JSON.
 
 ## Documentation
 
-The hotpath docs are the reference for every command, flag, JSON field and policy key; this skill only holds the workflow. Every page of https://hotpath.rs is served as markdown when requested with an `Accept: text/markdown` header:
+The hotpath docs are the reference for every command, flag, JSON field and policy key; this page only holds the workflow. Every page of https://hotpath.rs is served as markdown when requested with an `Accept: text/markdown` header:
 
 ```bash
 curl -sL -H 'Accept: text/markdown' https://hotpath.rs/agents_cli
 ```
 
-Fetch https://hotpath.rs/agents_cli before the first `hotpath cloud` command, and the other pages when the task reaches them, instead of relying on memory. Keep `-L` (some pages redirect) and the header (there are no `.md` URLs). A `#fragment` is not sent to the server: fetch the whole page and find the heading.
+Fetch https://hotpath.rs/agents_cli before the first `hotpath cloud` command, and the other pages when the task reaches them, instead of relying on memory. Keep `-L` (some pages redirect) and the header. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 
 The site documents the latest hotpath release, which can be newer than the version the project uses. Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
 

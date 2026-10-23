@@ -14,6 +14,8 @@ Workspace layout:
   - `test-toasty` is NOT a workspace member: toasty's rusqlite and the workspace's sqlx-sqlite have conflicting `links = "sqlite3"` values, so it's built via `cargo run --manifest-path crates/test-toasty/Cargo.toml ...`
 - `crates/hotpath-meta` / `crates/hotpath-macros-meta` / `crates/hotpath-drain-meta` - Copies of hotpath used to profile the profiler itself (not intended for external use)
 - `docs/` - mdBook source for the hotpath.rs documentation site (the Axum web server that builds/serves it lives in a separate private repo at `../hotpath-backend`)
+  - `docs/agent/` - markdown-only agent procedures (not in `SUMMARY.md`), served raw by the backend at `https://hotpath.rs/agent/<name>.md` with `{{HOTPATH_VERSION}}`-style placeholders filled in
+- `skills/` - public agent skills installed with `npx skills add hotpath-rs/hotpath` (only `hotpath-rs`); repo-internal skills live in `dev_skills/`
 
 ## Reference Docs
 
@@ -92,7 +94,7 @@ Every example in a test crate contains its exact cargo command in the top commen
 
 ## Other
 
-Never read hotpath-meta, hotpath-macros-meta and hotpath-drain-meta crates when exploring and planning. Changes to `crates/hotpath` / `crates/hotpath-macros` / `crates/hotpath-drain` must eventually be mirrored into their `-meta` counterparts (see CONTRIBUTING.md; the `syncmeta` skill applies the diffs), but perform that mirroring only when explicitly asked - it is triggered as a separate step, not as part of every change.
+Never read hotpath-meta, hotpath-macros-meta and hotpath-drain-meta crates when exploring and planning. Changes to `crates/hotpath` / `crates/hotpath-macros` / `crates/hotpath-drain` must eventually be mirrored into their `-meta` counterparts (see CONTRIBUTING.md; the `dev_skills/syncmeta` skill applies the diffs), but perform that mirroring only when explicitly asked - it is triggered as a separate step, not as part of every change.
 
 NEVER instrument hotpath-meta crates using hotpath_meta, it won't work.
 

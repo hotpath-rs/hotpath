@@ -1,22 +1,16 @@
----
-name: hotpath_init
-description: Configure hotpath profiling in a Rust project. Adds the hotpath dependency with feature-gated setup, instruments main with hotpath::main, functions with measure/measure_all, and wraps channels, mutexes, rw_locks, streams, futures, reqwest clients, axum routers and byte-level I/O with hotpath macros. Use when the user wants to add or set up hotpath profiling in a crate.
-allowed-tools: Bash, Read, Edit, Write, Glob, Grep
----
+# Set up hotpath profiling in a Rust project
 
-# Initialize hotpath Profiling
-
-Set up [hotpath](https://hotpath.rs) profiling in the current Rust project. The setup is fully feature-gated: zero compile-time and runtime overhead unless the `hotpath` feature is explicitly enabled. All macros are noops when the feature is off, so no `cfg_attr` wrapping is needed.
+Instructions for an AI coding agent. Set up [hotpath](https://hotpath.rs) profiling in the current Rust project. The setup is fully feature-gated: zero compile-time and runtime overhead unless the `hotpath` feature is explicitly enabled. All macros are no-ops when the feature is off, so no `cfg_attr` wrapping is needed.
 
 ## Documentation
 
-The hotpath docs are the reference for every macro, cargo feature, parameter and caveat; this skill only holds the procedure. Every page of https://hotpath.rs is served as markdown when requested with an `Accept: text/markdown` header:
+The hotpath docs are the reference for every macro, cargo feature, parameter and caveat; this page only holds the procedure. Every page of https://hotpath.rs is served as markdown when requested with an `Accept: text/markdown` header:
 
 ```bash
 curl -sL -H 'Accept: text/markdown' https://hotpath.rs/functions
 ```
 
-Before each step, fetch the pages it names and follow them instead of relying on memory. Keep `-L` (some pages redirect) and the header (there are no `.md` URLs). A `#fragment` is not sent to the server: fetch the whole page and find the heading. Fetch a page only when the project uses what it covers.
+Before each step, fetch the pages it names and follow them instead of relying on memory. Keep `-L` (some pages redirect) and the header. A `#fragment` is not sent to the server: fetch the whole page and find the heading. Fetch a page only when the project uses what it covers.
 
 The site documents the latest hotpath release, which can be newer than the version the project uses. Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
 
@@ -49,7 +43,7 @@ In the target crate's `Cargo.toml`:
 
 ```toml
 [dependencies]
-hotpath = "0.29"
+hotpath = "{{HOTPATH_VERSION}}"
 
 [features]
 hotpath = ["hotpath/hotpath"]
@@ -58,7 +52,7 @@ hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]
 hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 ```
 
-Enable the extra hotpath cargo features on the dependency (`tokio`, a channel or lock library, an SQL or HTTP integration, ...) that the pages fetched in step 1 name for the primitives the project uses. Pick the HTTP and axum features matching the project's major versions. For example: `hotpath = { version = "0.29", features = ["tokio"] }`.
+Enable the extra hotpath cargo features on the dependency (`tokio`, a channel or lock library, an SQL or HTTP integration, ...) that the pages fetched in step 1 name for the primitives the project uses. Pick the HTTP and axum features matching the project's major versions. For example: `hotpath = { version = "{{HOTPATH_VERSION}}", features = ["tokio"] }`.
 
 Use this version, not the one the docs snippets show. If the project already depends on `hotpath`, keep its version.
 
@@ -120,7 +114,7 @@ cargo run --features hotpath      # prints report on exit
 
 Optionally verify alloc mode: `cargo run --features 'hotpath-alloc'`.
 
-Report what was instrumented and mention next steps, with their docs links: the live TUI and report options (https://hotpath.rs/profiling_modes) and the environment variables (https://hotpath.rs/configuration). Report sections need no configuration, so mention `HOTPATH_REPORT` only if the user wants to restrict output.
+Report what was instrumented and mention next steps, with their docs links: the live TUI and report options (https://hotpath.rs/profiling_modes) and the environment variables (https://hotpath.rs/configuration). Report sections need no configuration, so mention `HOTPATH_REPORT` only if the user wants to restrict output. To benchmark every pull request in CI, the next setup is https://hotpath.rs/agent/init_cloud.md.
 
 Also explain to the user that hotpath is safe to keep as a regular (non-optional) dependency ("Optional vs non-optional" in https://hotpath.rs/profiling_modes).
 
