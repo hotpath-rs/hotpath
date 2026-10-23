@@ -17,10 +17,11 @@ hotpath Cloud benchmarks every pull request in CI, compares the reports with the
 Every page of https://hotpath.rs is served as markdown when requested with an `Accept: text/markdown` header. Always send it: the markdown is much smaller than the HTML page and costs far fewer tokens.
 
 ```bash
-curl -sL -H 'Accept: text/markdown' https://hotpath.rs/functions
+curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/functions
 ```
 
-- Keep `-L` (some pages redirect) and the header. The agent procedure pages under `/agent/` are markdown only and need no header.
+- Keep `-fsSL` and the header. The agent procedure pages under `/agent/` are markdown only and need no header.
+- If a fetch fails, stop and tell the user which URL could not be retrieved; do not continue from memory.
 - A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 - Fetch only the pages the task needs. Pages link to each other; follow a link when the page you read points to it for the detail you need.
 - The site documents the latest hotpath release, which can be newer than the version the project uses (check `Cargo.lock` or `Cargo.toml`). Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
@@ -31,7 +32,7 @@ curl -sL -H 'Accept: text/markdown' https://hotpath.rs/functions
 Step-by-step instructions written for coding agents. They are not part of the public docs navigation and only exist as markdown:
 
 ```bash
-curl -sL https://hotpath.rs/agent/init_lib
+curl -fsSL https://hotpath.rs/agent/init_lib
 ```
 
 | Page | Procedure |

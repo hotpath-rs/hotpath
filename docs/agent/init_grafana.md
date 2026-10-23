@@ -17,10 +17,10 @@ If any of these is missing, point the user to https://hotpath.rs/prometheus_graf
 The hotpath docs are the reference for every metric, label and environment variable; this page holds the procedure and the dashboard queries, which the docs do not have. Every page of https://hotpath.rs is served as markdown when requested with an `Accept: text/markdown` header:
 
 ```bash
-curl -sL -H 'Accept: text/markdown' https://hotpath.rs/prometheus_grafana
+curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/prometheus_grafana
 ```
 
-Fetch https://hotpath.rs/prometheus_grafana before building the dashboard, and check every metric and label name a panel uses against its "Available metrics" tables instead of relying on memory. Keep `-L` (some pages redirect) and the header. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
+Fetch https://hotpath.rs/prometheus_grafana before building the dashboard, and check every metric and label name a panel uses against its "Available metrics" tables instead of relying on memory. Keep `-fsSL` and the header. If a fetch fails, stop and tell the user which URL could not be retrieved; do not continue from memory. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 
 The site documents the latest hotpath release, which can be newer than the version the project uses. Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
 

@@ -7,10 +7,10 @@ Instructions for an AI coding agent. `hotpath cloud` is the command line client 
 The hotpath docs are the reference for every command, flag, JSON field and policy key; this page only holds the workflow. Every page of https://hotpath.rs is served as markdown when requested with an `Accept: text/markdown` header:
 
 ```bash
-curl -sL -H 'Accept: text/markdown' https://hotpath.rs/agents_cli
+curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/agents_cli
 ```
 
-Fetch https://hotpath.rs/agents_cli before the first `hotpath cloud` command, and the other pages when the task reaches them, instead of relying on memory. Keep `-L` (some pages redirect) and the header. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
+Fetch https://hotpath.rs/agents_cli before the first `hotpath cloud` command, and the other pages when the task reaches them, instead of relying on memory. Keep `-fsSL` and the header. If a fetch fails, stop and tell the user which URL could not be retrieved; do not continue from memory. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 
 The site documents the latest hotpath release, which can be newer than the version the project uses. Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
 

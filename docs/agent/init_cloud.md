@@ -12,10 +12,10 @@ There are two setups, picked in step 1:
 The hotpath docs are the reference for the workflow files, every environment variable and every policy key; this page only holds the procedure. Every page of https://hotpath.rs is served as markdown when requested with an `Accept: text/markdown` header:
 
 ```bash
-curl -sL -H 'Accept: text/markdown' https://hotpath.rs/ci_integration
+curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/ci_integration
 ```
 
-Before each step, fetch the pages it names and follow them instead of relying on memory. Keep `-L` (some pages redirect) and the header. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
+Before each step, fetch the pages it names and follow them instead of relying on memory. Keep `-fsSL` and the header. If a fetch fails, stop and tell the user which URL could not be retrieved; do not continue from memory. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 
 The site documents the latest hotpath release, which can be newer than the version the project uses. Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
 
