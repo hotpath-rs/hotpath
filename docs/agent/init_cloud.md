@@ -31,7 +31,7 @@ The site documents the latest hotpath release, which can be newer than the versi
 ### 1. Inspect the project
 
 - Find the crate(s), the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`, usually `main`) and the existing workflows in `.github/workflows/`.
-- Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented functions. If it is not, set it up first by following https://hotpath.rs/agent/init_lib, then continue here.
+- Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented functions. If it is not, set it up first by following https://hotpath.rs/agent/init_lib (skip its "Offer hotpath Cloud" step), then continue here.
 - Pick the setup. Check whether the repository is public or private (`gh repo view --json visibility`). A private repository uses the **same repository** setup. For a public repository, ask the user whether pull requests from forks should be benchmarked: if yes, use the **forks** setup, otherwise the **same repository** one, and tell them fork pull requests will then not get a comment.
 
 ### 2. Pick the benchmark
@@ -47,16 +47,22 @@ The benchmark is a program instrumented with hotpath that runs a **fixed workloa
 
 Docs: https://hotpath.rs/ci_integration ("Setup").
 
-Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchmark crate's `Cargo.toml`, next to the existing hotpath features. Leave the `hotpath` dependency version as it is. Never add it to `default`. In the forks setup, the pull request job needs it too, although it does not upload.
+Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchmark crate's `Cargo.toml`, next to the existing hotpath features, unless it is already there. Leave the `hotpath` dependency version as it is. Never add it to `default`. In the forks setup, the pull request job needs it too, although it does not upload.
 
 ### 4. Add the policy file
 
 ```bash
 mkdir -p hotpath
-curl -fsSL https://hotpath.rs/api/v1/policy/default | jq -j .source > hotpath/policy.toml
+if [ -e hotpath/policy.toml ]; then
+  echo "hotpath/policy.toml exists, keeping it"
+else
+  curl -fsSL https://hotpath.rs/api/v1/policy/default | jq -je .source > hotpath/policy.toml.tmp \
+    && mv hotpath/policy.toml.tmp hotpath/policy.toml \
+    || { rm -f hotpath/policy.toml.tmp; echo "fetching the default policy failed"; false; }
+fi
 ```
 
-Run it from the repository root. It writes the default policy, with comments, to `hotpath/policy.toml` (no token needed; with `wget`, use `wget -qO- https://hotpath.rs/api/v1/policy/default`). It is the same file `hotpath cloud init` of the docs writes, without needing the CLI. Never overwrite an existing policy file. Every upload must carry a policy file, so commit it. Do not change the defaults unless the user asks; https://hotpath.rs/regression_policy documents every key.
+Run it from the repository root. It writes the default policy, with comments, to `hotpath/policy.toml` (no token needed; with `wget`, use `wget -qO- https://hotpath.rs/api/v1/policy/default`). It is the same file `hotpath cloud init` of the docs writes, without needing the CLI. Never overwrite an existing policy file: keep the existence check when you adapt the command. Every upload must carry a policy file, so commit it. Do not change the defaults unless the user asks; https://hotpath.rs/regression_policy documents every key.
 
 After any edit, validate the file. A valid policy answers `{"valid":true}`, an invalid one HTTP 422 with `problems`, each with its `line` and `message`:
 
@@ -125,10 +131,25 @@ jq '{benchmark: .meta.benchmark, policy: .meta.policy.path}' /tmp/hotpath-report
 
 The report must name the benchmark and `hotpath/policy.toml`. Run the benchmark twice and compare the function allocation totals: if they differ, the workload is not fixed, so fix that before relying on the comments.
 
-### 7. Tell the user what is left
+### 7. Add the README badge
+
+Docs: https://hotpath.rs/cloud ("README badge").
+
+Add the hotpath Cloud badge to the README that GitHub renders for the repository (the repository root `README.md`, not a member crate's README in a workspace), linking to the repository's page on hotpath.rs. Take `OWNER/NAME` from `gh repo view --json nameWithOwner -q .nameWithOwner`, or from the `origin` remote:
+
+```markdown
+[![hotpath-cloud](https://img.shields.io/endpoint?url=https://hotpath.rs/badge-cloud.json)](https://hotpath.rs/app/repos/OWNER/NAME)
+```
+
+- If the README already contains `badge-cloud.json`, leave it as it is.
+- Put the badge at the end of an existing badge line, otherwise on its own line below the title. Change nothing else in the README.
+- If the repository has no README, give the user the snippet instead of creating one.
+
+### 8. Tell the user what is left
 
 - Log in at https://hotpath.rs/app and install the hotpath GitHub App on the repository from the dashboard ("Install the hotpath app" or "Add repositories"). "Setup" in https://hotpath.rs/ci_integration lists the access it needs.
 - Commit the workflow(s) and merge them to the default branch. The first push to the default branch uploads the **baseline** (and the relay of the forks setup only runs once it is on the default branch). Until the baseline exists, pull request comments read "no baseline yet".
+- The badge links to the repository's page on hotpath.rs, which shows "not found" until the GitHub App is installed. Reports of a public repository are public by default; for a private repository the page opens only for users with access to it.
 - From then on, every pull request gets a performance comment. `hotpath cloud diff` reads the same verdict as JSON (https://hotpath.rs/agents_cli).
 - If an upload, a comment or the relay does not show up, the "Troubleshooting" table of https://hotpath.rs/ci_integration maps each symptom to its cause.
 
@@ -139,5 +160,6 @@ Do not commit or push unless the user asks.
 - Never enable `hotpath`, `hotpath-alloc` or `hotpath-cloud` by default; profiling stays opt-in.
 - Never put a token or secret in a workflow; uploads authenticate with the OIDC token of trusted jobs.
 - In the forks setup, never give the pull request job `id-token: write` or secrets, and never check out pull request code in the relay.
-- One benchmark per `HOTPATH_BENCHMARK` name. For several benchmarks, follow "Several benchmarks in one repository" in https://hotpath.rs/ci_integration; a benchmark's own policy file is fetched the same way as `hotpath/policy.toml`.
-- Keep the edits to the feature, the policy file, the workflow(s) and, if the user agreed, the benchmark program.
+- One benchmark per `HOTPATH_BENCHMARK` name. For several benchmarks, follow "Several benchmarks in one repository" in https://hotpath.rs/ci_integration; a benchmark's own policy file is fetched the same way as `hotpath/policy.toml`, with the same existence check.
+- Keep the edits to the feature, the policy file, the workflow(s), the README badge and, if the user agreed, the benchmark program. Leave unrelated workflows and repository settings alone.
+- Do not install the GitHub App, log in to hotpath.rs or trigger an upload on the user's behalf; tell them the steps instead.

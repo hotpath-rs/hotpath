@@ -14,7 +14,7 @@ ssh demo.hotpath.rs
 Or let your own AI agent configure profiling in a repo, paste into Claude Code, Codex, OpenCode or Cursor:
 
 ```
-Fetch and follow https://hotpath.rs/agent/setup
+Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup
 ```
 
 [hotpath-rs](https://hotpath.rs) is an easy-to-configure Rust performance profiling toolkit that shows exactly where your code spends time, burns CPU, and allocates memory.
@@ -74,15 +74,15 @@ https://github.com/user-attachments/assets/2e890417-2b43-4b1b-8657-a5ef3b458153
 The quickest way to set up hotpath is to let your own AI coding agent do it. Paste this prompt into Claude Code, Codex, OpenCode, Cursor or any other coding agent, inside your project repo:
 
 ```text
-Fetch and follow https://hotpath.rs/agent/setup
+Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup
 ```
 
-The agent installs the [hotpath-rs agent skill](skills/hotpath-rs/SKILL.md), inspects your project, adds the feature-gated dependency, instruments `main` and a starting set of functions, channels and locks, then verifies that everything compiles with profiling enabled and disabled. You review and approve each edit through the agent's regular permission prompts.
+The agent inspects your project, including workspaces and any existing hotpath setup, adds the feature-gated dependency, instruments `main` and a small starting set of hot functions, channels and locks, and verifies that everything compiles with profiling enabled and disabled. When the project has a workload that exits, it runs it and shows you the first report; it does not start long-running servers just to get one. It then explains how to run profiling and the live TUI. For a GitHub repository, it finally asks once whether to also set up [hotpath Cloud](https://hotpath.rs/cloud) to benchmark pull requests in CI; nothing for Cloud is added unless you agree. You review and approve each edit through the agent's regular permission prompts.
 
-To only install the skill, run:
+To give your agent lasting hotpath knowledge, install the [hotpath-rs agent skill](skills/hotpath-rs/SKILL.md):
 
 ```bash
-npx skills add hotpath-rs/hotpath
+npx skills add hotpath-rs/hotpath --skill hotpath-rs
 ```
 
 The skill maps every hotpath task, from instrumenting a crate to fixing a regression flagged in CI, to the documentation page that covers it.
