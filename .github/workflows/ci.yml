@@ -388,7 +388,7 @@ jobs:
 
   callgrind-linux:
     name: callgrind tests (Linux)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -399,7 +399,8 @@ jobs:
       - name: Install valgrind
         run: |
           sudo apt-get update
-          sudo apt-get install -y valgrind
+          sudo apt-get install -y valgrind=1:3.26.0-0ubuntu1
+          valgrind --version
       - name: Run functions_icount tests
         run: |
           cargo test --features hotpath --test functions_icount -- --nocapture --test-threads=1
