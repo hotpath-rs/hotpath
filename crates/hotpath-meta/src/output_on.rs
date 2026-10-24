@@ -224,6 +224,54 @@ impl OutputDestination {
         }
     }
 
+    /// Writes `bytes` so the destination only ever holds a complete report:
+    /// a file goes through a uniquely named temporary file in the same
+    /// directory, renamed over it once fully written, so a failure leaves an
+    /// existing file untouched. A destination that exists and is not a
+    /// regular file (`/dev/stdout`, a FIFO) cannot be renamed over and is
+    /// written directly.
+    pub(crate) fn write_atomically(&self, bytes: &[u8]) -> std::io::Result<()> {
+        let path = match self {
+            OutputDestination::Stdout => {
+                let mut out = std::io::stdout().lock();
+                out.write_all(bytes)?;
+                return out.flush();
+            }
+            OutputDestination::File(path) => path,
+        };
+        if std::fs::metadata(path).is_ok_and(|m| !m.is_file()) {
+            return std::fs::OpenOptions::new()
+                .write(true)
+                .open(path)?
+                .write_all(bytes);
+        }
+        let dir = match path.parent() {
+            Some(dir) if !dir.as_os_str().is_empty() => dir,
+            _ => std::path::Path::new("."),
+        };
+        std::fs::create_dir_all(dir)?;
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let temp_path = dir.join(format!(
+            ".{name}.{}.{}.tmp",
+            std::process::id(),
+            TEMP_FILES.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp_path)?;
+        let mut temp = TempFile(Some(temp_path));
+        file.write_all(bytes)?;
+        file.flush()?;
+        drop(file);
+        std::fs::rename(temp.path(), path)?;
+        temp.keep();
+        Ok(())
+    }
+
     /// `HOTPATH_META_OUTPUT_PATH` takes precedence over `path`. Relative paths
     /// resolve against the cwd; no path means stdout.
     pub(crate) fn from_path(path: Option<PathBuf>) -> Self {
@@ -234,6 +282,31 @@ impl OutputDestination {
         match path {
             Some(p) => OutputDestination::File(p),
             None => OutputDestination::Stdout,
+        }
+    }
+}
+
+/// Temporary files this process created, numbering the next one's name.
+static TEMP_FILES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A temporary file this attempt created: removed on drop, including on an
+/// early return or a panic, unless kept once it was renamed into place.
+struct TempFile(Option<PathBuf>);
+
+impl TempFile {
+    fn path(&self) -> &std::path::Path {
+        self.0.as_deref().unwrap_or(std::path::Path::new(""))
+    }
+
+    fn keep(&mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for TempFile {
+    fn drop(&mut self) {
+        if let Some(path) = self.0.take() {
+            let _ = std::fs::remove_file(path);
         }
     }
 }

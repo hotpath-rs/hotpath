@@ -140,6 +140,23 @@ pub struct UploadCreated {
 /// bytes of UTF-8.
 pub const POLICY_MAX_BYTES: usize = 65536;
 
+/// Largest report the server accepts, in bytes of the decompressed JSON
+/// body. Clients check it before sending and never truncate a report to fit.
+pub const MAX_REPORT_BYTES: usize = 5 * 1024 * 1024;
+
+/// Why a serialized report of `len` bytes cannot be uploaded, or `Ok` when
+/// it fits [`MAX_REPORT_BYTES`].
+pub fn check_report_size(len: usize) -> Result<(), String> {
+    if len <= MAX_REPORT_BYTES {
+        return Ok(());
+    }
+    Err(format!(
+        "the report is {len} bytes, over the {} MiB ({MAX_REPORT_BYTES} bytes) limit of \
+         hotpath.rs; measure fewer functions or split the benchmark",
+        MAX_REPORT_BYTES / (1024 * 1024)
+    ))
+}
+
 /// Body of `POST /api/v1/policy/validate`. The answer is a 200 when the
 /// document is a valid policy, or `PolicyRejected` (422).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -212,6 +229,15 @@ pub struct Verdict {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn report_size_limit_is_inclusive() {
+        use crate::json::cloud_api::{check_report_size, MAX_REPORT_BYTES};
+        assert!(check_report_size(MAX_REPORT_BYTES).is_ok());
+        let err = check_report_size(MAX_REPORT_BYTES + 1).unwrap_err();
+        assert!(err.contains("5242881 bytes"), "{err}");
+        assert!(err.contains("split the benchmark"), "{err}");
+    }
+
     use crate::json::cloud_api::{
         normalize_base_url, validate_benchmark_name, ApiError, ApiErrorCode, CommentOutcome,
         PolicyProblem, PolicyRejected, PolicyValidation, UploadCreated, DEFAULT_BASE_URL,

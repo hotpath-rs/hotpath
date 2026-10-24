@@ -68,6 +68,7 @@ pub(crate) mod cloud;
 #[cfg(feature = "hotpath-cloud-meta")]
 pub(crate) mod git_info;
 pub(crate) mod hotpath_guard;
+pub(crate) mod merge;
 #[cfg(feature = "hotpath-prometheus-meta")]
 pub(crate) mod native_histograms;
 pub(crate) mod report;
