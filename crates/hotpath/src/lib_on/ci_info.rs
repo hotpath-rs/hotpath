@@ -45,6 +45,7 @@ fn github_actions(event: String) -> CiContext {
                 .then(|| pull_request(git_ref.as_deref(), payload.as_ref()))
                 .flatten(),
             run_id: env("GITHUB_RUN_ID"),
+            run_attempt: env("GITHUB_RUN_ATTEMPT"),
             workflow: env("GITHUB_WORKFLOW"),
             actor: env("GITHUB_ACTOR"),
             repository_id: env("GITHUB_REPOSITORY_ID"),

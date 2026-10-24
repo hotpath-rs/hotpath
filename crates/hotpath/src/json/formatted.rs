@@ -1132,6 +1132,48 @@ pub struct JsonMeta {
     /// file, in which case hotpath.rs refuses the upload.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub policy: Option<JsonPolicy>,
+    /// How the measurements were produced. Always written by this version;
+    /// absent only in reports older than the field, which readers resolve
+    /// through [`JsonRun::resolve`] (via [`JsonReport::run`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run: Option<JsonRun>,
+}
+
+/// How a report's measurements were produced: which of its elapsed figures
+/// are real.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum JsonRun {
+    /// One native run: every duration is real.
+    Native,
+    /// One run under Valgrind: every duration is Valgrind's.
+    Callgrind,
+    /// A native run with a Callgrind run's `functions_icount` merged in
+    /// (`HOTPATH_MERGE_REPORT`): every section but `functions_icount` is
+    /// native.
+    Merged,
+}
+
+impl JsonRun {
+    /// The run kind of a report: its explicit `meta.run`, else, for a report
+    /// older than the field, a best-effort guess from its sections (an
+    /// icount section means Callgrind). The guess misreads an old Callgrind
+    /// run whose dump could not be read, which carried no icount section;
+    /// it can never yield `Merged`, which is always written explicitly.
+    pub fn resolve(run: Option<JsonRun>, has_icount: bool) -> JsonRun {
+        match run {
+            Some(run) => run,
+            None if has_icount => JsonRun::Callgrind,
+            None => JsonRun::Native,
+        }
+    }
+
+    /// Whether a section's elapsed time is the program's own wall time: never
+    /// for the icount section (measured under Valgrind in every run kind),
+    /// never for any section of a Callgrind-only run.
+    pub fn wall_time(self, is_icount: bool) -> bool {
+        !is_icount && self != JsonRun::Callgrind
+    }
 }
 
 /// A policy document as a report carries it. The client reads the file and
@@ -1180,6 +1222,10 @@ pub struct JsonCiInfo {
     /// String, not u64: not every provider's run id is numeric.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run_id: Option<String>,
+    /// Attempt of `run_id` (`GITHUB_RUN_ATTEMPT` on Actions): a re-run keeps
+    /// its run id and counts this up.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_attempt: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1283,11 +1329,49 @@ impl JsonReport {
             debug: None,
         }
     }
+
+    /// How this report's measurements were produced; see [`JsonRun::resolve`].
+    pub fn run(&self) -> JsonRun {
+        JsonRun::resolve(self.meta.run, self.functions_icount.is_some())
+    }
 }
 
 #[cfg(test)]
 mod parse_tests {
     use crate::json::formatted::*;
+
+    #[test]
+    fn run_resolves_explicit_first_then_by_sections() {
+        use JsonRun::*;
+        // An explicit kind wins over what the sections suggest.
+        assert_eq!(JsonRun::resolve(Some(Merged), true), Merged);
+        assert_eq!(JsonRun::resolve(Some(Merged), false), Merged);
+        assert_eq!(JsonRun::resolve(Some(Native), true), Native);
+        assert_eq!(JsonRun::resolve(Some(Callgrind), false), Callgrind);
+        // Reports older than the field.
+        assert_eq!(JsonRun::resolve(None, true), Callgrind);
+        assert_eq!(JsonRun::resolve(None, false), Native);
+    }
+
+    #[test]
+    fn wall_time_never_for_icount_or_callgrind_runs() {
+        use JsonRun::*;
+        let table = [
+            (Native, false, true),
+            (Native, true, false),
+            (Callgrind, false, false),
+            (Callgrind, true, false),
+            (Merged, false, true),
+            (Merged, true, false),
+        ];
+        for (run, is_icount, expected) in table {
+            assert_eq!(
+                run.wall_time(is_icount),
+                expected,
+                "{run:?} icount={is_icount}"
+            );
+        }
+    }
 
     #[test]
     fn test_parse_delay_units() {

@@ -64,6 +64,7 @@ test_all:
     cargo test --features hotpath --test cloud_limit -- --nocapture --test-threads=1
     cargo test --features hotpath --test cloud_json_file -- --nocapture --test-threads=1
     cargo test --features hotpath --test cloud_upload_guard -- --nocapture --test-threads=1
+    cargo test --features hotpath --test relay_workflow -- --nocapture
     cargo test --features hotpath --test cloud_meta -- --nocapture --test-threads=1
     cargo test --features hotpath --test cloud_precision -- --nocapture --test-threads=1
     cargo test -p hotpath --features cloud --test cloud_cli

@@ -26,6 +26,7 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 - `json/cloud_api.rs` is the client contract hotpath-backend imports; bodies the CLI only prints are owned by the backend. `validate_benchmark_name` must stay identical to the backend's copy.
 - The cloud path (upload or JSON output with the feature on) ignores display limits and renders exact precision; the live metrics server never does.
 - Tests: `tests/cloud_*.rs` (against a `mockito` server).
+- `cloud_api::MAX_REPORT_BYTES` is the server's body limit; the relay workflow keeps a shell copy, pinned by `tests/relay_workflow.rs`.
 
 ## Macros
 

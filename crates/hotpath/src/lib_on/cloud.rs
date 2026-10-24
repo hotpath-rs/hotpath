@@ -28,8 +28,8 @@ use std::time::Duration;
 use serde::Deserialize;
 
 use crate::json::cloud_api::{
-    validate_benchmark_name, ApiError, ApiErrorCode, PolicyProblem, PolicyRejected, UploadCreated,
-    Verdict, API_URL,
+    check_report_size, validate_benchmark_name, ApiError, ApiErrorCode, PolicyProblem,
+    PolicyRejected, UploadCreated, Verdict, API_URL,
 };
 use crate::json::policy_file::policy_files_hint;
 use crate::json::JsonReport;
@@ -236,20 +236,28 @@ fn run(report: &JsonReport) -> Outcome {
             body: None,
         };
     }
-    let token = match mint_token(&request_url, &request_token) {
-        Ok(token) => token,
-        Err(message) => {
-            return Outcome::Failed {
-                message,
-                body: None,
-            }
-        }
-    };
+    // Serialized and size-checked before a token is minted: an oversized
+    // report is refused here rather than truncated or sent to a sure 413.
     let body = match serde_json::to_vec(report) {
         Ok(body) => body,
         Err(e) => {
             return Outcome::Failed {
                 message: format!("failed to serialize report: {e}"),
+                body: None,
+            }
+        }
+    };
+    if let Err(message) = check_report_size(body.len()) {
+        return Outcome::Failed {
+            message,
+            body: None,
+        };
+    }
+    let token = match mint_token(&request_url, &request_token) {
+        Ok(token) => token,
+        Err(message) => {
+            return Outcome::Failed {
+                message,
                 body: None,
             }
         }
@@ -528,11 +536,11 @@ pub(crate) fn render(outcome: &Outcome, env: &Env, benchmark: Option<&str>) -> R
         }
     };
 
-    let heading = match benchmark {
-        Some(name) => format!("hotpath.rs {name} benchmark"),
-        None => "hotpath.rs upload".to_string(),
-    };
-    let mut summary = format!("## {heading}\n\n{}: hotpath: {message}\n", level.as_str());
+    let mut summary = format!(
+        "## {}\n\n{}: hotpath: {message}\n",
+        summary_heading(benchmark),
+        level.as_str()
+    );
     for link in links {
         summary.push_str(&format!("\n{link}\n"));
     }
@@ -545,6 +553,32 @@ pub(crate) fn render(outcome: &Outcome, env: &Env, benchmark: Option<&str>) -> R
         message,
         summary,
     }
+}
+
+fn summary_heading(benchmark: Option<&str>) -> String {
+    match benchmark {
+        Some(name) => format!("hotpath.rs {name} benchmark"),
+        None => "hotpath.rs upload".to_string(),
+    }
+}
+
+/// A failure outside the upload itself (a requested merge), rendered like a
+/// strict upload failure: one error line, plus the annotation and step
+/// summary under Actions. No upload mode softens it.
+pub(crate) fn emit_error(message: &str) {
+    let benchmark = benchmark_name().ok();
+    let summary = format!(
+        "## {}\n\nerror: hotpath: {message}\n",
+        summary_heading(benchmark.as_deref())
+    );
+    emit(
+        Rendered {
+            level: Level::Error,
+            message: message.to_string(),
+            summary,
+        },
+        &Env::from_process(),
+    );
 }
 
 fn quote_body(body: &str) -> String {

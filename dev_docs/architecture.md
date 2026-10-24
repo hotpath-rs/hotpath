@@ -22,6 +22,7 @@ Each subsystem spawns a worker thread named `hp-<subsystem>` from its `lib_on/<s
 - `lib_on/functions/callgrind/request.rs` - Valgrind client requests (`asm!`).
 - `lib_on/functions/callgrind/parser.rs` - Callgrind dump parsing, fixture in `callgrind/fixtures/`.
 - Markers are emitted in `measure_impl` (`hotpath-macros/src/lib_on.rs`).
+- `lib_on/merge.rs` - `HOTPATH_MERGE_REPORT`: a Callgrind run merges a native run's JSON report into its own (wired in `HotpathGuard::drop`); tests in `tests/functions_icount.rs`.
 
 Gotchas:
 - A client-request dump is `<out-file>.<n>`, not the bare out file (that one is the exit dump).

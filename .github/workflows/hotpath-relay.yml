@@ -120,7 +120,8 @@ jobs:
           # `workflow_run` one, which the server accepts only for a
           # `pull_request` report. The pull request fields come from the lookup
           # above. Every other key of `meta` is kept, `policy` included.
-          jq --arg source_root "$SOURCE_ROOT" --slurpfile pr pr.json '
+          # Compact, the form the benchmark job's size check measured.
+          jq -c --arg source_root "$SOURCE_ROOT" --slurpfile pr pr.json '
             .meta.source_root = $source_root
             | .meta.ci.event = "pull_request"
             | .meta.git.base_sha = $pr[0].base.sha
@@ -139,6 +140,15 @@ jobs:
         if: steps.pr.outputs.number
         run: |
           set -euo pipefail
+          # The rewrite above added fields after the benchmark job checked the
+          # size: check the body actually sent. Never truncated.
+          # Keep in sync with hotpath::json::cloud_api::MAX_REPORT_BYTES.
+          max_bytes=5242880
+          size=$(wc -c < upload.json | tr -d ' ')
+          if [ "$size" -gt "$max_bytes" ]; then
+            echo "::error::the report is $size bytes, over the 5 MiB ($max_bytes bytes) limit of hotpath.rs; measure fewer functions or split the benchmark"
+            exit 1
+          fi
           # `ACTIONS_ID_TOKEN_REQUEST_URL` always carries an `api-version`
           # query, so the audience is appended with `&`.
           token=$(curl -sS --fail \
