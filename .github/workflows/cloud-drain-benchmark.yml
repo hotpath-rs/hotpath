@@ -20,7 +20,7 @@ jobs:
     # Instruction counts depend on the Valgrind build, and reports only compare
     # within one (`tool`), so the image and the package are pinned: an upgrade
     # is a deliberate bump, not a silent gap in verdicts.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -35,7 +35,7 @@ jobs:
       - name: Install valgrind
         run: |
           sudo apt-get update
-          sudo apt-get install -y valgrind=1:3.22.0-0ubuntu3
+          sudo apt-get install -y valgrind=1:3.26.0-0ubuntu1
           valgrind --version
       - name: Build drain benchmark
         run: |
