@@ -19,7 +19,7 @@ pub(crate) struct CloudUnavailableArgs {
     pub(crate) rest: Vec<String>,
 }
 
-/// Deprecated `hotpath init`: accepts and ignores any legacy args like
+/// Legacy `hotpath init`: accepts and ignores any legacy args like
 /// `--agent claude` and prints [`INIT_DEPRECATED_MESSAGE`].
 #[cfg(any(feature = "tui", feature = "cloud"))]
 #[derive(Parser, Debug)]
@@ -34,7 +34,7 @@ pub(crate) enum HPSubcommand {
     #[cfg(feature = "tui")]
     #[command(about = "Launch TUI console to monitor profiling metrics in real-time")]
     Console(ConsoleArgs),
-    #[command(about = "Deprecated: prints a prompt to configure hotpath via your coding agent")]
+    #[command(about = "Print a prompt to configure hotpath via your coding agent")]
     Init(InitDeprecatedArgs),
     #[cfg(feature = "cloud")]
     #[command(about = "Query hotpath.rs: authentication status and cloud reports")]
@@ -63,7 +63,7 @@ pub(crate) struct HPArgs {
     pub(crate) console_args: ConsoleArgs,
 }
 
-pub(crate) const INIT_DEPRECATED_MESSAGE: &str = "hotpath init is now deprecated, paste the following prompt to your coding agent to configure the library:
+pub(crate) const INIT_DEPRECATED_MESSAGE: &str = "Paste the following prompt to your coding agent to configure the library:
 
 Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup";
 
@@ -121,7 +121,8 @@ fn main() -> std::process::ExitCode {
             "hotpath CLI
 
 The 'console' command requires building with the 'tui' feature.
-The 'cloud' command requires building with the 'cloud' feature."
+The 'cloud' command requires building with the 'cloud' feature.
+The 'init' command prints a prompt to configure hotpath via your coding agent."
         ),
     }
     std::process::ExitCode::FAILURE
