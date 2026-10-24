@@ -33,10 +33,20 @@ pub const CHUNK_SIZE: usize = 64;
 /// Leftovers are picked up on the next tick.
 const MAX_CHUNKS_PER_SWEEP: usize = 1024;
 
+/// Padding that keeps a header field on its own 64 B cache line. Explicit
+/// bytes instead of `#[repr(align(64))]`, so the chunk keeps the allocator's
+/// default alignment and its fast path.
+const HEADER_PAD: usize = 64 - size_of::<usize>();
+
+#[repr(C)]
 struct Chunk<M> {
     slots: [UnsafeCell<MaybeUninit<M>>; CHUNK_SIZE],
+    /// Separates `len` from the tail slots the producer is still writing.
+    _pad_slots: MaybeUninit<[u8; HEADER_PAD]>,
     /// Number of initialized slots; the producer publishes with `Release`.
     len: AtomicUsize,
+    /// Separates `len`, polled by the consumer, from `next`.
+    _pad_len: MaybeUninit<[u8; HEADER_PAD]>,
     /// Set once by the producer when the chunk is full; never unset.
     next: AtomicPtr<Chunk<M>>,
 }
@@ -45,7 +55,9 @@ impl<M> Chunk<M> {
     fn new_raw() -> *mut Chunk<M> {
         Box::into_raw(Box::new(Chunk {
             slots: [const { UnsafeCell::new(MaybeUninit::uninit()) }; CHUNK_SIZE],
+            _pad_slots: MaybeUninit::uninit(),
             len: AtomicUsize::new(0),
+            _pad_len: MaybeUninit::uninit(),
             next: AtomicPtr::new(ptr::null_mut()),
         }))
     }
@@ -93,12 +105,21 @@ impl<M> EventQueue<M> {
             // frees it.
             let chunk = unsafe { &*chunk_ptr };
             let len = chunk.len.load(Ordering::Acquire);
-            for i in consumed..len {
-                // SAFETY: the `Acquire` load of `len` synchronizes with the
-                // producer's `Release` publish, so slots `..len` are
-                // initialized; slots below `consumed` were already read out
-                // and are never touched twice (consumer-only cursor).
-                out.push(unsafe { (*chunk.slots[i].get()).assume_init_read() });
+            let n = len - consumed;
+            out.reserve(n);
+            // SAFETY: the `Acquire` load of `len` synchronizes with the
+            // producer's `Release` publish, so slots `..len` are initialized;
+            // slots below `consumed` were already read out and are never
+            // touched twice (consumer-only cursor). `UnsafeCell<MaybeUninit<M>>`
+            // has the layout of `M`, so the published range copies out as one
+            // block into the `n` slots reserved above, which moves the values.
+            unsafe {
+                ptr::copy_nonoverlapping(
+                    chunk.slots.as_ptr().add(consumed).cast::<M>(),
+                    out.as_mut_ptr().add(out.len()),
+                    n,
+                );
+                out.set_len(out.len() + n);
             }
             consumed = len;
             if len == CHUNK_SIZE {
