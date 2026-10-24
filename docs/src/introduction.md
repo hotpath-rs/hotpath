@@ -106,7 +106,7 @@ monitor throughput, performance and max queue depth of instrumented channels:
 
 <img loading="lazy" src="{{#asset-hash images/channel_metrics.png}}" alt="hotpath-rs channel profiling report showing throughput, send-to-receive latency and max queue depth per channel">
 
-or use the live TUI dashboard to monitor real-time performance and async data flow metrics with debug info:
+<a id="tui"></a>or use the live TUI dashboard to monitor real-time performance and async data flow metrics with debug info:
 
 <video loading="lazy" width="100%" loop muted playsinline controls poster="{{#asset-hash images/hotpath-live-dashboard-poster.jpg}}">
   <source src="{{#asset-hash videos/hotpath-live-dashboard.mp4}}" type="video/mp4">
