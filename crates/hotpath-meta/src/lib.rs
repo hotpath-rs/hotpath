@@ -43,8 +43,9 @@ pub(crate) mod output;
 #[cfg(feature = "json")]
 pub use output::{
     ceil_char_boundary, floor_char_boundary, format_bytes, format_count, format_duration,
-    format_percentile_header, format_percentile_key, format_rate, parse_bytes, parse_count,
-    parse_duration, shorten_function_name, ProfilingMode, MAX_LOG_LEN,
+    format_icount, format_icount_display, format_percentile_header, format_percentile_key,
+    format_rate, parse_bytes, parse_count, parse_duration, parse_icount, shorten_function_name,
+    ProfilingMode, MAX_LOG_LEN,
 };
 #[cfg(feature = "hotpath-meta")]
 pub use output_on::format_debug_truncated;

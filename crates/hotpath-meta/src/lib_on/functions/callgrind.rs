@@ -262,10 +262,15 @@ pub(crate) fn build_icount_list(
                 name: name.to_string(),
                 calls: count,
                 sampled_calls: count,
-                // Two decimals: a whole-number average of a short hot function
+                // Hundredths: a whole-number average of a short hot function
                 // (~33 per call) moves by 3% when the total moves by 1%.
+                // Rounded in u128; an average past the u64 hundredths range
+                // (an unreachable instruction count) prints as unknown.
                 avg: if count > 0 {
-                    format!("{:.2}", ir as f64 / count as f64)
+                    let hundredths =
+                        (u128::from(ir) * 100 + u128::from(count) / 2) / u128::from(count);
+                    u64::try_from(hundredths)
+                        .map_or_else(|_| "-".to_string(), crate::output::format_icount)
                 } else {
                     "-".to_string()
                 },

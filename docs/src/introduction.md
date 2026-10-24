@@ -16,7 +16,7 @@
       <span class="terminal-prompt">$</span>
       <span class="terminal-command">ssh demo.hotpath.rs</span>
     </button>
-    <p class="ssh-demo-label">Or let your AI coding agent set up profiling for you:</p>
+    <p class="ssh-demo-label">Or let your AI coding agent set up profiling:</p>
     <button type="button" class="agent-pill copy-tooltip" data-tooltip="Copies a setup prompt for your AI coding agent" data-tooltip-copied="Copied! Paste into your AI coding agent." data-copy="Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup" onclick="hotpathCopy(this)">
       <svg class="agent-pill-copy" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
       <span>Set up hotpath-rs with AI</span>
@@ -106,7 +106,7 @@ monitor throughput, performance and max queue depth of instrumented channels:
 
 <img loading="lazy" src="{{#asset-hash images/channel_metrics.png}}" alt="hotpath-rs channel profiling report showing throughput, send-to-receive latency and max queue depth per channel">
 
-or use the live TUI dashboard to monitor real-time performance and async data flow metrics with debug info:
+<a id="tui"></a>or use the live TUI dashboard to monitor real-time performance and async data flow metrics with debug info:
 
 <video loading="lazy" width="100%" loop muted playsinline controls poster="{{#asset-hash images/hotpath-live-dashboard-poster.jpg}}">
   <source src="{{#asset-hash videos/hotpath-live-dashboard.mp4}}" type="video/mp4">

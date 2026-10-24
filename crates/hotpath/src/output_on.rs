@@ -1,7 +1,7 @@
 use crate::json::JsonFunctionsList;
 use crate::output::{
-    floor_char_boundary, format_bytes, format_percentile_header, format_percentile_key,
-    shorten_function_name, MAX_LOG_LEN,
+    floor_char_boundary, format_bytes, format_icount_display, format_percentile_header,
+    format_percentile_key, parse_icount, shorten_function_name, ProfilingMode, MAX_LOG_LEN,
 };
 use crate::shared::Section;
 use crate::table::{Cell, Table};
@@ -125,13 +125,21 @@ pub(crate) fn display_functions_table_to<W: Write>(writer: &mut W, list: &JsonFu
 
     table.add_row(header_cells);
 
+    // The JSON carries icount raw; the table shows its display form.
+    let value = |s: &str| match list.profiling_mode {
+        ProfilingMode::Icount => {
+            parse_icount(s).map_or_else(|| s.to_string(), format_icount_display)
+        }
+        _ => s.to_string(),
+    };
+
     for entry in &list.data {
         let mut row_cells = Vec::new();
 
         let short_name = shorten_function_name(&entry.name);
         row_cells.push(Cell::new(&short_name));
         row_cells.push(Cell::new(&entry.calls.to_string()));
-        row_cells.push(Cell::new(&entry.avg));
+        row_cells.push(Cell::new(&value(&entry.avg)));
 
         for &p in &list.percentiles {
             let key = format_percentile_key(p);
@@ -143,7 +151,7 @@ pub(crate) fn display_functions_table_to<W: Write>(writer: &mut W, list: &JsonFu
             row_cells.push(Cell::new(value));
         }
 
-        row_cells.push(Cell::new(&entry.total));
+        row_cells.push(Cell::new(&value(&entry.total)));
         row_cells.push(Cell::new(&entry.percent_total));
 
         table.add_row(row_cells);

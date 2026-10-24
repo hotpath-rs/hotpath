@@ -204,6 +204,70 @@ pub fn parse_count(s: &str) -> Option<u64> {
     s.trim().parse::<u64>().ok()
 }
 
+/// Formats an instruction count given in hundredths of an instruction as
+/// the JSON report carries it: a whole number as is (`107481624`), a
+/// fraction with two decimals (`33.05`). [`format_icount_display`] is the
+/// display form.
+pub fn format_icount(hundredths: u64) -> String {
+    with_icount_fraction((hundredths / 100).to_string(), hundredths)
+}
+
+/// [`format_icount`] for display only ([`parse_icount`] rejects it): with
+/// thousands separators, and from 1,000 up rounded half-up to a whole
+/// instruction (`107,481,624`), where a hundredth is below any change worth
+/// showing. Below 1,000 the decimals stay (`33.05`): a short function's
+/// average moves by a fraction of an instruction.
+pub fn format_icount_display(hundredths: u64) -> String {
+    if hundredths >= 100_000 {
+        let whole = hundredths / 100 + u64::from(hundredths % 100 >= 50);
+        return group_thousands(whole);
+    }
+    with_icount_fraction(group_thousands(hundredths / 100), hundredths)
+}
+
+/// `1234567` as `1,234,567`.
+fn group_thousands(value: u64) -> String {
+    let digits = value.to_string();
+    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
+    for (i, digit) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    grouped
+}
+
+fn with_icount_fraction(whole: String, hundredths: u64) -> String {
+    match hundredths % 100 {
+        0 => whole,
+        rest => format!("{whole}.{rest:02}"),
+    }
+}
+
+/// Parses an instruction count back to hundredths of an instruction.
+/// Inverse of [`format_icount`]: digits with at most two decimals, parsed
+/// with checked integer arithmetic so a value past the `u64` hundredths
+/// range is `None`, never a saturated one.
+pub fn parse_icount(s: &str) -> Option<u64> {
+    let s = s.trim();
+    let (whole, frac) = s.split_once('.').unwrap_or((s, ""));
+    let digits = |p: &str| p.bytes().all(|b| b.is_ascii_digit());
+    if whole.is_empty() || s.ends_with('.') || !digits(whole) || !digits(frac) || frac.len() > 2 {
+        return None;
+    }
+    let hundredths = match frac.len() {
+        0 => 0,
+        1 => frac.parse::<u64>().ok()? * 10,
+        _ => frac.parse::<u64>().ok()?,
+    };
+    whole
+        .parse::<u64>()
+        .ok()?
+        .checked_mul(100)?
+        .checked_add(hundredths)
+}
+
 /// Profiling mode indicating what type of measurements were collected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProfilingMode {
@@ -409,6 +473,43 @@ mod parse_tests {
         assert_eq!(format_count(999), "999");
         assert_eq!(format_count(1_000), "1000");
         assert_eq!(format_count(1_000_000), "1000000");
+    }
+
+    #[test]
+    fn test_icount_format_and_parse() {
+        for (hundredths, raw, shown) in [
+            (0, "0", "0"),
+            (3305, "33.05", "33.05"),
+            (3300, "33", "33"),
+            (99_999, "999.99", "999.99"),
+            (100_000, "1000", "1,000"),
+            (100_049, "1000.49", "1,000"),
+            (100_050, "1000.50", "1,001"),
+            (10_748_162_425, "107481624.25", "107,481,624"),
+            (u64::MAX, "184467440737095516.15", "184,467,440,737,095,516"),
+            (
+                u64::MAX - 15,
+                "184467440737095516",
+                "184,467,440,737,095,516",
+            ),
+        ] {
+            assert_eq!(format_icount(hundredths), raw);
+            assert_eq!(format_icount_display(hundredths), shown);
+            assert_eq!(parse_icount(raw), Some(hundredths), "{raw:?}");
+        }
+        for (input, expected) in [
+            ("33.5", Some(3350)),
+            ("33.00", Some(3300)),
+            ("184467440737095516.16", None),
+            ("1,000", None),
+            ("33.", None),
+            (".5", None),
+            ("33.123", None),
+            ("-1", None),
+            ("", None),
+        ] {
+            assert_eq!(parse_icount(input), expected, "{input:?}");
+        }
     }
 
     #[test]

@@ -19,12 +19,23 @@ pub(crate) struct CloudUnavailableArgs {
     pub(crate) rest: Vec<String>,
 }
 
+/// Legacy `hotpath init`: accepts and ignores any legacy args like
+/// `--agent claude` and prints [`INIT_DEPRECATED_MESSAGE`].
+#[cfg(any(feature = "tui", feature = "cloud"))]
+#[derive(Parser, Debug)]
+pub(crate) struct InitDeprecatedArgs {
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true, hide = true)]
+    pub(crate) rest: Vec<String>,
+}
+
 #[cfg(any(feature = "tui", feature = "cloud"))]
 #[derive(Subcommand, Debug)]
 pub(crate) enum HPSubcommand {
     #[cfg(feature = "tui")]
     #[command(about = "Launch TUI console to monitor profiling metrics in real-time")]
     Console(ConsoleArgs),
+    #[command(about = "Print a prompt to configure hotpath via your coding agent")]
+    Init(InitDeprecatedArgs),
     #[cfg(feature = "cloud")]
     #[command(about = "Query hotpath.rs: authentication status and cloud reports")]
     Cloud(CloudArgs),
@@ -52,6 +63,10 @@ pub(crate) struct HPArgs {
     pub(crate) console_args: ConsoleArgs,
 }
 
+pub(crate) const INIT_DEPRECATED_MESSAGE: &str = "Paste the following prompt to your coding agent to configure the library:
+
+Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup";
+
 #[cfg(not(feature = "cloud"))]
 pub(crate) const CLOUD_FEATURE_HINT: &str =
     "The 'cloud' command requires building with the 'cloud' feature: cargo install hotpath --features cloud";
@@ -65,6 +80,10 @@ fn main() -> eyre::Result<ExitCode> {
         #[cfg(feature = "tui")]
         Some(HPSubcommand::Console(args)) => {
             args.run()?;
+            ExitCode::SUCCESS
+        }
+        Some(HPSubcommand::Init(_)) => {
+            println!("{INIT_DEPRECATED_MESSAGE}");
             ExitCode::SUCCESS
         }
         #[cfg(feature = "cloud")]
@@ -93,12 +112,17 @@ fn main() -> eyre::Result<ExitCode> {
 #[cfg(not(any(feature = "tui", feature = "cloud")))]
 fn main() -> std::process::ExitCode {
     match std::env::args().nth(1).as_deref() {
+        Some("init") => {
+            println!("{INIT_DEPRECATED_MESSAGE}");
+            return std::process::ExitCode::SUCCESS;
+        }
         Some("cloud") => eprintln!("{CLOUD_FEATURE_HINT}"),
         _ => eprintln!(
             "hotpath CLI
 
 The 'console' command requires building with the 'tui' feature.
-The 'cloud' command requires building with the 'cloud' feature."
+The 'cloud' command requires building with the 'cloud' feature.
+The 'init' command prints a prompt to configure hotpath via your coding agent."
         ),
     }
     std::process::ExitCode::FAILURE
