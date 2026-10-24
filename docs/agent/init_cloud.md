@@ -141,7 +141,9 @@ In the forks setup, a pull request is judged under the policy file of its own br
 
 ### 6. Add the workflows
 
-Follow the section of the setup picked in step 1. Never overwrite an existing workflow file: if the file name below is taken, or a workflow with the same `name:` exists, use `hotpath-<benchmark>.yml` and `name: hotpath <benchmark>` instead, and ask the user if that is taken too. For Callgrind, also apply "Instruction counts with Callgrind" of https://hotpath.rs/ci_integration to every job that runs the benchmark: the pinned runner label, Valgrind package and Rust toolchain (never `ubuntu-latest` or `stable`), building the benchmark with `--features hotpath-alloc,hotpath-cloud,hotpath-callgrind` before running the binary under `valgrind -q --tool=callgrind --instr-atstart=no`, `HOTPATH_CALLGRIND_OUT_FILE` equal to `--callgrind-out-file`, the `jq` check on the JSON report and the longer timeout. Pin the toolchain to the version the docs show, or to the one the repository's `rust-toolchain.toml` or existing CI pins.
+Follow the section of the setup picked in step 1. Never overwrite an existing workflow file: if the file name below is taken, or a workflow with the same `name:` exists, use `hotpath-<benchmark>.yml` and `name: hotpath <benchmark>` instead, and ask the user if that is taken too. For Callgrind, also apply "Instruction counts with Callgrind" of https://hotpath.rs/ci_integration to every job that runs the benchmark: the pinned runner label, Valgrind package and Rust toolchain (never `ubuntu-latest` or `stable`), building the benchmark with `--features hotpath-alloc,hotpath-cloud,hotpath-callgrind` before running the binary under `valgrind -q --tool=callgrind --instr-atstart=no`, `HOTPATH_CALLGRIND_OUT_FILE` equal to `--callgrind-out-file`, the `jq` check on the JSON report and the longer timeout.
+
+Pin the Rust toolchain to an exact version in every job that builds the benchmark, for both profiling modes and in both jobs of the forks setup: replace `dtolnay/rust-toolchain@stable` with `dtolnay/rust-toolchain@master` and `toolchain: "<x.y.z>"`, and write the same version into `toolchain=` of `HOTPATH_USER_METADATA`. Never leave `stable`, `beta`, `nightly` or a bare `x.y`: a new Rust release changes the numbers, so the first pull request after it would be judged against a baseline built with the older `rustc` and flagged for changes it did not cause. Use the version the repository's `rust-toolchain.toml` or existing CI pins, otherwise the one the docs Callgrind workflow shows. Tell the user to bump it in a separate pull request, whose merge uploads the new baseline.
 
 #### Same repository
 
@@ -180,7 +182,13 @@ Every benchmark workflow gets its own relay. Create `.github/workflows/hotpath-r
 
 - The `workflows:` entry is exactly the `name:` of this benchmark's workflow.
 - `benchmark`, `artifact_name` and `report_file` match what the `report` job of the benchmark workflow uses.
-- The relay is pinned to `hotpath-relay.yml@{{HOTPATH_RELEASE_TAG}}`, whatever tag the docs workflow shows, never `@main`. The pin must be the release tag of the `hotpath` version the benchmark builds with: if the project's `Cargo.lock` resolves another version, use that version's tag instead. If the repository pins its actions by commit hash, use the commit the tag points to (`git ls-remote https://github.com/hotpath-rs/hotpath refs/tags/{{HOTPATH_RELEASE_TAG}}`) with the tag in the comment: `@<commit sha> # {{HOTPATH_RELEASE_TAG}}`.
+- The relay is always pinned by the full commit SHA of a release tag, with the tag in a comment, never by the bare tag and never `@main`: the relay job holds `id-token: write`, and a tag can be moved. The tag is `{{HOTPATH_RELEASE_TAG}}`, whatever tag the docs workflow shows, unless the project's `Cargo.lock` resolves another `hotpath` version: then use that version's tag, so the relay matches the release the benchmark builds with. Resolve the commit with `git ls-remote https://github.com/hotpath-rs/hotpath 'refs/tags/{{HOTPATH_RELEASE_TAG}}*'` (if a `^{}` line is listed, take its SHA, the commit an annotated tag points to) and replace the docs' `@{{HOTPATH_RELEASE_TAG}}` with it:
+
+  ```yaml
+      uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@<40-character commit sha> # {{HOTPATH_RELEASE_TAG}}
+  ```
+
+  Never shorten the SHA or guess it: if `git ls-remote` fails or lists no such tag, stop and ask the user.
 
 Tell the user the "Things to know about `workflow_run`" of the docs: the relay runs from the default branch only, renaming the benchmark workflow silently stops it, and the relay run is not a check on the pull request.
 
