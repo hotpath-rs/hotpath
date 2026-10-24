@@ -20,7 +20,7 @@ hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
 hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 ```
 
-Add a policy file. Every uploaded report carries the repository's policy, and an upload without one is refused. `hotpath cloud init` writes the default policy to `hotpath/policy.toml`:
+Add a policy file. Every benchmark needs one: its own `hotpath/<benchmark>-policy.toml`, or the shared `hotpath/policy.toml` when it has none. An upload without one is refused. `hotpath cloud init` writes the default policy to `hotpath/policy.toml`:
 
 ```bash
 cargo install hotpath --features cloud
@@ -337,11 +337,9 @@ Before relying on the verdicts, run the benchmark a few times on one commit (re-
 
 For [pull requests from forks](#pull-requests-from-forks), make the same changes to both jobs of the benchmark workflow: the pinned runner, toolchain and Valgrind package, the `hotpath-callgrind` build, and the Valgrind run with `HOTPATH_CALLGRIND_OUT_FILE`. The push job also switches to `HOTPATH_OUTPUT_FORMAT: json` with a `HOTPATH_OUTPUT_PATH` for its `jq` check, as above. The pull request job keeps its read-only permissions and no `HOTPATH_UPLOAD`; it already writes the JSON report, so run the `jq` check on `report.json` before the artifact upload. The relay workflow does not change.
 
-Keep Callgrind and timing runs in separate series: a benchmark that already uploads timing reports gets a new `HOTPATH_BENCHMARK` name for its Callgrind runs, such as `my_benchmark-icount`.
-
 ## Several benchmarks in one repository
 
-Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or job. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise. In the fork setup, every benchmark workflow also needs a unique `name:`, its own artifact name and its own relay workflow that names it in `workflows:`.
+Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or job. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise; without either, its uploads are refused. In the fork setup, every benchmark workflow also needs a unique `name:`, its own artifact name and its own relay workflow that names it in `workflows:`.
 
 ## Troubleshooting
 
@@ -349,6 +347,7 @@ Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or jo
 |---|---|
 | `upload skipped: not in GitHub Actions or missing ...` | The job has no OIDC token: `id-token: write` is missing, or the pull request comes from a fork. |
 | `upload failed: the report carries no policy file` | The repository has no `hotpath/policy.toml` or `hotpath/<benchmark>-policy.toml`. Run `hotpath cloud init` and commit the file. |
+| relay: `hotpath.rs rejected the report (HTTP 422): ... the report carries no policy file` | The pull request's branch has no policy file, for example a branch older than the commit that added it. Merge the default branch into it. |
 | `upload failed: hotpath/policy.toml is not a valid policy: ...` | The policy file does not parse. `hotpath cloud validate-policy` shows the problem and its line. |
 | `upload failed: the hotpath GitHub App is not installed on ... (HTTP 403)` | The GitHub App is not installed on the repository. Install it, or add the repository to the installation, from <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a>. |
 | `upload failed: ... (HTTP 429)` | The repository is over its upload quota. |

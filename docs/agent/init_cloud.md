@@ -49,7 +49,11 @@ The site documents the latest hotpath release, which can be newer than the versi
 The benchmark is a program instrumented with hotpath that runs a **fixed workload**: the same work on every run, so two runs of one commit report the same allocations. It runs to completion and exits normally, so the hotpath guard is dropped and the report is written.
 
 - Prefer an existing example, binary or integration test that exercises the code the user cares about. Ask the user which one when it is not obvious.
-- If there is none, propose a new example (`examples/hotpath_benchmark.rs`) that drives the main code paths with fixed inputs, and write it only after the user agrees.
+- If there is none, propose a new example (`examples/hotpath_benchmark.rs`) and write it only after the user agrees. A useful one:
+  - drives the project's main work through its public API (the library's core operations, a server's main request flow, a CLI's main command), with realistic input sizes taken from existing tests, fixtures or `benches/`;
+  - covers the main code paths with several distinct measured functions, so a regression points at one of them; add `#[hotpath::measure]` to the functions on those paths;
+  - spends its time in the project's code, not in generating inputs or setup, and passes results through `std::hint::black_box` so the work is not optimized away;
+  - finishes in a few seconds natively.
 - No randomness without a fixed seed, no network calls to services CI cannot reach, no timing-dependent loops. Enough calls per function that the numbers are stable.
 - Pick the benchmark name, used as `HOTPATH_BENCHMARK` (and, in the forks setup, as the relay's `benchmark` input): 1 to 64 characters from `[A-Za-z0-9._-]`, for example the example's name. An invalid name skips the upload. It must not be used by any existing workflow: series are separate only by name.
 
@@ -78,7 +82,7 @@ Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchma
 
 Docs: https://hotpath.rs/regression_policy ("Which file a run uses", "Functions instructions").
 
-A run uses `hotpath/<benchmark>-policy.toml` when it exists, otherwise the shared `hotpath/policy.toml` (and only the file `HOTPATH_POLICY_PATH` names, when a workflow sets it). Pick the case that applies:
+Every benchmark must have a policy file, or its uploads are refused. A run uses `hotpath/<benchmark>-policy.toml` when it exists, otherwise the shared `hotpath/policy.toml` (and only the file `HOTPATH_POLICY_PATH` names, when a workflow sets it). Pick the case that applies:
 
 | Policy files the new benchmark would use | New native benchmark | New Callgrind benchmark |
 |---|---|---|
@@ -229,7 +233,7 @@ Add the hotpath Cloud badge to the README that GitHub renders for the repository
 ### 9. Tell the user what is left
 
 - Log in at https://hotpath.rs/app and install the hotpath GitHub App on the repository from the dashboard ("Install the hotpath app" or "Add repositories"). "Setup" in https://hotpath.rs/ci_integration lists the access it needs.
-- Commit the workflow(s) and merge them to the default branch. The first push to the default branch uploads the **baseline** (and the relay of the forks setup only runs once it is on the default branch). Until the baseline exists, pull request comments read "no baseline yet".
+- Commit the workflow(s) and the policy file and merge them to the default branch. Pull request branches older than that commit have no policy file, so their uploads are refused until the default branch is merged into them. The first push to the default branch uploads the **baseline** (and the relay of the forks setup only runs once it is on the default branch). Until the baseline exists, pull request comments read "no baseline yet".
 - The badge links to the repository's page on hotpath.rs, which shows "not found" until the GitHub App is installed. Reports of a public repository are public by default; for a private repository the page opens only for users with access to it.
 - From then on, every pull request gets a performance comment. `hotpath cloud diff` reads the same verdict as JSON (https://hotpath.rs/agents_cli).
 - If an upload, a comment or the relay does not show up, the "Troubleshooting" table of https://hotpath.rs/ci_integration maps each symptom to its cause.
@@ -239,7 +243,6 @@ Do not commit or push unless the user asks.
 ## Rules
 
 - Never enable `hotpath`, `hotpath-alloc`, `hotpath-cloud` or `hotpath-callgrind` by default; profiling stays opt-in.
-- Never mix Callgrind and native runs in one `HOTPATH_BENCHMARK` series, and never migrate an existing benchmark to Callgrind unless the user asks. A Callgrind run of an existing native benchmark gets its own name, such as `<benchmark>-icount`.
 - Never put a token or secret in a workflow; uploads authenticate with the OIDC token of trusted jobs.
 - In the forks setup, never give the pull request job `id-token: write` or secrets, and never check out pull request code in the relay.
 - One benchmark per `HOTPATH_BENCHMARK` name, workflow file, workflow `name:`, artifact and relay. For several benchmarks, follow "Several benchmarks in one repository" in https://hotpath.rs/ci_integration.
