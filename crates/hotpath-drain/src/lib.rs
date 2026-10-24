@@ -182,7 +182,7 @@ impl<M> EventProducer<M> {
         // `len` publishes the write.
         unsafe {
             (*tail).slots[i].get().write(MaybeUninit::new(m));
-            (*tail).len.store(i + 1, Ordering::Release);
+            (*tail).len.fetch_add(1, Ordering::Release);
         }
         if i + 1 == CHUNK_SIZE {
             let new = Chunk::new_raw();
