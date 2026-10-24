@@ -14,6 +14,8 @@ The [GitHub Actions integration](ci_integration.md) compares benchmark results a
 
 You can define acceptable regression thresholds using a customizable [regression policy](regression_policy.md) and set fine-tuned [performance budgets](performance_budgets.md). This helps eliminate noisy alerts and ensures that warnings are emitted only when performance changes in a meaningful way.
 
+For CPU work, benchmarks can run under [Callgrind](callgrind.md) and report reproducible instruction counts instead of wall-clock timings, so even small CPU regressions are detected reliably on shared CI runners.
+
 ```toml
 # hotpath/policy.toml (excerpt)
 
@@ -58,7 +60,7 @@ The quickest way to set up `hotpath Cloud` is to let your own AI coding agent do
 Set up hotpath Cloud CI in this Rust project using the instructions at https://hotpath.rs/agent/init_cloud
 ```
 
-If the project does not use hotpath yet, the agent sets up profiling first. It then picks a benchmark with a fixed workload (asking you when the choice is not obvious), adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md) file (an existing one is kept), a GitHub Actions benchmark workflow and the [README badge](#readme-badge), and runs the benchmark locally to verify the report. For public repositories, it asks whether pull requests from forks should be benchmarked too: they need a [separate setup](ci_integration.md#pull-requests-from-forks) with a relay workflow for security reasons.
+If the project does not use hotpath yet, the agent sets up profiling first. It then picks a benchmark with a fixed workload (asking you when the choice is not obvious), adds the `hotpath-cloud` feature (and, for a CPU-bound benchmark on `hotpath` `0.29` or newer, runs it under [Callgrind](ci_integration.md#instruction-counts-with-callgrind) for reproducible instruction counts), a [regression policy](regression_policy.md) file (an existing one is kept), a GitHub Actions benchmark workflow and the [README badge](#readme-badge), and runs the benchmark locally to verify the report. For public repositories, it asks whether pull requests from forks should be benchmarked too: they need a [separate setup](ci_integration.md#pull-requests-from-forks) with a relay workflow for security reasons.
 
 The agent does not commit, install the GitHub App or upload anything for you. Install the hotpath GitHub App from <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a> and merge the workflow: the first push to the default branch uploads the baseline, and from then on every pull request gets a performance comment.
 

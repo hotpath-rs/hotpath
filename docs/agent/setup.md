@@ -29,6 +29,7 @@ The site documents the latest hotpath release, which can be newer than the versi
 | https://hotpath.rs/axum_tracing | axum router profiling, route scoping of SQL and HTTP |
 | https://hotpath.rs/tokio_runtime | `tokio_runtime!()` metrics |
 | https://hotpath.rs/configuration | every environment variable |
+| https://hotpath.rs/callgrind | instruction counts under Valgrind (`hotpath-callgrind`), only when the user asks for it; not part of this setup |
 
 ## Steps
 

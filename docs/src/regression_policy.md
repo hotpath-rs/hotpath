@@ -15,7 +15,7 @@ hotpath cloud init
 
 `--benchmark NAME` writes `hotpath/NAME-policy.toml`, a policy for that benchmark only. An existing file is never replaced unless you pass `--force`.
 
-The starting file turns on the [pull request check](#pull-request-check) and lists the two [function sections](#functions-timing). To compare SQL queries, routes, locks or any other resource, add its section from [Sections](#sections): a section the file leaves out is not compared.
+The starting file turns on the [pull request check](#pull-request-check) and lists the three [function sections](#functions-timing). To compare SQL queries, routes, locks or any other resource, add its section from [Sections](#sections): a section the file leaves out is not compared.
 
 ### Which file a run uses
 
@@ -64,6 +64,25 @@ min_calls = 1
 
 Metrics: `avg` and `total` time per function, percentiles such as `p95`.
 
+### Functions instructions
+
+Instructions executed by instrumented functions, from benchmarks run under [Callgrind](callgrind.md) with the `hotpath-callgrind` feature (the report's `functions_icount` section). A deterministic workload executes the same instructions on every run, so a small change is real.
+
+```toml
+[functions.icount]
+judged = true
+fail_check = false
+min_percent_change = 2
+metrics = ["avg", "total"]
+min_calls = 1
+```
+
+Metrics: `avg` and `total` instructions per function. Callgrind counts have no percentiles.
+
+Counts only compare within one environment: when the two reports differ in Valgrind version, `rustc` or OS, or one side lacks the Valgrind version, the section is skipped as an environment mismatch and not judged. Pin all three in CI, see [CI integration](ci_integration.md#instruction-counts-with-callgrind).
+
+The built-in 2% suits deterministic single-threaded workloads. Thread interleaving moves the counts of concurrent code by a percent or more between runs of one commit, so measure that spread by running the benchmark a few times and set `min_percent_change` above it; 3% is a reasonable start.
+
 ### Functions allocations
 
 Memory allocated by instrumented functions, from builds with the `hotpath-alloc` feature. A fixed workload allocates the same amount on every run, so even small changes are real.
@@ -80,7 +99,7 @@ metrics = ["avg", "total"]
 min_calls = 1
 ```
 
-Metrics: `avg` and `total` allocated per function, percentiles such as `p95`. `ignore` matches the function name, and the `[functions]` keys apply to both function sections.
+Metrics: `avg` and `total` allocated per function, percentiles such as `p95`. `ignore` matches the function name, and the `[functions]` keys apply to all three function sections.
 
 ### SQL queries
 

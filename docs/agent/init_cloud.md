@@ -2,6 +2,11 @@
 
 Instructions for an AI coding agent. Set up [hotpath Cloud](https://hotpath.rs/cloud) in the current Rust project. A GitHub Actions job runs a benchmark with hotpath profiling enabled and uploads the report. hotpath.rs compares each pull request's report with the default branch's, judges the difference under the repository's policy file and posts a comment on the pull request.
 
+The benchmark runs in one of two profiling modes, picked in step 3:
+
+- **Callgrind** (preferred for new benchmarks when suitable): the benchmark runs under Valgrind's Callgrind, and the report carries reproducible instruction counts and allocations. CPU regressions of a few percent are caught reliably on shared CI runners.
+- **Native**: the benchmark runs natively, and the report carries allocations and timing. Timing on shared runners is noisy, so it is shown without being judged.
+
 There are two setups, picked in step 1:
 
 - **Same repository**: pull requests come from branches of the repository itself (private repositories, or public ones that do not benchmark fork pull requests). One workflow runs the benchmark and uploads the report.
@@ -21,7 +26,8 @@ The site documents the latest hotpath release, which can be newer than the versi
 
 | Page | Covers |
 |---|---|
-| https://hotpath.rs/ci_integration | setup, "Pull requests from the same repository", "Pull requests from forks" (the benchmark workflow, the relay workflow and its inputs), failing the job, environment variables, several benchmarks, troubleshooting |
+| https://hotpath.rs/ci_integration | setup, "Pull requests from the same repository", "Pull requests from forks" (the benchmark workflow, the relay workflow and its inputs), failing the job, environment variables, "Instruction counts with Callgrind", several benchmarks, troubleshooting |
+| https://hotpath.rs/callgrind | the `hotpath-callgrind` feature: what is counted, reproducibility limits, comparing runs, build requirements |
 | https://hotpath.rs/regression_policy | the policy file: sections, keys, validation, the pull request comment and check |
 | https://hotpath.rs/performance_budgets | absolute limits in the same policy file |
 | https://hotpath.rs/cloud | what hotpath Cloud is |
@@ -31,6 +37,7 @@ The site documents the latest hotpath release, which can be newer than the versi
 ### 1. Inspect the project
 
 - Find the crate(s), the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`, usually `main`) and the existing workflows in `.github/workflows/`.
+- Check whether hotpath Cloud is already set up: a workflow that sets `HOTPATH_UPLOAD` or calls `hotpath-relay.yml`. Never change the profiling mode, the benchmark name or the policy of an existing benchmark unless the user asks; this procedure only adds new benchmarks.
 - Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented functions. If it is not, set it up first by following https://hotpath.rs/agent/setup (skip its "Offer hotpath Cloud" step), then continue here.
 - Pick the setup. Check whether the repository is public or private (`gh repo view --json visibility`). A private repository uses the **same repository** setup. For a public repository, ask the user whether pull requests from forks should be benchmarked: if yes, use the **forks** setup, otherwise the **same repository** one, and tell them fork pull requests will then not get a comment.
 
@@ -43,13 +50,28 @@ The benchmark is a program instrumented with hotpath that runs a **fixed workloa
 - No randomness without a fixed seed, no network calls to services CI cannot reach, no timing-dependent loops. Enough calls per function that the numbers are stable.
 - Pick the benchmark name, used as `HOTPATH_BENCHMARK` (and, in the forks setup, as the relay's `benchmark` input): 1 to 64 characters from `[A-Za-z0-9._-]`, for example the example's name. An invalid name skips the upload.
 
-### 3. Add the `hotpath-cloud` feature
+### 3. Pick the profiling mode
 
-Docs: https://hotpath.rs/ci_integration ("Setup").
+Docs: https://hotpath.rs/callgrind, https://hotpath.rs/ci_integration ("Instruction counts with Callgrind").
 
-Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchmark crate's `Cargo.toml`, next to the existing hotpath features, unless it is already there. Leave the `hotpath` dependency version as it is. Never add it to `default`. In the forks setup, the pull request job needs it too, although it does not upload.
+Use **Callgrind** when all of these hold, otherwise **native**:
 
-### 4. Add the policy file
+- The `hotpath` version in `Cargo.lock` is `0.29` or newer (it has the `hotpath-callgrind` feature). Never upgrade it for this; mention that a newer hotpath would enable Callgrind.
+- The benchmark can run on the docs workflow's x86_64 Linux runner: it does not need macOS, Windows or an ARM runner.
+- The workload is CPU-bound and deterministic: its time goes into computation, not into network, disk, sleeps, timers or a database service, and it is not dominated by many threads racing each other (Valgrind serializes threads, so their interleaving moves the counts).
+- The code it should judge is in functions with `#[hotpath::measure]` (or `measure_all`); `measure_block!` blocks are not counted.
+- `[profile.release]` does not strip symbols (`strip = true` or `"symbols"`).
+- It finishes under Valgrind within the job timeout. Valgrind runs it tens of times slower: a workload that takes more than about a minute natively should be made smaller or run natively.
+
+Callgrind is preferred, not required. Tell the user which mode you picked and why, in one or two sentences. A benchmark that turns out too slow or not reproducible under Valgrind in step 7 falls back to native.
+
+### 4. Add the features
+
+Docs: https://hotpath.rs/ci_integration ("Setup", and "Instruction counts with Callgrind" for Callgrind).
+
+Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchmark crate's `Cargo.toml`, next to the existing hotpath features, unless it is already there. For Callgrind add the `hotpath-callgrind` passthrough as well, and keep `hotpath-alloc`. Leave the `hotpath` dependency version as it is. Never add them to `default`. In the forks setup, the pull request job needs them too, although it does not upload.
+
+### 5. Add the policy file
 
 ```bash
 mkdir -p hotpath
@@ -62,7 +84,20 @@ else
 fi
 ```
 
-Run it from the repository root. It writes the default policy, with comments, to `hotpath/policy.toml` (no token needed; with `wget`, use `wget -qO- https://hotpath.rs/api/v1/policy/default`). It is the same file `hotpath cloud init` of the docs writes, without needing the CLI. Never overwrite an existing policy file: keep the existence check when you adapt the command. Every upload must carry a policy file, so commit it. Do not change the defaults unless the user asks; https://hotpath.rs/regression_policy documents every key.
+Run it from the repository root. It writes the default policy, with comments, to `hotpath/policy.toml` (no token needed; with `wget`, use `wget -qO- https://hotpath.rs/api/v1/policy/default`). It is the same file `hotpath cloud init` of the docs writes, without needing the CLI. Never overwrite an existing policy file: keep the existence check when you adapt the command. Every upload must carry a policy file, so commit it. Do not change the defaults unless the user asks, except for Callgrind below; https://hotpath.rs/regression_policy documents every key.
+
+For Callgrind, the `[functions.icount]` section ("Functions instructions" in https://hotpath.rs/regression_policy) judges the instruction counts. The default policy written by the command above already lists it with the built-in 2; change it to this conservative starting point, and keep the other sections as they are:
+
+```toml
+[functions.icount]
+judged = true
+fail_check = false
+min_percent_change = 3
+metrics = ["avg", "total"]
+min_calls = 1
+```
+
+A deterministic single-threaded benchmark can use the built-in 2 later; a concurrent one may need more (step 7 measures the spread). If the policy file existed before, do not edit it: when it has no `[functions.icount]` section, show the user the block above and add it only if they agree, since a section the file leaves out is not compared.
 
 After any edit, validate the file. A valid policy answers `{"valid":true}`, an invalid one HTTP 422 with `problems`, each with its `line` and `message`:
 
@@ -73,9 +108,9 @@ jq -Rs '{source: .}' hotpath/policy.toml \
 
 In the forks setup, a pull request is judged under the policy file of its own branch, forks included. Tell the user to review changes to `hotpath/*.toml` in pull requests like changes to CI configuration.
 
-### 5. Add the workflows
+### 6. Add the workflows
 
-Follow the section of the setup picked in step 1.
+Follow the section of the setup picked in step 1. For Callgrind, also apply "Instruction counts with Callgrind" of https://hotpath.rs/ci_integration to every job that runs the benchmark: the pinned runner image, Valgrind package and Rust toolchain (never `ubuntu-latest` or `stable`), building the benchmark with `--features hotpath-alloc,hotpath-cloud,hotpath-callgrind` before running the binary under `valgrind -q --tool=callgrind --instr-atstart=no`, `HOTPATH_CALLGRIND_OUT_FILE` equal to `--callgrind-out-file`, the `jq` check on the JSON report and the longer timeout. Pin the toolchain to the version the docs show, or to the one the repository's `rust-toolchain.toml` or existing CI pins.
 
 #### Same repository
 
@@ -85,7 +120,7 @@ Create `.github/workflows/hotpath-benchmark.yml` from the workflow in that secti
 
 - `main`: the default branch.
 - `my_benchmark`: the benchmark name, in `HOTPATH_BENCHMARK` and in the command.
-- the `cargo run` line: the command that runs the benchmark (`-p <crate>` in a workspace, `--bin` or `--example` as appropriate). Keep `--release`. Drop `hotpath-alloc` from `--features` only if the crate has no such feature.
+- the `cargo run` line (for Callgrind, the `cargo build` line and the binary path): the command that builds and runs the benchmark (`-p <crate>` in a workspace, `--bin` or `--example` as appropriate). Keep `--release`. Drop `hotpath-alloc` from `--features` only if the crate has no such feature.
 - Add any setup the benchmark needs (system packages, a database service) as steps before the benchmark, copied from the repository's existing CI.
 
 Keep the `test -s` line, the absolute response path and `HOTPATH_UPLOAD: fail-on-error`; the docs explain what each guards against. The workflow needs no secret.
@@ -99,10 +134,10 @@ Create `.github/workflows/hotpath-benchmark.yml` from the workflow in that secti
 - `main`: the default branch.
 - `name:`: it must be unique among the repository's workflows, since the relay matches the benchmark workflow by name. If another workflow already has that name, rename this one (e.g. `hotpath benchmark`).
 - `my_benchmark`: the benchmark name, in `HOTPATH_BENCHMARK` and in the commands of both jobs.
-- both `cargo run` lines: the command that runs the benchmark (`-p <crate>` in a workspace, `--bin` or `--example` as appropriate). Keep `--release`. Drop `hotpath-alloc` from `--features` only if the crate has no such feature.
+- both `cargo run` lines (for Callgrind, the `cargo build` lines and binary paths): the command that builds and runs the benchmark (`-p <crate>` in a workspace, `--bin` or `--example` as appropriate). Keep `--release`. Drop `hotpath-alloc` from `--features` only if the crate has no such feature.
 - Add any setup the benchmark needs (system packages, a database service) to both jobs, before the benchmark, copied from the repository's existing CI.
 
-Never set `HOTPATH_UPLOAD` or `id-token: write` in the `report` job: it runs untrusted code.
+Never set `HOTPATH_UPLOAD` or `id-token: write` in the `report` job: it runs untrusted code. The Callgrind changes do not change its permissions.
 
 #### Forks: the relay workflow
 
@@ -120,7 +155,7 @@ Tell the user the "Things to know about `workflow_run`" of the docs: the relay r
 
 A regression never fails the job. If the user wants the pull request's `hotpath / <benchmark>` check to fail, or to block merges, follow "Failing the job" in https://hotpath.rs/ci_integration and "Pull request check" in https://hotpath.rs/regression_policy, and validate the policy after the edit.
 
-### 6. Verify locally
+### 7. Verify locally
 
 ```bash
 cargo check                                                    # feature off still compiles
@@ -129,9 +164,26 @@ HOTPATH_BENCHMARK=my_benchmark HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=/t
 jq '{benchmark: .meta.benchmark, policy: .meta.policy.path}' /tmp/hotpath-report.json
 ```
 
+For Callgrind, add `hotpath-callgrind` to `--features`: run natively, the same build prints the usual timing report.
+
 The report must name the benchmark and `hotpath/policy.toml`. Run the benchmark twice and compare the function allocation totals: if they differ, the workload is not fixed, so fix that before relying on the comments.
 
-### 7. Add the README badge
+For Callgrind on an x86_64 Linux machine with Valgrind installed, also run the benchmark under Callgrind twice, the way the workflow does:
+
+```bash
+cargo build --release --example my_benchmark --features hotpath-alloc,hotpath-cloud,hotpath-callgrind
+HOTPATH_BENCHMARK=my_benchmark HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=/tmp/hotpath-icount.json \
+  HOTPATH_CALLGRIND_OUT_FILE=/tmp/callgrind.out.%p \
+  valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=/tmp/callgrind.out.%p \
+  target/release/examples/my_benchmark
+jq '{tool: .functions_icount.tool, functions: [.functions_icount.data[]? | {name, calls, total}]}' /tmp/hotpath-icount.json
+```
+
+`functions_icount.data` must list the measured functions and `tool` the Valgrind version; an empty or missing section means the counts were not collected (the run prints `[hotpath] icount report unavailable` with the reason). Compare the totals of the two runs: they should differ by well under the policy's `min_percent_change`. If they differ by more, raise it above the spread, or fall back to native when the counts are not reproducible or the run is too slow for CI. Tell the user what you measured.
+
+Without x86_64 Linux and Valgrind, do not install Valgrind or set up a container for this; tell the user that the instruction counts are verified by the first CI runs, and that re-running the default branch's job should give the same totals.
+
+### 8. Add the README badge
 
 Docs: https://hotpath.rs/cloud ("README badge").
 
@@ -145,7 +197,7 @@ Add the hotpath Cloud badge to the README that GitHub renders for the repository
 - Put the badge at the end of an existing badge line, otherwise on its own line below the title. Change nothing else in the README.
 - If the repository has no README, give the user the snippet instead of creating one.
 
-### 8. Tell the user what is left
+### 9. Tell the user what is left
 
 - Log in at https://hotpath.rs/app and install the hotpath GitHub App on the repository from the dashboard ("Install the hotpath app" or "Add repositories"). "Setup" in https://hotpath.rs/ci_integration lists the access it needs.
 - Commit the workflow(s) and merge them to the default branch. The first push to the default branch uploads the **baseline** (and the relay of the forks setup only runs once it is on the default branch). Until the baseline exists, pull request comments read "no baseline yet".
@@ -157,7 +209,8 @@ Do not commit or push unless the user asks.
 
 ## Rules
 
-- Never enable `hotpath`, `hotpath-alloc` or `hotpath-cloud` by default; profiling stays opt-in.
+- Never enable `hotpath`, `hotpath-alloc`, `hotpath-cloud` or `hotpath-callgrind` by default; profiling stays opt-in.
+- Never mix Callgrind and native runs in one `HOTPATH_BENCHMARK` series, and never migrate an existing benchmark to Callgrind unless the user asks. A Callgrind run of an existing native benchmark gets its own name, such as `<benchmark>-icount`.
 - Never put a token or secret in a workflow; uploads authenticate with the OIDC token of trusted jobs.
 - In the forks setup, never give the pull request job `id-token: write` or secrets, and never check out pull request code in the relay.
 - One benchmark per `HOTPATH_BENCHMARK` name. For several benchmarks, follow "Several benchmarks in one repository" in https://hotpath.rs/ci_integration; a benchmark's own policy file is fetched the same way as `hotpath/policy.toml`, with the same existence check.
