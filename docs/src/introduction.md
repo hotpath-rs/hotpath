@@ -47,7 +47,7 @@ function hotpathCopy(button) {
 
 [hotpath-rs](https://github.com/hotpath-rs/hotpath) is an easy-to-configure Rust performance profiling toolkit that shows exactly where your code spends time, burns CPU, and allocates memory. 
 
-It helps you distinguish between functions that are slow because they wait on I/O and those that are CPU-intensive. Instrument functions, channels, futures, streams, SQL queries, HTTP calls, and byte-level I/O to find bottlenecks and focus optimizations where they matter most. Get actionable insights into time, memory, and async data flow with minimal setup.
+It helps you distinguish between functions that are slow because they wait on I/O and those that are CPU-intensive. Instrument functions, channels, futures, streams, SQL queries, HTTP calls, and byte-level I/O to find bottlenecks and focus optimizations where they matter most. Get actionable insights into time, memory, and async data flow with minimal setup. For noise-free CI benchmarks, it can also count executed CPU instructions with [Callgrind](callgrind.md) instead of measuring wall-clock time.
 
 <div style="clear: both;"></div>
 
@@ -124,6 +124,7 @@ monitor throughput, performance and max queue depth of instrumented channels:
 - **Prometheus & Grafana integration** - export profiling metrics to your existing dashboards.
 - **Live TUI dashboard & static reports** - real-time or one-off analysis.
 - **CI regression detection** - benchmark every PR automatically.
+- **[Deterministic instruction counts](callgrind.md)** - Callgrind-based CPU measurements, stable across noisy CI runners.
 - **MCP server for AI agents** - query profiling data in real time.
 - **Zero cost when disabled** - fully feature-gated.
 
