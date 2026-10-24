@@ -7,11 +7,13 @@ on:
 
 # Transport-layer benchmark: the `hotpath-drain` `throughput` example runs
 # several producer threads against one consumer while `hotpath-meta` profiles
-# the queue's own hot paths (`push`, `sweep`, `drain_into`). It runs under
-# Valgrind Callgrind, so the report carries instruction counts and
-# allocations instead of timing. Uploaded to the separate `drain` series. A
-# regression fails the pull request's `hotpath / drain` check run
-# (`pr_check` in `hotpath/drain-policy.toml`), not the job.
+# the queue's own hot paths (`push`, `sweep`, `drain_into`). One build runs
+# twice: natively for timing (and every other native section), then under
+# Valgrind Callgrind, which merges the native report into its own
+# (`HOTPATH_META_MERGE_REPORT`) and uploads one report carrying both timing and
+# instruction counts to the separate `drain` series. A regression fails the
+# pull request's `hotpath / drain` check run (`pr_check` in
+# `hotpath/drain-policy.toml`), not the job.
 jobs:
   benchmark:
     name: cloud drain benchmark
@@ -25,6 +27,10 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    # Shared by both runs, so their reports describe one benchmark.
+    env:
+      HOTPATH_META_BENCHMARK: drain
+      HOTPATH_META_OUTPUT_FORMAT: json
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -41,19 +47,29 @@ jobs:
         run: |
           cargo build -q --release -p hotpath-drain --example throughput \
             --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
-      # Run from the workspace root (git info, policy lookup); the Callgrind
-      # dump goes to the runner's temp dir, named for hotpath-meta by
-      # HOTPATH_META_CALLGRIND_OUT_FILE.
-      - name: Run drain benchmark under Callgrind and upload report
+      # Run from the workspace root (git info, policy lookup). No upload: this
+      # report is merged into the Callgrind run's.
+      - name: Run drain benchmark natively
         env:
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.26.0
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
+        run: target/release/examples/throughput
+      # The Callgrind dump goes to the runner's temp dir, named for hotpath-meta
+      # by HOTPATH_META_CALLGRIND_OUT_FILE. The response file exists only after
+      # an accepted upload; the `jq` check fails a report that is not a merged
+      # one.
+      - name: Run drain benchmark under Callgrind and upload the merged report
+        env:
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.26.0
           HOTPATH_META_UPLOAD: fail-on-error
           HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
-          HOTPATH_META_BENCHMARK: drain
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
-          HOTPATH_META_OUTPUT_FORMAT: none
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
+          HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
           HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
         run: |
           valgrind -q --tool=callgrind --instr-atstart=no \
             --callgrind-out-file="$HOTPATH_META_CALLGRIND_OUT_FILE" \
             target/release/examples/throughput
           test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0)' \
+            "$HOTPATH_META_OUTPUT_PATH" > /dev/null

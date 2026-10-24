@@ -25,3 +25,13 @@ judged = false
 min_percent_change = 50
 metrics = ["avg", "total"]
 min_calls = 1
+
+# Instruction counts from the Callgrind run the native report is merged into.
+# The benchmark drives four worker threads and an in-process server, so counts
+# move between runs of one commit more than a single-threaded workload's; the
+# bar sits above that and does not fail the check.
+[functions.icount]
+judged = true
+min_percent_change = 5
+metrics = ["avg", "total"]
+min_calls = 1

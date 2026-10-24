@@ -1,5 +1,7 @@
-# Policy for the `drain` benchmark, run under Valgrind Callgrind. Lockstep rounds
-# make allocations deterministic; instruction counts are close to it.
+# Policy for the `drain` benchmark: a native run merged into a Callgrind run, so
+# the report carries native timing and allocations next to instruction counts.
+# Lockstep rounds make allocations deterministic; instruction counts are close
+# to it.
 
 # A broken budget or an allocation regression fails the pull request's check run.
 pr_check = "fail"
@@ -31,9 +33,17 @@ min_percent_change = 3
 metrics = ["avg", "total"]
 min_calls = 0
 
+# Native timing on a shared runner is too noisy to judge; listed so it shows as
+# context next to the counts.
+[functions.timing]
+judged = false
+min_percent_change = 50
+metrics = ["avg", "total"]
+min_calls = 1
+
 # Every worker thread is named and does the same lockstep work each round, so
 # their allocations are as deterministic as the functions'. The main thread is
-# left out: under Valgrind it is named after the tool (`callgrind-amd64`).
+# left out: its name depends on how the benchmark is launched.
 [threads]
 names = ["consumer", "producer-0", "producer-1", "producer-2", "producer-3"]
 
