@@ -265,10 +265,15 @@ pub(crate) fn build_icount_list(
                 name: name.to_string(),
                 calls: count,
                 sampled_calls: count,
-                // Two decimals: a whole-number average of a short hot function
+                // Hundredths: a whole-number average of a short hot function
                 // (~33 per call) moves by 3% when the total moves by 1%.
+                // Rounded in u128; an average past the u64 hundredths range
+                // (an unreachable instruction count) prints as unknown.
                 avg: if count > 0 {
-                    format!("{:.2}", ir as f64 / count as f64)
+                    let hundredths =
+                        (u128::from(ir) * 100 + u128::from(count) / 2) / u128::from(count);
+                    u64::try_from(hundredths)
+                        .map_or_else(|_| "-".to_string(), crate::output::format_icount)
                 } else {
                     "-".to_string()
                 },
@@ -297,7 +302,56 @@ pub(crate) fn build_icount_list(
 
 #[cfg(test)]
 mod tests {
-    use crate::lib_on::functions::callgrind::expand_out_file;
+    use crate::lib_on::functions::callgrind::{
+        build_icount_list, expand_out_file, CallCounts, IcountReport,
+    };
+    use crate::lib_on::functions::FunctionStatsConfig;
+    use std::collections::HashMap;
+    use std::time::Duration;
+
+    #[test]
+    fn icount_json_is_exact_and_ungrouped_while_the_table_groups_it() {
+        let report = IcountReport {
+            total_ir: 500_000_000,
+            by_name: HashMap::from([("produce", 429_926_497), ("push", 33_047_735)]),
+            tool: None,
+        };
+        let calls: CallCounts = HashMap::from([("produce", (1, 4)), ("push", (2, 1_000_000))]);
+        let config = FunctionStatsConfig {
+            total_elapsed: Duration::from_secs(1),
+            percentiles: Vec::new(),
+            caller_name: "main",
+            limit: 0,
+            cloud: true,
+        };
+        let list = build_icount_list(&report, &calls, &config, 0);
+        let cells: Vec<_> = list
+            .data
+            .iter()
+            .map(|e| (e.name.as_str(), e.avg.as_str(), e.total.as_str()))
+            .collect();
+        // 33.047735 per call rounds to the hundredth, not truncates.
+        assert_eq!(
+            cells,
+            [
+                ("produce", "107481624.25", "429926497"),
+                ("push", "33.05", "33047735"),
+            ]
+        );
+
+        let mut table = Vec::new();
+        crate::output_on::display_functions_table_to(&mut table, &list);
+        let table = String::from_utf8(table).unwrap();
+        for shown in [
+            "107,481,624.25",
+            "429,926,497",
+            "33.05",
+            "33,047,735",
+            "1000000",
+        ] {
+            assert!(table.contains(shown), "{shown} missing from:\n{table}");
+        }
+    }
 
     #[test]
     fn out_file_expands_like_valgrind() {
