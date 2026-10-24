@@ -333,7 +333,7 @@ What differs from the timing workflow:
 - **The `jq` check.** When the Callgrind dump cannot be read, hotpath prints `[hotpath] icount report unavailable: ...` and the report carries allocations only; a run outside Valgrind reports timing instead. The check fails the job in both cases, so a run without instruction counts does not pass unnoticed. The JSON output is written next to the upload, which does not depend on it.
 - **A longer timeout**, for Valgrind's slowdown.
 
-For [pull requests from forks](#pull-requests-from-forks), make the same changes to both jobs of the benchmark workflow: the pinned runner, toolchain and Valgrind package, the `hotpath-callgrind` build, and the Valgrind run with `HOTPATH_CALLGRIND_OUT_FILE`. The pull request job keeps its read-only permissions and no `HOTPATH_UPLOAD`; it already writes the JSON report, so run the `jq` check on `report.json` before the artifact upload. The relay workflow does not change.
+For [pull requests from forks](#pull-requests-from-forks), make the same changes to both jobs of the benchmark workflow: the pinned runner, toolchain and Valgrind package, the `hotpath-callgrind` build, and the Valgrind run with `HOTPATH_CALLGRIND_OUT_FILE`. The push job also switches to `HOTPATH_OUTPUT_FORMAT: json` with a `HOTPATH_OUTPUT_PATH` for its `jq` check, as above. The pull request job keeps its read-only permissions and no `HOTPATH_UPLOAD`; it already writes the JSON report, so run the `jq` check on `report.json` before the artifact upload. The relay workflow does not change.
 
 Keep Callgrind and timing runs in separate series: a benchmark that already uploads timing reports gets a new `HOTPATH_BENCHMARK` name for its Callgrind runs, such as `my_benchmark-icount`.
 
