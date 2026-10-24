@@ -64,7 +64,7 @@ Only compare counts produced by the same Valgrind version, Rust toolchain and ta
 
 ## Cloud CI
 
-Reproducible counts make [hotpath Cloud](cloud.md) regression checks reliable on shared GitHub runners, where timing is too noisy to judge small changes. Build the benchmark with `hotpath-alloc,hotpath-cloud,hotpath-callgrind` and run it under Callgrind in a pinned environment: the uploaded report carries instruction counts and allocations, judged under `[functions.icount]` and `[functions.alloc]` of the [policy file](./regression_policy.md#functions-instructions). [CI integration](./ci_integration.md#instruction-counts-with-callgrind) has the workflow; the [AI setup](./cloud.md#ai-setup-recommended) picks Callgrind for suitable new benchmarks on its own.
+Reproducible counts let [hotpath Cloud](cloud.md) judge changes in CPU work on shared GitHub runners, where timing is too noisy to judge small changes. A higher count means more work, which usually but not always means slower code. Build the benchmark with `hotpath-alloc,hotpath-cloud,hotpath-callgrind` and run it under Callgrind in a pinned environment: the uploaded report carries instruction counts and allocations, judged under `[functions.icount]` and `[functions.alloc]` of the [policy file](./regression_policy.md#functions-instructions). [CI integration](./ci_integration.md#instruction-counts-with-callgrind) has the workflow; the [AI setup](./cloud.md#ai-setup-recommended) picks Callgrind for suitable new benchmarks on its own.
 
 ## Build requirements
 

@@ -14,7 +14,7 @@ The [GitHub Actions integration](ci_integration.md) compares benchmark results a
 
 You can define acceptable regression thresholds using a customizable [regression policy](regression_policy.md) and set fine-tuned [performance budgets](performance_budgets.md). This helps eliminate noisy alerts and ensures that warnings are emitted only when performance changes in a meaningful way.
 
-For CPU work, benchmarks can run under [Callgrind](callgrind.md) and report reproducible instruction counts instead of wall-clock timings, so even small CPU regressions are detected reliably on shared CI runners.
+For CPU work, benchmarks can run under [Callgrind](callgrind.md) and report instruction counts instead of wall-clock timings: a reproducible measure of computational work for deterministic workloads, unaffected by the noise of shared CI runners.
 
 ```toml
 # hotpath/policy.toml (excerpt)

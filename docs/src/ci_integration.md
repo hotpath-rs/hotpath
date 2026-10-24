@@ -256,7 +256,7 @@ The push job takes the variables of the [same-repository setup](#environment-var
 
 ## Instruction counts with Callgrind
 
-Timing on shared GitHub runners is too noisy to judge small changes. A benchmark run under [Callgrind](callgrind.md) reports the instructions each function executed instead, which are reproducible for a deterministic workload, so a CPU regression of a few percent is caught as reliably as an allocation one. Allocation profiling keeps working; timing is not reported under Valgrind.
+Timing on shared GitHub runners is too noisy to judge small changes. A benchmark run under [Callgrind](callgrind.md) reports the instructions each function executed instead. Instruction counts measure computational work rather than speed, but they are reproducible for a deterministic workload, so a change of a few percent in a function's work stands out from run-to-run variation. Allocation profiling keeps working; timing is not reported under Valgrind.
 
 It needs `hotpath` `0.29` or newer, an x86_64 Linux runner and a workload that finishes under Valgrind, which runs it tens of times slower. Add the feature next to the others:
 
@@ -326,12 +326,14 @@ jobs:
 
 What differs from the timing workflow:
 
-- **Pinned environment.** Counts depend on the Valgrind version, the Rust toolchain and the OS, and hotpath.rs only compares reports whose Valgrind version, `rustc` and OS match: a mismatch is skipped, not judged. Pin the runner image, the Valgrind package and the toolchain instead of `ubuntu-latest` and `stable`, and bump them deliberately: the first push to the default branch after a bump uploads the new baseline.
-- **Build, then run the binary.** `cargo run` would run Cargo itself under Valgrind. Run from the repository root, so the git information and the policy file are found. For a binary target the path is `target/release/<name>`.
-- **`--instr-atstart=no`** skips counting until the hotpath guard is created, so startup outside the profiled run costs no Valgrind time.
+- **Pinned environment.** Counts depend on the Valgrind version, the Rust toolchain and the OS, and hotpath.rs only compares reports whose Valgrind version, `rustc` and OS match: a mismatch is skipped, not judged. Pin the runner label, the Valgrind package and the toolchain instead of `ubuntu-latest` and `stable`, and bump them deliberately: the first push to the default branch after a bump uploads the new baseline. A runner label is not an immutable image, so system libraries can still change under it; the pins make reports comparable, not identical.
+- **Build, then run the binary.** The workflow builds first and runs the compiled binary directly under Valgrind, which keeps the command and the out-file simple and predictable. Cargo's target runner (as in [Callgrind](callgrind.md#running-under-callgrind)) works too; `valgrind cargo run` does not, since it would instrument Cargo. Run from the repository root, so the git information and the policy file are found. For a binary target the path is `target/release/<name>`.
+- **`--instr-atstart=no`** keeps Callgrind's instrumentation off until hotpath turns it on at guard creation. That cuts the cost of startup, but the program still runs under Valgrind the whole time.
 - **`HOTPATH_CALLGRIND_OUT_FILE`** names the same file as `--callgrind-out-file`, here outside the checkout. Without it hotpath looks for `callgrind.out.<pid>` in the working directory.
 - **The `jq` check.** When the Callgrind dump cannot be read, hotpath prints `[hotpath] icount report unavailable: ...` and the report carries allocations only; a run outside Valgrind reports timing instead. The check fails the job in both cases, so a run without instruction counts does not pass unnoticed. The JSON output is written next to the upload, which does not depend on it.
 - **A longer timeout**, for Valgrind's slowdown.
+
+Before relying on the verdicts, run the benchmark a few times on one commit (re-run the job) and set `min_percent_change` above the variation you see: how much concurrent code moves between runs depends on the workload.
 
 For [pull requests from forks](#pull-requests-from-forks), make the same changes to both jobs of the benchmark workflow: the pinned runner, toolchain and Valgrind package, the `hotpath-callgrind` build, and the Valgrind run with `HOTPATH_CALLGRIND_OUT_FILE`. The push job also switches to `HOTPATH_OUTPUT_FORMAT: json` with a `HOTPATH_OUTPUT_PATH` for its `jq` check, as above. The pull request job keeps its read-only permissions and no `HOTPATH_UPLOAD`; it already writes the JSON report, so run the `jq` check on `report.json` before the artifact upload. The relay workflow does not change.
 
@@ -339,7 +341,7 @@ Keep Callgrind and timing runs in separate series: a benchmark that already uplo
 
 ## Several benchmarks in one repository
 
-Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or job. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise.
+Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or job. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise. In the fork setup, every benchmark workflow also needs a unique `name:`, its own artifact name and its own relay workflow that names it in `workflows:`.
 
 ## Troubleshooting
 

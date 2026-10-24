@@ -66,7 +66,7 @@ Metrics: `avg` and `total` time per function, percentiles such as `p95`.
 
 ### Functions instructions
 
-Instructions executed by instrumented functions, from benchmarks run under [Callgrind](callgrind.md) with the `hotpath-callgrind` feature (the report's `functions_icount` section). A deterministic workload executes the same instructions on every run, so a small change is real.
+Instructions executed by instrumented functions, from benchmarks run under [Callgrind](callgrind.md) with the `hotpath-callgrind` feature (the report's `functions_icount` section). Instruction counts measure computational work, not elapsed time; a deterministic workload executes nearly the same instructions on every run, so a small change usually reflects a change in the code's work.
 
 ```toml
 [functions.icount]
@@ -79,9 +79,9 @@ min_calls = 1
 
 Metrics: `avg` and `total` instructions per function. Callgrind counts have no percentiles.
 
-Counts only compare within one environment: when the two reports differ in Valgrind version, `rustc` or OS, or one side lacks the Valgrind version, the section is skipped as an environment mismatch and not judged. Pin all three in CI, see [CI integration](ci_integration.md#instruction-counts-with-callgrind).
+Counts only compare within one environment: when the two reports differ in Valgrind version, `rustc` or OS, or one side lacks the Valgrind version, the section is skipped as an environment mismatch and not judged. Pin them in CI, see [CI integration](ci_integration.md#instruction-counts-with-callgrind).
 
-The built-in 2% suits deterministic single-threaded workloads. Thread interleaving moves the counts of concurrent code by a percent or more between runs of one commit, so measure that spread by running the benchmark a few times and set `min_percent_change` above it; 3% is a reasonable start.
+The built-in 2% suits deterministic single-threaded workloads. Thread interleaving moves the counts of concurrent code between runs of one commit by an amount that depends on the workload, so run the benchmark a few times, measure that spread and set `min_percent_change` above it; 3% is a conservative start.
 
 ### Functions allocations
 
