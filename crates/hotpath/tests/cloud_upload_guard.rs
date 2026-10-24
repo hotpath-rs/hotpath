@@ -124,6 +124,42 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// A requested merge that fails is not an upload failure: it exits 1 in
+    /// every upload mode, sends nothing and writes no report or response.
+    /// This build lacks `hotpath-callgrind`, which is one such failure.
+    #[test]
+    fn failed_merge_fails_in_every_upload_mode() {
+        for mode in ["fail-on-error", "1"] {
+            let dir = scratch_dir("failed_merge");
+            let (server, upload) = mock_server(201, REGRESSED_BODY);
+            let native = dir.join("native.json");
+            std::fs::write(&native, "{}").unwrap();
+
+            let output = run_upload(
+                &server,
+                &dir,
+                &[
+                    ("HOTPATH_UPLOAD", mode),
+                    ("HOTPATH_MERGE_REPORT", native.to_str().unwrap()),
+                ],
+            );
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(!upload.matched(), "{mode}: the report was uploaded");
+            assert_eq!(output.status.code(), Some(1), "{mode}, stderr:\n{stderr}");
+            assert!(
+                stderr.contains("hotpath: merge failed: needs the hotpath-callgrind"),
+                "{mode}, stderr:\n{stderr}"
+            );
+            assert!(!dir.join("report.json").exists(), "{mode}: report written");
+            assert!(
+                !dir.join("response.json").exists(),
+                "{mode}: response written"
+            );
+
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+    }
+
     #[test]
     fn failed_upload_fails_under_fail_on_error() {
         let dir = scratch_dir("failed");

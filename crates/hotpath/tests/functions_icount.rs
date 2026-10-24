@@ -3,8 +3,8 @@ mod common;
 
 #[cfg(all(test, feature = "hotpath"))]
 pub mod tests {
-    use std::path::PathBuf;
-    use std::process::Command;
+    use std::path::{Path, PathBuf};
+    use std::process::{Command, Output};
 
     use hotpath::json::{JsonFunctionsList, JsonReport};
 
@@ -249,5 +249,216 @@ pub mod tests {
             .data
             .iter()
             .any(|e| e.name == "instructions::free_fn"));
+    }
+
+    const MERGE_FEATURES: &str = "hotpath,hotpath-callgrind,hotpath-cloud";
+    /// What a merge output file holds before a run; a refused merge must
+    /// leave it byte-for-byte.
+    const PREVIOUS: &str = "previous report\n";
+
+    /// `example` built for merging, writing JSON to `out`. Actions variables
+    /// are cleared so the child neither annotates this job nor differs from
+    /// the native run it is compared with.
+    fn merge_example(example: Example, out: &str) -> Example {
+        example
+            .json()
+            .env("HOTPATH_OUTPUT_PATH", out)
+            .env_remove("GITHUB_ACTIONS")
+            .env_remove("GITHUB_STEP_SUMMARY")
+            .env_remove("HOTPATH_UPLOAD")
+    }
+
+    fn native_example(example: &str) -> Example {
+        Example::new("test-callgrind", example)
+            .features(MERGE_FEATURES)
+            .release()
+    }
+
+    /// A native run of `instructions` writing its JSON report to `path`.
+    fn write_native_report(path: &str) {
+        let output = merge_example(native_example("instructions"), path).output();
+        assert_success(&output);
+    }
+
+    /// The merge was refused: exit 1, the reason on stderr, the output file
+    /// untouched and no temporary file left beside it.
+    #[track_caller]
+    fn assert_merge_refused(output: &Output, out: &str, reason: &str) {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "stderr:\n{stderr}");
+        assert!(
+            stderr.contains("merge failed: ") && stderr.contains(reason),
+            "expected {reason:?} in stderr:\n{stderr}"
+        );
+        assert_eq!(std::fs::read_to_string(out).unwrap(), PREVIOUS);
+        assert_no_temp_files(Path::new(out).parent().unwrap());
+    }
+
+    #[track_caller]
+    fn assert_no_temp_files(dir: &Path) {
+        let temps: Vec<_> = std::fs::read_dir(dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.ends_with(".tmp"))
+            .collect();
+        assert!(temps.is_empty(), "temporary files left: {temps:?}");
+    }
+
+    /// A native run of the merging build, refused for each file-side reason
+    /// and for not running under Callgrind; all of it runs without Valgrind.
+    // HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=out.json HOTPATH_MERGE_REPORT=native.json cargo run --release -p test-callgrind --example instructions --features hotpath,hotpath-callgrind,hotpath-cloud
+    #[test]
+    fn test_refused_merge_fails_and_leaves_output_untouched() {
+        let dir = RunDir::new();
+        let (native, out) = (dir.path("native.json"), dir.path("out.json"));
+        write_native_report(&native);
+        let refused = |merge_report: &str, extra: &[(&str, &str)]| -> Output {
+            std::fs::write(&out, PREVIOUS).unwrap();
+            merge_example(native_example("instructions"), &out)
+                .env("HOTPATH_MERGE_REPORT", merge_report)
+                .envs(extra)
+                .output()
+        };
+
+        // A valid native report, but this run is not under Callgrind.
+        assert_merge_refused(&refused(&native, &[]), &out, "not under valgrind");
+
+        let missing = dir.path("missing.json");
+        assert_merge_refused(
+            &refused(&missing, &[]),
+            &out,
+            "cannot read the native report",
+        );
+
+        let malformed = dir.path("malformed.json");
+        std::fs::write(&malformed, "{\"type\":").unwrap();
+        assert_merge_refused(&refused(&malformed, &[]), &out, "not a hotpath JSON report");
+
+        let huge = dir.path("huge.json");
+        std::fs::write(
+            &huge,
+            vec![b' '; hotpath::json::cloud_api::MAX_REPORT_BYTES + 1],
+        )
+        .unwrap();
+        assert_merge_refused(
+            &refused(&huge, &[]),
+            &out,
+            "over the 5242880 byte report limit",
+        );
+
+        assert_merge_refused(
+            &refused(&native, &[("HOTPATH_BENCHMARK", "other-bench")]),
+            &out,
+            "benchmark",
+        );
+
+        // The output file is the native report itself: refused before
+        // anything is read, and the native report survives.
+        let before = std::fs::read(&native).unwrap();
+        let output = merge_example(native_example("instructions"), &native)
+            .env("HOTPATH_MERGE_REPORT", &native)
+            .output();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "stderr:\n{stderr}");
+        assert!(stderr.contains("both name"), "stderr:\n{stderr}");
+        assert_eq!(std::fs::read(&native).unwrap(), before);
+
+        // Table output and no upload: nothing to merge into.
+        std::fs::write(&out, PREVIOUS).unwrap();
+        let output = merge_example(native_example("instructions"), &out)
+            .env("HOTPATH_OUTPUT_FORMAT", "table")
+            .env("HOTPATH_MERGE_REPORT", &native)
+            .output();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "stderr:\n{stderr}");
+        assert!(
+            stderr.contains("nothing to merge into"),
+            "stderr:\n{stderr}"
+        );
+    }
+
+    /// A workload that panics skips the merge: no report from the partial
+    /// run, the output untouched, the panic's own exit status.
+    // HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=out.json HOTPATH_MERGE_REPORT=native.json cargo run --release -p test-callgrind --example panics --features hotpath,hotpath-callgrind,hotpath-cloud
+    #[test]
+    fn test_panicking_run_skips_the_merge() {
+        let dir = RunDir::new();
+        let out = dir.path("out.json");
+        std::fs::write(&out, PREVIOUS).unwrap();
+        let output = merge_example(native_example("panics"), &out)
+            .env("HOTPATH_MERGE_REPORT", dir.path("native.json"))
+            .output();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(!output.status.success(), "stderr:\n{stderr}");
+        assert_ne!(output.status.code(), Some(1), "stderr:\n{stderr}");
+        assert!(stderr.contains("merge skipped"), "stderr:\n{stderr}");
+        assert_eq!(std::fs::read_to_string(&out).unwrap(), PREVIOUS);
+        assert_no_temp_files(Path::new(&out).parent().unwrap());
+    }
+
+    /// The Callgrind run merges the native report: native timing and
+    /// allocations, its own instruction counts, `meta.run` merged.
+    // HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=native.json cargo run --release -p test-callgrind --example instructions --features hotpath,hotpath-callgrind,hotpath-cloud
+    // CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=out.json HOTPATH_MERGE_REPORT=native.json cargo run --release -p test-callgrind --example instructions --features hotpath,hotpath-callgrind,hotpath-cloud
+    #[test]
+    fn test_callgrind_run_merges_the_native_report() {
+        if !valgrind_available() {
+            return;
+        }
+        let dir = RunDir::new();
+        let (native_path, out) = (dir.path("native.json"), dir.path("out.json"));
+        write_native_report(&native_path);
+        std::fs::write(&out, PREVIOUS).unwrap();
+
+        let output = merge_example(
+            under_callgrind("instructions", &dir).features(MERGE_FEATURES),
+            &out,
+        )
+        .env("HOTPATH_MERGE_REPORT", &native_path)
+        .output();
+        assert_success(&output);
+        assert_no_temp_files(&dir.0);
+
+        let read = |path: &str| -> JsonReport {
+            serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+        };
+        let (native, merged) = (read(&native_path), read(&out));
+        assert_eq!(merged.meta.run, Some(hotpath::json::JsonRun::Merged));
+        let timing = merged.functions_timing.as_ref().expect("native timing");
+        assert_eq!(
+            timing.total_elapsed_ns,
+            native.functions_timing.as_ref().unwrap().total_elapsed_ns,
+            "timing is the native run's"
+        );
+        let list = merged.functions_icount.expect("instruction counts");
+        assert!(list
+            .tool
+            .as_deref()
+            .is_some_and(|t| t.starts_with("callgrind-")));
+        let (calls, _) = total(&list, "instructions::free_fn");
+        assert_eq!(calls, 2);
+    }
+
+    /// Under Callgrind with an out-file hotpath cannot find: no counts, so
+    /// the merge is refused with the dump's reason.
+    #[test]
+    fn test_unreadable_dump_refuses_the_merge() {
+        if !valgrind_available() {
+            return;
+        }
+        let dir = RunDir::new();
+        let (native, out) = (dir.path("native.json"), dir.path("out.json"));
+        write_native_report(&native);
+        std::fs::write(&out, PREVIOUS).unwrap();
+
+        let output = merge_example(
+            under_callgrind("instructions", &dir).features(MERGE_FEATURES),
+            &out,
+        )
+        .env("HOTPATH_CALLGRIND_OUT_FILE", dir.path("elsewhere.%p"))
+        .env("HOTPATH_MERGE_REPORT", &native)
+        .output();
+        assert_merge_refused(&output, &out, "failed to read Callgrind dump");
     }
 }

@@ -9,7 +9,7 @@ use time::OffsetDateTime;
 
 use crate::json::policy_file::find_git_root;
 
-pub(crate) fn build_meta() -> crate::json::JsonMeta {
+pub(crate) fn build_meta(run: crate::json::JsonRun) -> crate::json::JsonMeta {
     let source_root = source_root();
 
     // Fail loudly on upload runs: broken source links would otherwise only
@@ -62,6 +62,7 @@ pub(crate) fn build_meta() -> crate::json::JsonMeta {
         ci,
         benchmark,
         policy,
+        run: Some(run),
     }
 }
 
@@ -236,7 +237,9 @@ mod tests {
 
     #[cfg(feature = "hotpath-cloud")]
     mod cloud {
-        use crate::json::{JsonCiInfo, JsonGitInfo, JsonMeta, JsonPolicy, JsonPullRequest};
+        use crate::json::{
+            JsonCiInfo, JsonGitInfo, JsonMeta, JsonPolicy, JsonPullRequest, JsonRun,
+        };
         use crate::lib_on::ci_info::CiContext;
         use crate::lib_on::report_meta::merge_git_info;
         use time::macros::datetime;
@@ -365,6 +368,7 @@ mod tests {
                 ci: None,
                 benchmark: None,
                 policy: None,
+                run: None,
             };
             let value: serde_json::Value = serde_json::to_value(&meta).unwrap();
             // Sorted: the `cloud` feature turns on `serde_json/preserve_order`.
@@ -397,6 +401,7 @@ mod tests {
                     source: "# ours\n[functions.timing]\n".to_string(),
                     path: "hotpath/ci-policy.toml".to_string(),
                 }),
+                run: Some(JsonRun::Merged),
             };
             let sent = meta.policy.clone();
             let json = serde_json::to_string(&meta).unwrap();
@@ -415,6 +420,7 @@ mod tests {
             assert_eq!(pr.head_ref, "feature-x");
             assert_eq!(pr.head_sha.as_deref(), Some(HEAD_SHA));
             assert_eq!(back.benchmark.as_deref(), Some("ci"));
+            assert_eq!(back.run, Some(JsonRun::Merged));
             assert_eq!(back.policy, sent);
         }
 

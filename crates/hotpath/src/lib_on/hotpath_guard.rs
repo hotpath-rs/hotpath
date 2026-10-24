@@ -1250,17 +1250,31 @@ impl Drop for HotpathGuard {
         #[cfg(not(feature = "hotpath-cloud"))]
         let cloud_report = false;
 
-        // An unusable local output must not block the cloud upload.
-        let mut writer: Box<dyn Write> = match output.writer() {
-            Ok(w) => w,
-            Err(e) => {
-                eprintln!("Failed to create output writer: {}", e);
-                if !upload_enabled {
-                    return;
+        // A JSON report is opened only once its bytes exist (below), so a
+        // failed merge never truncates an existing file. An unusable table
+        // output must not block the cloud upload.
+        let mut writer: Box<dyn Write> = if is_json {
+            Box::new(std::io::sink())
+        } else {
+            match output.writer() {
+                Ok(w) => w,
+                Err(e) => {
+                    eprintln!("Failed to create output writer: {}", e);
+                    if !upload_enabled {
+                        return;
+                    }
+                    Box::new(std::io::sink())
                 }
-                Box::new(std::io::sink())
             }
         };
+
+        // `HOTPATH_MERGE_REPORT`: a failed merge writes no JSON, uploads
+        // nothing and exits 1 whatever the upload mode.
+        let merge_path = crate::lib_on::merge::MERGE_REPORT.as_deref();
+        let mut merge_error = None;
+        if merge_path.is_some() && !is_json && !upload_enabled {
+            merge_error = Some(crate::lib_on::merge::MergeError::NothingToMergeInto);
+        }
 
         // A failed upload under strict mode fails the process, but only after
         // the local report below is written: the run's own results must not
@@ -1274,7 +1288,11 @@ impl Drop for HotpathGuard {
                     .filter(|s| !s.is_empty()),
                 user_metadata: (!self.user_metadata.is_empty()).then(|| self.user_metadata.clone()),
                 time_sampling: crate::lib_on::sampling::active_rates(),
-                ..JsonReport::new(crate::lib_on::report_meta::build_meta())
+                ..JsonReport::new(crate::lib_on::report_meta::build_meta(if counting_icount {
+                    crate::json::JsonRun::Callgrind
+                } else {
+                    crate::json::JsonRun::Native
+                }))
             };
 
             // A cloud report lists every entry (`0` is unlimited): the server
@@ -1496,27 +1514,72 @@ impl Drop for HotpathGuard {
                 }
             }
 
-            match format {
-                Format::Json => {
-                    let _ = writeln!(
-                        writer,
-                        "{}",
-                        serde_json::to_string(&report).unwrap_or_default()
-                    );
+            let report = match merge_path {
+                None => Some(report),
+                // The workload stopped early: its counts must not be merged
+                // into a complete native report. The panic fails the process.
+                Some(_) if std::thread::panicking() => {
+                    eprintln!("[hotpath] merge skipped: the profiled program panicked");
+                    None
                 }
-                Format::JsonPretty => {
-                    let _ = writeln!(
-                        writer,
-                        "{}",
-                        serde_json::to_string_pretty(&report).unwrap_or_default()
-                    );
+                Some(path) => {
+                    #[cfg(feature = "hotpath-callgrind")]
+                    let icount_run = match icount_report.as_ref() {
+                        None => crate::lib_on::merge::IcountRun::NotUnderValgrind,
+                        Some(Err(msg)) => crate::lib_on::merge::IcountRun::DumpFailed(msg),
+                        Some(Ok(_)) => crate::lib_on::merge::IcountRun::Counted,
+                    };
+                    #[cfg(not(feature = "hotpath-callgrind"))]
+                    let icount_run = crate::lib_on::merge::IcountRun::NotUnderValgrind;
+                    let output_file = match &output {
+                        OutputDestination::File(file) if is_json => Some(file.as_path()),
+                        _ => None,
+                    };
+                    let merged = crate::lib_on::merge::apply(report, icount_run, path, output_file)
+                        .and_then(|merged| {
+                            // Compact, as uploaded and as a relay posts it.
+                            let compact = serde_json::to_vec(&merged).map_err(|e| {
+                                crate::lib_on::merge::MergeError::Serialize(e.to_string())
+                            })?;
+                            crate::json::cloud_api::check_report_size(compact.len())
+                                .map(|()| merged)
+                                .map_err(crate::lib_on::merge::MergeError::TooLarge)
+                        });
+                    match merged {
+                        Ok(merged) => Some(merged),
+                        Err(e) => {
+                            merge_error = Some(e);
+                            None
+                        }
+                    }
                 }
-                _ => {}
-            }
+            };
 
-            #[cfg(feature = "hotpath-cloud")]
-            if upload_enabled {
-                upload_failed = crate::lib_on::cloud::upload(&report);
+            if let Some(report) = report {
+                let json = match format {
+                    Format::Json => serde_json::to_vec(&report).ok(),
+                    Format::JsonPretty => serde_json::to_vec_pretty(&report).ok(),
+                    _ => None,
+                };
+                if let Some(mut json) = json {
+                    json.push(b'\n');
+                    // A merged report is replaced atomically; a plain one is
+                    // written as before, so `/dev/stdout`-like paths keep
+                    // working unchanged.
+                    let written = if merge_path.is_some() {
+                        output.write_atomically(&json)
+                    } else {
+                        output.writer().and_then(|mut w| w.write_all(&json))
+                    };
+                    if let Err(e) = written {
+                        eprintln!("Failed to write the JSON report: {e}");
+                    }
+                }
+
+                #[cfg(feature = "hotpath-cloud")]
+                if upload_enabled {
+                    upload_failed = crate::lib_on::cloud::upload(&report);
+                }
             }
         }
 
@@ -1833,8 +1896,18 @@ impl Drop for HotpathGuard {
             arc_swap.store(None);
         }
 
+        if let Some(e) = &merge_error {
+            let message = format!("merge failed: {e}");
+            #[cfg(feature = "hotpath-cloud")]
+            crate::lib_on::cloud::emit_error(&message);
+            #[cfg(not(feature = "hotpath-cloud"))]
+            eprintln!("hotpath: {message}");
+        }
         #[cfg(feature = "hotpath-cloud")]
-        if upload_failed {
+        let must_exit = upload_failed || merge_error.is_some();
+        #[cfg(not(feature = "hotpath-cloud"))]
+        let must_exit = merge_error.is_some();
+        if must_exit {
             drop(writer);
             let _ = std::io::stdout().flush();
             std::process::exit(1);
