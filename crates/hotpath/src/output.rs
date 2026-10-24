@@ -206,16 +206,28 @@ pub fn parse_count(s: &str) -> Option<u64> {
 
 /// Formats an instruction count given in hundredths of an instruction as
 /// the JSON report carries it: a whole number as is (`107481624`), a
-/// fraction with two decimals (`33.05`). [`format_icount_grouped`] is the
+/// fraction with two decimals (`33.05`). [`format_icount_display`] is the
 /// display form.
 pub fn format_icount(hundredths: u64) -> String {
     with_icount_fraction((hundredths / 100).to_string(), hundredths)
 }
 
-/// [`format_icount`] with thousands separators (`107,481,624.25`), for
-/// display only: [`parse_icount`] rejects them.
-pub fn format_icount_grouped(hundredths: u64) -> String {
-    let digits = (hundredths / 100).to_string();
+/// [`format_icount`] for display only ([`parse_icount`] rejects it): with
+/// thousands separators, and from 1,000 up rounded half-up to a whole
+/// instruction (`107,481,624`), where a hundredth is below any change worth
+/// showing. Below 1,000 the decimals stay (`33.05`): a short function's
+/// average moves by a fraction of an instruction.
+pub fn format_icount_display(hundredths: u64) -> String {
+    if hundredths >= 100_000 {
+        let whole = hundredths / 100 + u64::from(hundredths % 100 >= 50);
+        return group_thousands(whole);
+    }
+    with_icount_fraction(group_thousands(hundredths / 100), hundredths)
+}
+
+/// `1234567` as `1,234,567`.
+fn group_thousands(value: u64) -> String {
+    let digits = value.to_string();
     let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
     for (i, digit) in digits.chars().enumerate() {
         if i > 0 && (digits.len() - i).is_multiple_of(3) {
@@ -223,7 +235,7 @@ pub fn format_icount_grouped(hundredths: u64) -> String {
         }
         grouped.push(digit);
     }
-    with_icount_fraction(grouped, hundredths)
+    grouped
 }
 
 fn with_icount_fraction(whole: String, hundredths: u64) -> String {
@@ -465,21 +477,24 @@ mod parse_tests {
 
     #[test]
     fn test_icount_format_and_parse() {
-        for (hundredths, raw, grouped) in [
+        for (hundredths, raw, shown) in [
             (0, "0", "0"),
             (3305, "33.05", "33.05"),
             (3300, "33", "33"),
-            (99_900, "999", "999"),
+            (99_999, "999.99", "999.99"),
             (100_000, "1000", "1,000"),
-            (10_748_162_425, "107481624.25", "107,481,624.25"),
+            (100_049, "1000.49", "1,000"),
+            (100_050, "1000.50", "1,001"),
+            (10_748_162_425, "107481624.25", "107,481,624"),
+            (u64::MAX, "184467440737095516.15", "184,467,440,737,095,516"),
             (
-                u64::MAX,
-                "184467440737095516.15",
-                "184,467,440,737,095,516.15",
+                u64::MAX - 15,
+                "184467440737095516",
+                "184,467,440,737,095,516",
             ),
         ] {
             assert_eq!(format_icount(hundredths), raw);
-            assert_eq!(format_icount_grouped(hundredths), grouped);
+            assert_eq!(format_icount_display(hundredths), shown);
             assert_eq!(parse_icount(raw), Some(hundredths), "{raw:?}");
         }
         for (input, expected) in [
