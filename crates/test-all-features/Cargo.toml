@@ -13,6 +13,7 @@ hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 hotpath-meta = ["hotpath/hotpath-meta"]
 hotpath-alloc-meta = ["hotpath-meta", "hotpath/hotpath-alloc-meta"]
 hotpath-cloud-meta = ["hotpath-meta", "hotpath/hotpath-cloud-meta"]
+hotpath-callgrind-meta = ["hotpath-meta", "hotpath/hotpath-callgrind-meta"]
 hotpath-prometheus = ["hotpath", "hotpath/hotpath-prometheus"]
 
 # Gates the expected-to-fail `duplicate_labels_*` examples; a cfg, not a feature, so
