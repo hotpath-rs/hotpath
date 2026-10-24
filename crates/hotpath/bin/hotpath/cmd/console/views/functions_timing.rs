@@ -58,7 +58,7 @@ pub(crate) fn render_functions_table(frame: &mut Frame, app: &mut App, area: Rec
 
         let mut cells = vec![
             Cell::from(short_name),
-            Cell::from(func.calls.to_string()),
+            Cell::from(hotpath::format_count_display(func.calls)),
             Cell::from(func.avg.clone()),
         ];
 

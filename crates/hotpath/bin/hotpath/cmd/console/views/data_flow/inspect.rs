@@ -39,7 +39,7 @@ fn format_opt_bytes(bytes: Option<u64>) -> String {
 
 fn format_opt_count(count: Option<u64>) -> String {
     count
-        .map(|v| v.to_string())
+        .map(hotpath::format_count_display)
         .unwrap_or_else(|| "-".to_string())
 }
 
@@ -90,7 +90,7 @@ pub(crate) fn render_inspect_popup(
         let details_text = format!(
             "State: {} | Polls: {}\nTiming: avg {} | max {} | total {}\nAlloc bytes/count: {} / {}",
             call.state,
-            call.poll_count,
+            hotpath::format_count_display(call.poll_count),
             avg_poll,
             max_poll,
             total_poll,

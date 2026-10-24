@@ -73,21 +73,26 @@ pub(crate) fn render_functions_table(frame: &mut Frame, app: &mut App, area: Rec
         .map(|p| hotpath::format_percentile_key(*p))
         .collect();
 
+    let mode = app.memory_functions.profiling_mode;
     let rows = entries.iter().map(|func| {
         let short_name = hotpath::shorten_function_name(&func.name);
 
         let mut cells = vec![
             Cell::from(short_name),
-            Cell::from(func.calls.to_string()),
-            Cell::from(func.avg.clone()),
+            Cell::from(hotpath::format_count_display(func.calls)),
+            Cell::from(mode.display_value(&func.avg)),
         ];
 
         for key in &percentile_keys {
-            let value = func.percentiles.get(key).cloned().unwrap_or_default();
+            let value = func
+                .percentiles
+                .get(key)
+                .map(|v| mode.display_value(v))
+                .unwrap_or_default();
             cells.push(Cell::from(value));
         }
 
-        cells.push(Cell::from(func.total.clone()));
+        cells.push(Cell::from(mode.display_value(&func.total)));
         cells.push(Cell::from(func.percent_total.clone()));
 
         Row::new(cells)

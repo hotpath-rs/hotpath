@@ -10,7 +10,7 @@ use crate::table::{Cell, Color, Table};
 use crate::json::{
     CpuSnapshotStatus, JsonFunctionCpuEntry, JsonFunctionsCpuEnvelope, JsonFunctionsCpuList,
 };
-use crate::output::{format_duration, shorten_function_name};
+use crate::output::{format_count_display, format_duration, shorten_function_name};
 
 #[allow(dead_code)]
 pub(crate) mod autospawn;
@@ -271,7 +271,7 @@ pub(crate) fn report_functions_cpu_table<W: Write>(writer: &mut W, list: &JsonFu
             let short_name = shorten_function_name(&entry.name);
             table.add_row(vec![
                 Cell::new(&short_name),
-                Cell::new(&entry.samples.to_string()),
+                Cell::new(&format_count_display(entry.samples)),
                 Cell::new(&entry.percent),
             ]);
         }

@@ -207,7 +207,7 @@ pub(crate) fn render_logs_panel(
 
                     Row::new(vec![
                         Cell::from(call.state.clone()).style(state_style(&call.state)),
-                        Cell::from(call.poll_count.to_string()),
+                        Cell::from(hotpath::format_count_display(call.poll_count)),
                         Cell::from(total_poll),
                         Cell::from(alloc),
                         Cell::from(result_text),
