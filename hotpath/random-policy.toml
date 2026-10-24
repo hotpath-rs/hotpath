@@ -16,15 +16,6 @@ min_percent_change = 50
 metrics = ["avg", "total"]
 min_calls = 10
 
-[sql]
-min_percent_total = 0.5
-
-[sql.timing]
-judged = true
-min_percent_change = 50
-metrics = ["avg", "total"]
-min_calls = 0
-
 [http]
 min_percent_total = 0.5
 
@@ -49,22 +40,10 @@ min_percent_change = 50
 metrics = ["avg", "total"]
 min_calls = 0
 
-[mutexes.timing]
-judged = true
-min_percent_change = 50
-metrics = ["wait_avg", "acquire_avg"]
-min_calls = 0
-
 [rw_locks.timing]
 judged = true
 min_percent_change = 50
 metrics = ["read_wait_avg", "write_wait_avg", "read_acquire_avg", "write_acquire_avg"]
-min_calls = 0
-
-[channels.flow]
-judged = true
-min_percent_change = 50
-metrics = ["delay_avg", "max_queue_size"]
 min_calls = 0
 
 [io.flow]
