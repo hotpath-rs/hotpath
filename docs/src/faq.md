@@ -62,3 +62,63 @@ To profile production safely, follow these guidelines:
 - **Run your test suite with profiling enabled.** Use `cargo test --features=hotpath` to confirm that your application behaves the same with instrumentation turned on.
 - **Don't instrument very short, very hot functions.** A function that runs in the low microseconds and is called millions of times contributes a large share of the total processing time, so even ~40 ns per call can add up. Instrument larger units of work instead, or use [time sampling](profiling_overhead.md#reducing-overhead-time-sampling) to reduce the cost.
 - **Review the metrics server.** By default, a profiled application exposes an HTTP metrics server on `localhost:6770`, which feeds the TUI console. Set `HOTPATH_METRICS_SERVER_OFF=true` to disable it, `HOTPATH_METRICS_PORT` to change the port, or `HOTPATH_METRICS_AUTH_TOKEN` to require a token on every request. See [Configuration](configuration.md) for all options.
+
+## How is hotpath different from criterion?
+
+[criterion.rs](https://github.com/criterion-rs/criterion.rs) is a statistics-driven micro-benchmarking library. In short, `criterion` excels at answering _"is this faster?"_, while `hotpath` helps you answer _"why is my system slow?"_.
+
+**criterion** runs an isolated piece of code in a dedicated benchmark harness (`cargo bench`), many times over, and applies statistical analysis to the results. Its strengths:
+
+- Rigorous measurements of small, CPU-bound functions, with outlier detection and confidence intervals.
+- Detects whether, and by how much, performance changed since the previous run.
+- HTML reports and plots, and runs on stable Rust.
+- Benchmarks live in `benches/`, so your application code stays untouched.
+
+The trade-off is that a micro-benchmark measures the code you chose to isolate, with the inputs you wrote for it. It doesn't show how that code behaves inside the full application, under real load, next to the database, network, locks, and other tasks.
+
+**hotpath** instruments the real program while it runs a real workload. Its strengths:
+
+- Profiles many functions at once and shows which of them dominate the total execution time.
+- Collects signals beyond timing: memory allocations, [SQL queries](sql_tracing.md), [HTTP calls](http_tracing.md), [lock contention](locks.md), [channel queues](data_flow.md#channels-monitoring), and [I/O](io_tracing.md). Counts like the number of executed queries or allocated bytes are often identical on every run, so they stay reliable even when timings are noisy.
+- Measures the wall-clock time of async functions, including the time spent waiting on I/O.
+
+Its trade-offs are a small per-call [overhead](profiling_overhead.md), and that it's not a statistical benchmarking framework: a single profiled run is subject to normal run-to-run variance.
+
+The two work well together. Use `hotpath` to find the bottleneck in the real application, then extract the hot function into a `criterion` benchmark to iterate on its optimization with precise, repeatable measurements.
+
+## How is hotpath different from hyperfine?
+
+[hyperfine](https://github.com/sharkdp/hyperfine) is a command-line benchmarking tool. It measures how long a whole command takes to run.
+
+**hyperfine** treats the program as a black box. Its strengths:
+
+- Works with any command or binary, in any language, with no code changes.
+- Runs each command multiple times with statistical analysis and outlier detection, and supports warmup runs and `--prepare` commands for cold-cache benchmarks.
+- Compares several commands side by side, scans over parameters, and exports results to JSON, CSV, and Markdown.
+- Reports wall-clock time and peak memory by default, and can also measure user/system time and hardware counters such as CPU cycles and instructions (availability varies by platform).
+
+The trade-off is that it tells you _that_ the total runtime changed, not _which_ part of the program caused it.
+
+**hotpath** looks inside the program. It reports per-function timing and allocations, along with SQL queries, HTTP calls, locks, channels, and I/O, so you can see where the time is spent and what changed between two versions. In exchange, it requires adding instrumentation macros to your code, works only for Rust programs, and adds a small [overhead](profiling_overhead.md) to every instrumented call.
+
+`hyperfine` is a great fit for end-to-end benchmarks of CLI tools and whole programs, and `hotpath` explains the numbers it produces. `hotpath`'s own [allocation overhead benchmarks](/blog/rust-performance-profiling#alloc-metrics-cpu-cache-busting) are timed with `hyperfine`.
+
+## How is hotpath different from tokio-console?
+
+[tokio-console](https://github.com/tokio-rs/console) is Tokio's official diagnostics and debugging tool for async Rust. The two tools answer different questions, and they work fine side by side.
+
+**tokio-console** looks at the runtime from the inside. It shows Tokio tasks with poll counts, busy, scheduled, and idle time, plus waker activity and Tokio resources such as timers, semaphores, and `tokio::sync` locks. It also warns about patterns like lost wakers, excessive self-wakes, and tasks that never yield. It's an interactive tool built for live inspection, and it requires the `console-subscriber` crate, building with `--cfg tokio_unstable`, and the `tokio-console` client connected to the running process.
+
+**hotpath** looks at application-level performance. It measures function timings and allocations, channel throughput and queue depth, lock wait and hold times, futures and streams, as well as SQL queries, HTTP calls, and I/O. Channel and lock instrumentation isn't limited to Tokio, and also covers `std`, `crossbeam`, `flume`, and others. Async function profiling works on any runtime. Runtime-level signals are also available through [Tokio runtime metrics](tokio_runtime.md). `hotpath` is enabled with a cargo feature and is a no-op when the feature is disabled. It prints a static report on exit, can be monitored live in the [TUI console](profiling_modes.md#live-tui-dashboard), and its JSON reports can be compared between commits in [CI](ci_integration.md). Its trade-off is that it only sees the code you instrument, and it doesn't track individual Tokio tasks and wakers.
+
+Some examples of which tool answers which question:
+
+| Question | Tool |
+|---|---|
+| Which task never gets woken up again? | tokio-console |
+| Which task blocks a worker thread with a long poll? | tokio-console |
+| Which channel's queue keeps growing, and how long do messages wait? | hotpath |
+| Which lock do threads wait on the longest, and how long is it held? | hotpath |
+| Did this PR make an endpoint slower or add SQL queries? | hotpath |
+
+Use `tokio-console` when you suspect the runtime itself (starved or stuck tasks, misbehaving wakers), and use `hotpath` to find out which part of your application code is slow, congested, or contended.
