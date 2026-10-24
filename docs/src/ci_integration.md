@@ -40,6 +40,8 @@ There are two ways to wire the workflow, depending on where pull requests come f
 
 The fork setup also handles pull requests from the same repository, so a project that accepts both needs only that one.
 
+On x86_64 Linux runners, a CPU-bound benchmark can run under Valgrind for reproducible [instruction counts](#instruction-counts-with-callgrind) instead of noisy timings, with either setup.
+
 ## Pull requests from the same repository
 
 One workflow runs on pushes to the default branch and on pull requests. Both upload from the benchmark process itself.
@@ -252,9 +254,94 @@ In the pull request job, which writes the report:
 
 The push job takes the variables of the [same-repository setup](#environment-variables).
 
+## Instruction counts with Callgrind
+
+Timing on shared GitHub runners is too noisy to judge small changes. A benchmark run under [Callgrind](callgrind.md) reports the instructions each function executed instead. Instruction counts measure computational work rather than speed, but they are reproducible for a deterministic workload, so a change of a few percent in a function's work stands out from run-to-run variation. Allocation profiling keeps working; timing is not reported under Valgrind.
+
+It needs `hotpath` `0.29` or newer, an x86_64 Linux runner and a workload that finishes under Valgrind, which runs it tens of times slower. Add the feature next to the others:
+
+```toml
+[features]
+hotpath = ["hotpath/hotpath"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
+hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
+```
+
+and judge the counts in the policy file under [`[functions.icount]`](regression_policy.md#functions-instructions).
+
+The workflow is the [same-repository one](#pull-requests-from-the-same-repository) with the benchmark built first and its binary run under Valgrind:
+
+```yaml
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  benchmark:
+    name: benchmark
+    # Fork pull requests get no `id-token: write`, so there is nothing to upload.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    # Instruction counts only compare within one Valgrind build and Rust
+    # toolchain, so the image, the package and the toolchain are pinned.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # the upload authenticates with the job's OIDC token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.0"
+      - uses: Swatinem/rust-cache@v2
+      - name: Install valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind=1:3.26.0-0ubuntu1
+          valgrind --version
+      - name: Build benchmark
+        run: |
+          cargo build -q --release --example my_benchmark \
+            --features hotpath-alloc,hotpath-cloud,hotpath-callgrind
+      - name: Run benchmark under Callgrind and upload report
+        env:
+          HOTPATH_UPLOAD: fail-on-error
+          HOTPATH_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload.json
+          HOTPATH_BENCHMARK: my_benchmark
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=1.99.0,profile=release,valgrind=3.26.0
+          HOTPATH_OUTPUT_FORMAT: json
+          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/report.json
+          HOTPATH_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
+        run: |
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_CALLGRIND_OUT_FILE" \
+            target/release/examples/my_benchmark
+          test -s "$HOTPATH_UPLOAD_RESPONSE_PATH"
+          jq -e '.functions_icount.data | length > 0' "$HOTPATH_OUTPUT_PATH" > /dev/null
+```
+
+What differs from the timing workflow:
+
+- **Pinned environment.** Counts depend on the Valgrind version, the Rust toolchain and the OS, and hotpath.rs only compares reports whose Valgrind version, `rustc` and OS match: a mismatch is skipped, not judged. Pin the runner label, the Valgrind package and the toolchain instead of `ubuntu-latest` and `stable`, and bump them deliberately: the first push to the default branch after a bump uploads the new baseline. A runner label is not an immutable image, so system libraries can still change under it; the pins make reports comparable, not identical.
+- **Build, then run the binary.** The workflow builds first and runs the compiled binary directly under Valgrind, which keeps the command and the out-file simple and predictable. Cargo's target runner (as in [Callgrind](callgrind.md#running-under-callgrind)) works too; `valgrind cargo run` does not, since it would instrument Cargo. Run from the repository root, so the git information and the policy file are found. For a binary target the path is `target/release/<name>`.
+- **`--instr-atstart=no`** keeps Callgrind's instrumentation off until hotpath turns it on at guard creation. That cuts the cost of startup, but the program still runs under Valgrind the whole time.
+- **`HOTPATH_CALLGRIND_OUT_FILE`** names the same file as `--callgrind-out-file`, here outside the checkout. Without it hotpath looks for `callgrind.out.<pid>` in the working directory.
+- **The `jq` check.** When the Callgrind dump cannot be read, hotpath prints `[hotpath] icount report unavailable: ...` and the report carries allocations only; a run outside Valgrind reports timing instead. The check fails the job in both cases, so a run without instruction counts does not pass unnoticed. The JSON output is written next to the upload, which does not depend on it.
+- **A longer timeout**, for Valgrind's slowdown.
+
+Before relying on the verdicts, run the benchmark a few times on one commit (re-run the job) and set `min_percent_change` above the variation you see: how much concurrent code moves between runs depends on the workload.
+
+For [pull requests from forks](#pull-requests-from-forks), make the same changes to both jobs of the benchmark workflow: the pinned runner, toolchain and Valgrind package, the `hotpath-callgrind` build, and the Valgrind run with `HOTPATH_CALLGRIND_OUT_FILE`. The push job also switches to `HOTPATH_OUTPUT_FORMAT: json` with a `HOTPATH_OUTPUT_PATH` for its `jq` check, as above. The pull request job keeps its read-only permissions and no `HOTPATH_UPLOAD`; it already writes the JSON report, so run the `jq` check on `report.json` before the artifact upload. The relay workflow does not change.
+
+Keep Callgrind and timing runs in separate series: a benchmark that already uploads timing reports gets a new `HOTPATH_BENCHMARK` name for its Callgrind runs, such as `my_benchmark-icount`.
+
 ## Several benchmarks in one repository
 
-Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or job. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise.
+Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or job. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise. In the fork setup, every benchmark workflow also needs a unique `name:`, its own artifact name and its own relay workflow that names it in `workflows:`.
 
 ## Troubleshooting
 
@@ -269,3 +356,5 @@ Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or jo
 | The comment reads "report not readable" | The report was produced by a `hotpath` version the server no longer reads. Update `hotpath`. |
 | The report is uploaded but no comment or check appears | The upload line ends with `comment failed: ...`, and the job shows it as a warning. The usual cause is that the App's "Pull requests: write" or "Checks: write" permission is not approved for the installation. Approve it in the installation settings on GitHub (your account or organization settings, under Applications). |
 | The relay does not run | The `workflows:` name does not match the benchmark workflow's `name:`, the relay workflow is not on the default branch yet, or the benchmark run failed. |
+| `[hotpath] icount report unavailable: failed to read Callgrind dump ...` | Valgrind ran without `--tool=callgrind`, or `HOTPATH_CALLGRIND_OUT_FILE` differs from `--callgrind-out-file`. See [Instruction counts with Callgrind](#instruction-counts-with-callgrind). |
+| The comment reads `functions_icount: environment mismatch (...)` | The two reports come from a different Valgrind version, `rustc` or OS, so their instruction counts were not compared. Pin all three; after a deliberate bump, the next push to the default branch uploads a comparable baseline. |

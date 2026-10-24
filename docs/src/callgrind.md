@@ -62,6 +62,10 @@ Counts are reproducible for deterministic workloads. Randomized hashing (`HashMa
 
 Only compare counts produced by the same Valgrind version, Rust toolchain and target. The JSON report records the tool in the section's `tool` field (e.g. `callgrind-3.26.0`). Pin the rest of the runtime environment and dependencies too: libc versions, compiler flags and CPU-specific code paths can all change counts. Counts may differ between local and CI environments, even for the same commit.
 
+## Cloud CI
+
+Reproducible counts let [hotpath Cloud](cloud.md) judge changes in CPU work on shared GitHub runners, where timing is too noisy to judge small changes. A higher count means more work, which usually but not always means slower code. Build the benchmark with `hotpath-alloc,hotpath-cloud,hotpath-callgrind` and run it under Callgrind in a pinned environment: the uploaded report carries instruction counts and allocations, judged under `[functions.icount]` and `[functions.alloc]` of the [policy file](./regression_policy.md#functions-instructions). [CI integration](./ci_integration.md#instruction-counts-with-callgrind) has the workflow; the [AI setup](./cloud.md#ai-setup-recommended) picks Callgrind for suitable new benchmarks on its own.
+
 ## Build requirements
 
 Attribution reads function symbols from Callgrind's output, so the binary must keep its symbol table: release builds work by default, but not with `strip = "symbols"` (or `strip = true`) in the profile.

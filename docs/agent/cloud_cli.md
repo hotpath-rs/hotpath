@@ -19,7 +19,8 @@ The site documents the latest hotpath release, which can be newer than the versi
 | https://hotpath.rs/agents_cli | install and authenticate, `repos`, `benchmarks`, `report`, `diff` (flags, JSON answer, how to read it), `validate-policy`, `init`, output and exit codes |
 | https://hotpath.rs/regression_policy | the policy file: which file a run uses, sections, keys, the pull request comment and check |
 | https://hotpath.rs/performance_budgets | budget rules, units, broken budgets |
-| https://hotpath.rs/ci_integration | the CI workflow that uploads reports, troubleshooting uploads |
+| https://hotpath.rs/ci_integration | the CI workflow that uploads reports, Callgrind runs, troubleshooting uploads |
+| https://hotpath.rs/callgrind | instruction counts (`icount`): what is counted, reproducibility limits, comparing runs |
 
 ## Setup
 
@@ -66,7 +67,14 @@ hotpath cloud diff ... | jq '.budgets.findings[] | {entity: .entity.name, actual
 
 - Start from `location` of each regressed row and the `crossed` cells: an allocation regression points at new or larger allocations in that function, a `calls` / `count` change at extra work, `sql_per_request` at an N+1 query.
 - Allocations are deterministic for a fixed workload, so an allocation change is real. Timing on shared CI runners is noisy; be careful attributing a small timing change to the code.
-- Profile locally to confirm before and after a fix: run the benchmark the CI workflow runs, with the same `--features`, and compare the printed hotpath report.
+- An `icount` regression (Callgrind instruction counts) means the function executed more instructions: extra work, a different algorithm or code that is no longer inlined. To investigate one:
+  - Read the changed code of the regressed function and its callees, and how far the count moved (`base`, `head`, `change_percent`).
+  - Check the comment and `diff` for an `environment mismatch` note: counts only compare between matching Valgrind version, `rustc` and OS, so a mismatched section was not judged, which does not mean it is clean.
+  - When possible, compare repeated runs of the same commit (re-run the job). How much counts vary depends on the workload, concurrent code most; a change within that spread may be noise.
+  - More instructions is more work, not necessarily more elapsed time; say so when you report it, and do not claim a speed regression from the count alone.
+  - Counts from a local run differ from CI's even for the same commit: compare a fix against a local run of the base commit, never against the CI numbers.
+  - Raising `[functions.icount]` `min_percent_change` to make a result disappear is loosening the policy (see "Rules"). Raise it only with the user's agreement and from measured run-to-run variation.
+- Profile locally to confirm before and after a fix: run the benchmark the CI workflow runs, with the same `--features`, and compare the printed hotpath report. For an `icount` regression that means running it under Valgrind as the workflow does, which needs x86_64 Linux; elsewhere, push the fix and read the next verdict.
 - A broken budget names its rule's `message`, which usually says what the limit protects.
 
 ## Rules
