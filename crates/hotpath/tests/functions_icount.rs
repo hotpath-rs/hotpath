@@ -142,12 +142,19 @@ pub mod tests {
             ("instructions::nested::first", 1, 1),
             ("instructions::nested::second", 1, 1),
         ];
-        // `avg` keeps two decimals of `total / calls`, not a truncated
-        // whole number.
+        // `avg` is `total / calls` to the hundredth, rounded half-up, not a
+        // truncated whole number.
         for entry in &list.data {
-            let total: u64 = entry.total.parse().unwrap();
-            let avg = format!("{:.2}", total as f64 / entry.calls as f64);
-            assert_eq!(entry.avg, avg, "{} avg", entry.name);
+            let total: u128 = entry.total.parse().unwrap();
+            let calls = u128::from(entry.calls);
+            let hundredths = u64::try_from((total * 100 + calls / 2) / calls).unwrap();
+            assert_eq!(
+                entry.avg,
+                hotpath::format_icount(hundredths),
+                "{} avg",
+                entry.name
+            );
+            assert_eq!(hotpath::parse_icount(&entry.avg), Some(hundredths));
         }
 
         for (name, calls, spins) in expected {

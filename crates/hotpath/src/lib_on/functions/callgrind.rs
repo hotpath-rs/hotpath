@@ -343,7 +343,7 @@ mod tests {
         crate::output_on::display_functions_table_to(&mut table, &list);
         let table = String::from_utf8(table).unwrap();
         for shown in [
-            "107,481,624.25",
+            "107,481,624",
             "429,926,497",
             "33.05",
             "33,047,735",
@@ -351,6 +351,8 @@ mod tests {
         ] {
             assert!(table.contains(shown), "{shown} missing from:\n{table}");
         }
+        // From 1,000 up the table rounds to a whole instruction.
+        assert!(!table.contains("107,481,624.25"), "{table}");
     }
 
     #[test]
