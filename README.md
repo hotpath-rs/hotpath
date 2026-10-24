@@ -11,7 +11,7 @@ Try the TUI demo via SSH - no installation required:
 ssh demo.hotpath.rs
 ```
 
-Or let your AI coding agent set up profiling for you, paste into Claude Code, Codex, OpenCode or Cursor:
+Or let your AI coding agent set up profiling, paste into Claude Code, Codex, OpenCode or Cursor:
 
 ```
 Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup
