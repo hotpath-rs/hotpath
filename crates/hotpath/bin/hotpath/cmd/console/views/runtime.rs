@@ -114,38 +114,54 @@ fn render_summary_line(
 
     let mut spans = vec![
         Span::raw(" Workers: "),
-        Span::styled(snapshot.num_workers.to_string(), yellow),
+        Span::styled(
+            hotpath::format_count_display(snapshot.num_workers as u64),
+            yellow,
+        ),
         Span::raw("  Tasks: "),
-        Span::styled(snapshot.num_alive_tasks.to_string(), cyan),
+        Span::styled(
+            hotpath::format_count_display(snapshot.num_alive_tasks as u64),
+            cyan,
+        ),
         Span::raw("  Global Q: "),
-        Span::styled(snapshot.global_queue_depth.to_string(), cyan),
+        Span::styled(
+            hotpath::format_count_display(snapshot.global_queue_depth as u64),
+            cyan,
+        ),
     ];
 
     if has_unstable {
         if let Some(spawned) = snapshot.spawned_tasks_count {
             spans.push(Span::raw("  Spawned: "));
-            spans.push(Span::styled(spawned.to_string(), cyan));
+            spans.push(Span::styled(hotpath::format_count_display(spawned), cyan));
         }
         if let Some(remote) = snapshot.remote_schedule_count {
             spans.push(Span::raw("  Remote Sched: "));
-            spans.push(Span::styled(remote.to_string(), cyan));
+            spans.push(Span::styled(hotpath::format_count_display(remote), cyan));
         }
         if let Some(blocking) = snapshot.num_blocking_threads {
             let idle = snapshot.num_idle_blocking_threads.unwrap_or(0);
             spans.push(Span::raw("  Blocking: "));
-            spans.push(Span::styled(format!("{}/{}", idle, blocking), cyan));
+            spans.push(Span::styled(
+                format!(
+                    "{}/{}",
+                    hotpath::format_count_display(idle as u64),
+                    hotpath::format_count_display(blocking as u64)
+                ),
+                cyan,
+            ));
         }
         if let Some(io_reg) = snapshot.io_driver_fd_registered_count {
             let io_dereg = snapshot.io_driver_fd_deregistered_count.unwrap_or(0);
             spans.push(Span::raw("  FDs: "));
             spans.push(Span::styled(
-                format!("{}", io_reg.saturating_sub(io_dereg)),
+                hotpath::format_count_display(io_reg.saturating_sub(io_dereg)),
                 cyan,
             ));
         }
         if let Some(ready) = snapshot.io_driver_ready_count {
             spans.push(Span::raw("  IO Ready: "));
-            spans.push(Span::styled(ready.to_string(), cyan));
+            spans.push(Span::styled(hotpath::format_count_display(ready), cyan));
         }
     }
 
@@ -155,8 +171,8 @@ fn render_summary_line(
 fn worker_row(w: &JsonRuntimeWorker, has_unstable: bool) -> Row<'static> {
     let base = vec![
         Cell::from(format!("worker-{}", w.index)),
-        Cell::from(w.park_count.to_string()),
-        Cell::from(w.busy_duration_ms.to_string()),
+        Cell::from(hotpath::format_count_display(w.park_count)),
+        Cell::from(hotpath::format_count_display(w.busy_duration_ms)),
     ];
 
     if has_unstable {
@@ -174,9 +190,11 @@ fn worker_row(w: &JsonRuntimeWorker, has_unstable: bool) -> Row<'static> {
 }
 
 fn opt_u64(v: Option<u64>) -> String {
-    v.map(|n| n.to_string()).unwrap_or_else(|| "-".to_string())
+    v.map(hotpath::format_count_display)
+        .unwrap_or_else(|| "-".to_string())
 }
 
 fn opt_usize(v: Option<usize>) -> String {
-    v.map(|n| n.to_string()).unwrap_or_else(|| "-".to_string())
+    v.map(|n| hotpath::format_count_display(n as u64))
+        .unwrap_or_else(|| "-".to_string())
 }

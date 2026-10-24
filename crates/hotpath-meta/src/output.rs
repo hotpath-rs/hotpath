@@ -198,6 +198,12 @@ pub fn format_count(count: u64) -> String {
     count.to_string()
 }
 
+/// [`format_count`] for display only ([`parse_count`] rejects it): with
+/// thousands separators (`1,234,567`).
+pub fn format_count_display(count: u64) -> String {
+    group_thousands(count)
+}
+
 /// Parses a count string back to a u64.
 /// Inverse of [`format_count`].
 pub fn parse_count(s: &str) -> Option<u64> {
@@ -279,6 +285,23 @@ pub enum ProfilingMode {
     AllocCount,
     /// Inclusive instructions executed, counted by Valgrind Callgrind
     Icount,
+}
+
+impl ProfilingMode {
+    /// A function entry's `avg` / `total` / percentile value as the JSON
+    /// carries it, in display form: counts and instruction counts gain
+    /// thousands separators, durations and byte sizes pass through.
+    pub fn display_value(self, s: &str) -> String {
+        match self {
+            ProfilingMode::AllocCount => {
+                parse_count(s).map_or_else(|| s.to_string(), format_count_display)
+            }
+            ProfilingMode::Icount => {
+                parse_icount(s).map_or_else(|| s.to_string(), format_icount_display)
+            }
+            ProfilingMode::Timing | ProfilingMode::AllocBytes => s.to_string(),
+        }
+    }
 }
 
 impl fmt::Display for ProfilingMode {
@@ -473,6 +496,16 @@ mod parse_tests {
         assert_eq!(format_count(999), "999");
         assert_eq!(format_count(1_000), "1000");
         assert_eq!(format_count(1_000_000), "1000000");
+        for (count, shown) in [
+            (0, "0"),
+            (999, "999"),
+            (1_000, "1,000"),
+            (1_234_567, "1,234,567"),
+            (u64::MAX, "18,446,744,073,709,551,615"),
+        ] {
+            assert_eq!(format_count_display(count), shown);
+        }
+        assert_eq!(parse_count("1,000"), None);
     }
 
     #[test]

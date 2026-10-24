@@ -22,8 +22,8 @@ use crate::json::{
 };
 use crate::mutexes::{compare_mutex_entries, MutexEntry, MUTEXES_STATE};
 use crate::output::{
-    format_bytes, format_duration, format_percentile_header, format_percentile_key, format_rate,
-    Precision,
+    format_bytes, format_count_display, format_duration, format_percentile_header,
+    format_percentile_key, format_rate, Precision,
 };
 use crate::output_on::{format_bytes_per_sec, format_throughput, write_section_header};
 use crate::rw_locks::{compare_rw_lock_entries, RwLockEntry, RwLockKind, RW_LOCKS_STATE};
@@ -116,13 +116,13 @@ pub(crate) fn report_channels_table(
         // `None` until the first message event.
         let max_queue = channel_stats
             .max_queue_size
-            .map_or_else(|| "-".to_string(), |q| q.to_string());
+            .map_or_else(|| "-".to_string(), |q| format_count_display(q as u64));
         table.add_row(vec![
             Cell::new(&label),
             Cell::new(&channel_stats.channel_type.to_string()),
-            Cell::new(&channel_stats.instances.to_string()),
-            Cell::new(&channel_stats.sent_count.to_string()),
-            Cell::new(&channel_stats.received_count.to_string()),
+            Cell::new(&format_count_display(channel_stats.instances)),
+            Cell::new(&format_count_display(channel_stats.sent_count)),
+            Cell::new(&format_count_display(channel_stats.received_count)),
             Cell::new(&format_rate(channel_stats.sent_per_sec(now_ns))),
             Cell::new(&format_rate(channel_stats.received_per_sec(now_ns))),
             Cell::new(&max_queue),
@@ -178,7 +178,7 @@ pub(crate) fn report_channel_latency_table(
         };
         let mut row = vec![
             Cell::new(&label),
-            Cell::new(&channel.received_count.to_string()),
+            Cell::new(&format_count_display(channel.received_count)),
             duration_cell(channel.delay_avg_nanos()),
         ];
         for &p in percentiles {
@@ -312,7 +312,7 @@ fn report_rw_locks_subtable(
         };
         let mut row = vec![
             Cell::new(&label),
-            Cell::new(&rw_lock.count(kind).to_string()),
+            Cell::new(&format_count_display(rw_lock.count(kind))),
             Cell::new(&fmt(rw_lock.wait_avg_nanos(kind))),
         ];
         for &p in percentiles {
@@ -502,7 +502,7 @@ pub(crate) fn report_mutexes_table(
         };
         let mut row = vec![
             Cell::new(&label),
-            Cell::new(&mutex.count.to_string()),
+            Cell::new(&format_count_display(mutex.count)),
             Cell::new(&fmt(mutex.wait_avg_nanos())),
         ];
         for &p in percentiles {
@@ -653,7 +653,7 @@ pub(crate) fn report_sql_table(
             row.push(Cell::new(&format_route(entry.route)));
         }
         row.extend([
-            Cell::new(&entry.count.to_string()),
+            Cell::new(&format_count_display(entry.count)),
             Cell::new(&format_duration(entry.avg_nanos())),
         ]);
         for &p in percentiles {
@@ -820,8 +820,8 @@ pub(crate) fn report_http_table(
             row.push(Cell::new(&format_route(entry.route)));
         }
         row.extend([
-            Cell::new(&entry.count.to_string()),
-            Cell::new(&entry.error_count.to_string()),
+            Cell::new(&format_count_display(entry.count)),
+            Cell::new(&format_count_display(entry.error_count)),
             Cell::new(&format_duration(entry.avg_nanos())),
         ]);
         for &p in percentiles {
@@ -1002,9 +1002,9 @@ pub(crate) fn report_server_table(
     for entry in entries {
         let mut row = vec![
             Cell::new(&truncate_query(&entry.route)),
-            Cell::new(&entry.count.to_string()),
-            Cell::new(&entry.status_4xx.to_string()),
-            Cell::new(&entry.status_5xx.to_string()),
+            Cell::new(&format_count_display(entry.count)),
+            Cell::new(&format_count_display(entry.status_4xx)),
+            Cell::new(&format_count_display(entry.status_5xx)),
         ];
         if columns.sql {
             row.push(Cell::new(&format_per_request(entry.sql_per_request())));
@@ -1066,7 +1066,7 @@ fn report_server_alloc_subtable(
     for entry in entries {
         let mut row = vec![
             Cell::new(&truncate_query(&entry.route)),
-            Cell::new(&entry.count.to_string()),
+            Cell::new(&format_count_display(entry.count)),
             Cell::new(&format_per_request(entry.allocs_per_request())),
             Cell::new(&scoped(entry, format_bytes(entry.avg_bytes()))),
         ];
@@ -1292,8 +1292,8 @@ fn report_io_subtable(
         };
         let mut row = vec![
             Cell::new(&label),
-            Cell::new(&entry.instances.to_string()),
-            Cell::new(&stats.count.to_string()),
+            Cell::new(&format_count_display(u64::from(entry.instances))),
+            Cell::new(&format_count_display(stats.count)),
             Cell::new(&format_bytes(stats.bytes)),
             Cell::new(&format_throughput(stats.throughput_bytes_per_sec())),
             Cell::new(&fmt(stats.avg_nanos())),
@@ -1303,12 +1303,12 @@ fn report_io_subtable(
         }
         row.push(Cell::new(&fmt(stats.total_nanos)));
         let errors = if kind == IoOpKind::Write {
-            row.push(Cell::new(&entry.flush.count.to_string()));
+            row.push(Cell::new(&format_count_display(entry.flush.count)));
             entry.write_side_errors()
         } else {
             stats.errors
         };
-        row.push(Cell::new(&errors.to_string()));
+        row.push(Cell::new(&format_count_display(errors)));
         table.add_row(row);
     }
 
@@ -1434,13 +1434,13 @@ pub(crate) fn report_streams_table(
         );
         table.add_row(vec![
             Cell::new(&label),
-            Cell::new(&stream_stats.instances.to_string()),
+            Cell::new(&format_count_display(stream_stats.instances)),
             Cell::new(
                 stream_stats
                     .display_state()
                     .map_or("-", |state| state.as_str()),
             ),
-            Cell::new(&stream_stats.items_yielded.to_string()),
+            Cell::new(&format_count_display(stream_stats.items_yielded)),
         ]);
     }
 
@@ -1548,8 +1548,8 @@ pub(crate) fn report_futures_table(
         };
         table.add_row(vec![
             Cell::new(&label),
-            Cell::new(&total_calls.to_string()),
-            Cell::new(&total_polls.to_string()),
+            Cell::new(&format_count_display(total_calls)),
+            Cell::new(&format_count_display(total_polls)),
             Cell::new(&avg_poll),
             Cell::new(&total_poll_dur),
             Cell::new(&avg_alloc_per_call),
@@ -1711,7 +1711,7 @@ pub(crate) fn report_debug_table(writer: &mut dyn Write) {
             Cell::new(entry.entry_type.as_str()),
             Cell::new(&entry.expression),
             Cell::new(value),
-            Cell::new(&entry.log_count.to_string()),
+            Cell::new(&format_count_display(entry.log_count)),
             Cell::new(&entry.source_display),
         ]);
     }

@@ -64,7 +64,7 @@ pub(crate) fn render_debug_panel(
                 Cell::from(truncate_left(&stat.source_display, source_width)),
                 Cell::from(truncate_left(&key_expr, label_width)),
                 Cell::from(truncate_left(last_value, value_width)),
-                Cell::from(stat.log_count.to_string()),
+                Cell::from(hotpath::format_count_display(stat.log_count)),
             ])
         })
         .collect();

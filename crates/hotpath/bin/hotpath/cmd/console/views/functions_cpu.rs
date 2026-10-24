@@ -163,7 +163,7 @@ fn render_cpu_table(frame: &mut Frame, app: &mut App, area: Rect) {
         let short_name = hotpath::shorten_function_name(&entry.name);
         Row::new(vec![
             Cell::from(short_name),
-            Cell::from(entry.samples.to_string()),
+            Cell::from(hotpath::format_count_display(entry.samples)),
             Cell::from(entry.percent.clone()),
         ])
     });

@@ -23,11 +23,12 @@ fn channel_capacity(channel_type: &str) -> String {
         "oneshot" => "1".to_string(),
         s if s.starts_with("bounded") => {
             if let Some(start) = s.find('[') {
-                if let Some(end) = s.find(']') {
-                    s[start + 1..end].to_string()
-                } else {
-                    s[start + 1..].to_string()
-                }
+                let raw = match s.find(']') {
+                    Some(end) => &s[start + 1..end],
+                    None => &s[start + 1..],
+                };
+                raw.parse::<u64>()
+                    .map_or_else(|_| raw.to_string(), hotpath::format_count_display)
             } else {
                 "?".to_string()
             }
@@ -137,7 +138,11 @@ pub(crate) fn render_channels_panel(
             let type_text = format!("Channel[{capacity}]");
             // `-` until the first message event.
             let queue_text = match (entry.queue_size, entry.max_queue_size) {
-                (Some(queue), Some(max)) => format!("{queue}/{max}/{capacity}"),
+                (Some(queue), Some(max)) => format!(
+                    "{}/{}/{capacity}",
+                    hotpath::format_count_display(queue as u64),
+                    hotpath::format_count_display(max as u64)
+                ),
                 _ => "-".to_string(),
             };
             let rate_text = format!(
@@ -148,12 +153,16 @@ pub(crate) fn render_channels_panel(
             let mut cells = vec![
                 Cell::from(type_text).style(Style::default().fg(Color::Cyan)),
                 Cell::from(truncate_left(&entry.label, label_width)),
-                Cell::from(entry.instances.to_string()),
+                Cell::from(hotpath::format_count_display(entry.instances)),
                 {
                     let state = entry.state.as_deref().unwrap_or("-");
                     Cell::from(state.to_string()).style(state_style(state))
                 },
-                Cell::from(format!("{}/{}", entry.sent_count, entry.received_count)),
+                Cell::from(format!(
+                    "{}/{}",
+                    hotpath::format_count_display(entry.sent_count),
+                    hotpath::format_count_display(entry.received_count)
+                )),
                 Cell::from(rate_text),
                 Cell::from(queue_text),
                 Cell::from(entry.delay_avg.clone().unwrap_or_else(|| "-".to_string())),
@@ -230,12 +239,12 @@ pub(crate) fn render_streams_panel(
         .map(|entry| {
             Row::new(vec![
                 Cell::from(truncate_left(&entry.label, label_width)),
-                Cell::from(entry.instances.to_string()),
+                Cell::from(hotpath::format_count_display(entry.instances)),
                 {
                     let state = entry.state.as_deref().unwrap_or("-");
                     Cell::from(state.to_string()).style(state_style(state))
                 },
-                Cell::from(entry.items_yielded.to_string()),
+                Cell::from(hotpath::format_count_display(entry.items_yielded)),
             ])
         })
         .collect();
@@ -303,8 +312,8 @@ pub(crate) fn render_futures_panel(
             };
             Row::new(vec![
                 Cell::from(truncate_left(&display_label, label_width)),
-                Cell::from(entry.call_count.to_string()),
-                Cell::from(entry.total_polls.to_string()),
+                Cell::from(hotpath::format_count_display(entry.call_count)),
+                Cell::from(hotpath::format_count_display(entry.total_polls)),
                 Cell::from(avg_total),
             ])
         })
@@ -449,7 +458,7 @@ fn render_rw_locks_subtable(
 
             let mut cells = vec![
                 Cell::from(truncate_left(&entry.label, label_width)),
-                Cell::from(count.to_string()),
+                Cell::from(hotpath::format_count_display(count)),
                 Cell::from(wait_avg.clone()),
             ];
             for key in &percentile_keys {
@@ -537,7 +546,7 @@ pub(crate) fn render_mutexes_panel(
         .map(|entry| {
             let mut cells = vec![
                 Cell::from(truncate_left(&entry.label, label_width)),
-                Cell::from(entry.count.to_string()),
+                Cell::from(hotpath::format_count_display(entry.count)),
                 Cell::from(entry.wait_avg.clone()),
             ];
             for key in &percentile_keys {
@@ -643,7 +652,7 @@ pub(crate) fn render_sql_panel(
                 )));
             }
             cells.extend([
-                Cell::from(entry.count.to_string()),
+                Cell::from(hotpath::format_count_display(entry.count)),
                 Cell::from(entry.avg.clone()),
             ]);
             for key in &percentile_keys {
@@ -743,8 +752,8 @@ pub(crate) fn render_http_panel(
                 )));
             }
             cells.extend([
-                Cell::from(entry.count.to_string()),
-                Cell::from(entry.errors.to_string()),
+                Cell::from(hotpath::format_count_display(entry.count)),
+                Cell::from(hotpath::format_count_display(entry.errors)),
                 Cell::from(entry.avg.clone()),
             ]);
             for key in &percentile_keys {
@@ -900,7 +909,7 @@ fn render_server_alloc_table(
         .map(|entry| {
             let mut cells = vec![
                 Cell::from(truncate_right(&entry.route, route_width)),
-                Cell::from(entry.count.to_string()),
+                Cell::from(hotpath::format_count_display(entry.count)),
             ];
             match entry
                 .alloc
@@ -1020,9 +1029,9 @@ fn render_server_timing_table(
         .map(|entry| {
             let mut cells = vec![
                 Cell::from(truncate_right(&entry.route, route_width)),
-                Cell::from(entry.count.to_string()),
-                Cell::from(entry.status_4xx.to_string()),
-                Cell::from(entry.status_5xx.to_string()),
+                Cell::from(hotpath::format_count_display(entry.count)),
+                Cell::from(hotpath::format_count_display(entry.status_4xx)),
+                Cell::from(hotpath::format_count_display(entry.status_5xx)),
             ];
             if show_sql {
                 cells.push(Cell::from(format_per_request(entry.sql_per_request)));
@@ -1181,8 +1190,8 @@ fn render_io_bytes_subtable(
 
             let mut cells = vec![
                 Cell::from(truncate_left(&entry.label, label_width)),
-                Cell::from(entry.instances.to_string()),
-                Cell::from(stats.count.to_string()),
+                Cell::from(hotpath::format_count_display(u64::from(entry.instances))),
+                Cell::from(hotpath::format_count_display(stats.count)),
                 Cell::from(hotpath::format_bytes(stats.bytes)),
                 Cell::from(
                     stats
@@ -1208,12 +1217,12 @@ fn render_io_bytes_subtable(
             // The write row aggregates write-side errors so flush/shutdown
             // failures aren't hidden, matching the terminal report.
             let errors = if kind == IoBytesKind::Write {
-                cells.push(Cell::from(entry.flush.count.to_string()));
+                cells.push(Cell::from(hotpath::format_count_display(entry.flush.count)));
                 stats.errors + entry.flush.errors + entry.shutdown.errors
             } else {
                 stats.errors
             };
-            cells.push(Cell::from(errors.to_string()));
+            cells.push(Cell::from(hotpath::format_count_display(errors)));
             Row::new(cells)
         })
         .collect();

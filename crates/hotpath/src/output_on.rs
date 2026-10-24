@@ -1,7 +1,7 @@
 use crate::json::JsonFunctionsList;
 use crate::output::{
-    floor_char_boundary, format_bytes, format_icount_display, format_percentile_header,
-    format_percentile_key, parse_icount, shorten_function_name, ProfilingMode, MAX_LOG_LEN,
+    floor_char_boundary, format_bytes, format_count_display, format_percentile_header,
+    format_percentile_key, shorten_function_name, MAX_LOG_LEN,
 };
 use crate::shared::Section;
 use crate::table::{Cell, Table};
@@ -125,20 +125,14 @@ pub(crate) fn display_functions_table_to<W: Write>(writer: &mut W, list: &JsonFu
 
     table.add_row(header_cells);
 
-    // The JSON carries icount raw; the table shows its display form.
-    let value = |s: &str| match list.profiling_mode {
-        ProfilingMode::Icount => {
-            parse_icount(s).map_or_else(|| s.to_string(), format_icount_display)
-        }
-        _ => s.to_string(),
-    };
+    let value = |s: &str| list.profiling_mode.display_value(s);
 
     for entry in &list.data {
         let mut row_cells = Vec::new();
 
         let short_name = shorten_function_name(&entry.name);
         row_cells.push(Cell::new(&short_name));
-        row_cells.push(Cell::new(&entry.calls.to_string()));
+        row_cells.push(Cell::new(&format_count_display(entry.calls)));
         row_cells.push(Cell::new(&value(&entry.avg)));
 
         for &p in &list.percentiles {
@@ -146,9 +140,8 @@ pub(crate) fn display_functions_table_to<W: Write>(writer: &mut W, list: &JsonFu
             let value = entry
                 .percentiles
                 .get(&key)
-                .map(|s| s.as_str())
-                .unwrap_or("N/A");
-            row_cells.push(Cell::new(value));
+                .map_or_else(|| "N/A".to_string(), |s| value(s));
+            row_cells.push(Cell::new(&value));
         }
 
         row_cells.push(Cell::new(&value(&entry.total)));
@@ -171,7 +164,7 @@ pub(crate) fn display_functions_table_to<W: Write>(writer: &mut W, list: &JsonFu
     }
 
     if let Some(total_alloc) = &list.total_allocated {
-        let _ = writeln!(writer, "Total: {}", total_alloc);
+        let _ = writeln!(writer, "Total: {}", value(total_alloc));
     }
 
     print_table(&table, writer);
