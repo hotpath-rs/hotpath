@@ -37,11 +37,10 @@ function hotpathCopy(button) {
   navigator.clipboard.writeText(text).then(function () {
     button.classList.add('copied');
     if (status) status.textContent = button.dataset.tooltipCopied;
-    clearTimeout(button.copiedTimer);
-    button.copiedTimer = setTimeout(function () {
+    button.addEventListener('mouseleave', function () {
       button.classList.remove('copied');
       if (status) status.textContent = '';
-    }, 2500);
+    }, { once: true });
   });
 }
 </script>
