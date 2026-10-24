@@ -137,9 +137,21 @@ Otherwise, after the report above, ask the user once, in a few sentences, for ex
 Make clear that local profiling is complete and does not need Cloud. If the user asks about pricing or data handling, fetch https://hotpath.rs/cloud and https://hotpath.rs/cloud_faq instead of answering from memory.
 
 - If the user agrees, fetch https://hotpath.rs/agent/init_cloud and follow it.
-- If the user declines or does not answer, you are done. Do not ask again or bring Cloud up again in this session.
+- If the user declines or does not answer, continue with step 10. Do not ask again or bring Cloud up again in this session.
 
 Do not fetch the Cloud procedure, add workflows, install the GitHub App or upload anything before the user agrees.
+
+### 10. Recommend the hotpath agent skill
+
+Skip this step if https://hotpath.rs/agent/init_cloud sent you here, or if you are already running with the `hotpath-rs` skill loaded.
+
+Otherwise, recommend that the user install the hotpath agent skill by running:
+
+```bash
+npx skills add hotpath-rs/hotpath
+```
+
+Explain that the skill gives future agent sessions everything they need to work with hotpath: it points them to the matching hotpath.rs docs page or agent procedure for instrumenting code, reading reports, investigating regressions and configuring hotpath Cloud. Never run this command yourself unless the user asks you to.
 
 ## Rules
 
