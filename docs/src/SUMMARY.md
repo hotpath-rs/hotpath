@@ -8,6 +8,7 @@
 - [Profiling overhead](./profiling_overhead.md)
 - [Functions](./functions.md)
 - [CPU profiling](./cpu_profiling.md)
+- [Callgrind instructions](./callgrind.md)
 - [Threads](./threads.md)
 - [Async Data Flow](./data_flow.md)
 - [Locks](./locks.md)
