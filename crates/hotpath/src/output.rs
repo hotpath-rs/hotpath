@@ -204,6 +204,58 @@ pub fn parse_count(s: &str) -> Option<u64> {
     s.trim().parse::<u64>().ok()
 }
 
+/// Formats an instruction count given in hundredths of an instruction as
+/// the JSON report carries it: a whole number as is (`107481624`), a
+/// fraction with two decimals (`33.05`). [`format_icount_grouped`] is the
+/// display form.
+pub fn format_icount(hundredths: u64) -> String {
+    with_icount_fraction((hundredths / 100).to_string(), hundredths)
+}
+
+/// [`format_icount`] with thousands separators (`107,481,624.25`), for
+/// display only: [`parse_icount`] rejects them.
+pub fn format_icount_grouped(hundredths: u64) -> String {
+    let digits = (hundredths / 100).to_string();
+    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
+    for (i, digit) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    with_icount_fraction(grouped, hundredths)
+}
+
+fn with_icount_fraction(whole: String, hundredths: u64) -> String {
+    match hundredths % 100 {
+        0 => whole,
+        rest => format!("{whole}.{rest:02}"),
+    }
+}
+
+/// Parses an instruction count back to hundredths of an instruction.
+/// Inverse of [`format_icount`]: digits with at most two decimals, parsed
+/// with checked integer arithmetic so a value past the `u64` hundredths
+/// range is `None`, never a saturated one.
+pub fn parse_icount(s: &str) -> Option<u64> {
+    let s = s.trim();
+    let (whole, frac) = s.split_once('.').unwrap_or((s, ""));
+    let digits = |p: &str| p.bytes().all(|b| b.is_ascii_digit());
+    if whole.is_empty() || s.ends_with('.') || !digits(whole) || !digits(frac) || frac.len() > 2 {
+        return None;
+    }
+    let hundredths = match frac.len() {
+        0 => 0,
+        1 => frac.parse::<u64>().ok()? * 10,
+        _ => frac.parse::<u64>().ok()?,
+    };
+    whole
+        .parse::<u64>()
+        .ok()?
+        .checked_mul(100)?
+        .checked_add(hundredths)
+}
+
 /// Profiling mode indicating what type of measurements were collected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProfilingMode {
@@ -409,6 +461,40 @@ mod parse_tests {
         assert_eq!(format_count(999), "999");
         assert_eq!(format_count(1_000), "1000");
         assert_eq!(format_count(1_000_000), "1000000");
+    }
+
+    #[test]
+    fn test_icount_format_and_parse() {
+        for (hundredths, raw, grouped) in [
+            (0, "0", "0"),
+            (3305, "33.05", "33.05"),
+            (3300, "33", "33"),
+            (99_900, "999", "999"),
+            (100_000, "1000", "1,000"),
+            (10_748_162_425, "107481624.25", "107,481,624.25"),
+            (
+                u64::MAX,
+                "184467440737095516.15",
+                "184,467,440,737,095,516.15",
+            ),
+        ] {
+            assert_eq!(format_icount(hundredths), raw);
+            assert_eq!(format_icount_grouped(hundredths), grouped);
+            assert_eq!(parse_icount(raw), Some(hundredths), "{raw:?}");
+        }
+        for (input, expected) in [
+            ("33.5", Some(3350)),
+            ("33.00", Some(3300)),
+            ("184467440737095516.16", None),
+            ("1,000", None),
+            ("33.", None),
+            (".5", None),
+            ("33.123", None),
+            ("-1", None),
+            ("", None),
+        ] {
+            assert_eq!(parse_icount(input), expected, "{input:?}");
+        }
     }
 
     #[test]
