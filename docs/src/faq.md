@@ -16,6 +16,7 @@ For very hot code paths, you can lower the cost further with [time sampling](pro
 
 - [Functions](functions.md) - execution time, call counts, percentiles, and memory allocations of sync and async functions.
 - [CPU usage](cpu_profiling.md) - sampling-based CPU profiling powered by samply.
+- [Instruction counts](callgrind.md) - deterministic per-function instruction counts with Valgrind's Callgrind, for low-noise regression checks in CI.
 - [Threads](threads.md) - per-thread CPU usage and memory statistics.
 - [Async data flow](data_flow.md) - channel throughput and queue depth, streams, and futures.
 - [Locks](locks.md) - wait and hold times of mutexes and read-write locks.
@@ -74,17 +75,18 @@ To profile production safely, follow these guidelines:
 - HTML reports and plots, and runs on stable Rust.
 - Benchmarks live in `benches/`, so your application code stays untouched.
 
-The trade-off is that a micro-benchmark measures the code you chose to isolate, with the inputs you wrote for it. It doesn't show how that code behaves inside the full application, under real load, next to the database, network, locks, and other tasks.
+The trade-off is that a micro-benchmark measures the code you chose to isolate, with the inputs you wrote for it. It doesn't show how that code behaves inside the full application, under real load, next to the database, network, locks, and other tasks. Also, `criterion` measures wall-clock time by default. Its statistics reduce noise within a run, but on shared CI runners, CPU frequency scaling, scheduling, and other workloads can shift results between runs, so small regressions are hard to tell apart from noise.
 
 **hotpath** instruments the real program while it runs a real workload. Its strengths:
 
+- Deterministic results in CI. Running under [Valgrind's Callgrind](callgrind.md) with the `hotpath-callgrind` feature, `hotpath` reports the number of instructions executed by each function instead of elapsed time. For deterministic workloads, these counts are reproducible from run to run, so even small regressions stand out on noisy shared GitHub Actions runners, with no need for hardware performance counters.
 - Profiles many functions at once and shows which of them dominate the total execution time.
 - Collects signals beyond timing: memory allocations, [SQL queries](sql_tracing.md), [HTTP calls](http_tracing.md), [lock contention](locks.md), [channel queues](data_flow.md#channels-monitoring), and [I/O](io_tracing.md). Counts like the number of executed queries or allocated bytes are often identical on every run, so they stay reliable even when timings are noisy.
 - Measures the wall-clock time of async functions, including the time spent waiting on I/O.
 
-Its trade-offs are a small per-call [overhead](profiling_overhead.md), and that it's not a statistical benchmarking framework: a single profiled run is subject to normal run-to-run variance.
+Its trade-offs are a small per-call [overhead](profiling_overhead.md), and that its wall-clock timings, like any timings, are subject to run-to-run variance. Callgrind instruction counts avoid that noise, but they are available only on x86_64 Linux, Valgrind slows the program down substantially, and counts can be compared only between runs that use the same Valgrind version, Rust toolchain, and target. Instruction counts also don't replace timings: they closely track CPU-bound work, but not time spent waiting on I/O or locks.
 
-The two work well together. Use `hotpath` to find the bottleneck in the real application, then extract the hot function into a `criterion` benchmark to iterate on its optimization with precise, repeatable measurements.
+The two work well together. Use `hotpath` to find the bottleneck in the real application, then extract the hot function into a `criterion` benchmark to iterate on its optimization with precise, repeatable measurements. Then keep a `hotpath` Callgrind run in CI, where deterministic instruction counts catch regressions too small to separate from wall-clock noise.
 
 ## How is hotpath different from hyperfine?
 
@@ -99,7 +101,7 @@ The two work well together. Use `hotpath` to find the bottleneck in the real app
 
 The trade-off is that it tells you _that_ the total runtime changed, not _which_ part of the program caused it.
 
-**hotpath** looks inside the program. It reports per-function timing and allocations, along with SQL queries, HTTP calls, locks, channels, and I/O, so you can see where the time is spent and what changed between two versions. In exchange, it requires adding instrumentation macros to your code, works only for Rust programs, and adds a small [overhead](profiling_overhead.md) to every instrumented call.
+**hotpath** looks inside the program. It reports per-function timing and allocations, along with SQL queries, HTTP calls, locks, channels, and I/O, so you can see where the time is spent and what changed between two versions. For CI, it can also [count executed instructions](callgrind.md) per function under Callgrind, which gives reproducible numbers on shared runners without hardware performance counters. In exchange, it requires adding instrumentation macros to your code, works only for Rust programs, and adds a small [overhead](profiling_overhead.md) to every instrumented call.
 
 `hyperfine` is a great fit for end-to-end benchmarks of CLI tools and whole programs, and `hotpath` explains the numbers it produces. `hotpath`'s own [allocation overhead benchmarks](/blog/rust-performance-profiling#alloc-metrics-cpu-cache-busting) are timed with `hyperfine`.
 
