@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.29.1] - 2026-10-24
+
+### 🚀 Features
+
+- Add generic hotpath skill
+
+- Consolidate agent skills and remove skills CLI
+
+- Improve onboarding skills
+
+- Improve icount metric format
+
+- Improve icount metric display
+
+- Restore hotpath init CLI
+
+
+### 🐛 Bug Fixes
+
+- Link agent pages without the .md suffix
+
+- Simplify AI onboarding
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Update valgrind version
+
+- Update skill and docs for Callgrind mode
+
+- Release 0.29.1
+
+
 ## [0.29.0] - 2026-10-22
 
 ### 🚀 Features
