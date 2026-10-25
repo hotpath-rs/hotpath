@@ -24,7 +24,7 @@ curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/functions
 - If a fetch fails, stop and tell the user which URL could not be retrieved; do not continue from memory.
 - A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 - Fetch only the pages the task needs. Pages link to each other; follow a link when the page you read points to it for the detail you need.
-- The site documents the latest hotpath release, which can be newer than the version the project uses (check `Cargo.lock` or `Cargo.toml`). Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
+- The site documents the latest hotpath release (`cargo search hotpath --limit 1` names it). When a project already depends on an older `hotpath` (check `Cargo.lock`), update it to the latest release before working with it: raise the requirement in `Cargo.toml` where it does not allow that version, keeping its features, run `cargo update -p hotpath`, build with and without the project's hotpath features, and fix what the update breaks using https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md. Tell the user you updated it, from which version to which, and any code you changed. If it cannot be made to build, revert it, keep the old version and tell the user why; when the docs then describe something that version does not have, tell the user instead of working around it. The agent procedures below repeat this rule.
 - When the docs and your memory of the API disagree, the docs win.
 
 ## Agent procedures

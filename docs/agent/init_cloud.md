@@ -24,7 +24,12 @@ curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/ci_integration
 
 Before each step, fetch the pages it names and follow them instead of relying on memory. Keep `-fsSL` and the header. If a fetch fails, stop and tell the user which URL could not be retrieved; do not continue from memory. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 
-The site documents the latest hotpath release, which can be newer than the version the project uses. Never change the project's `hotpath` version because the docs show a newer one. If the docs describe something that version does not have, tell the user it needs a newer hotpath instead of working around it.
+The site documents the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the crate version is the tag without its `v`). When the project already depends on an older `hotpath`, update it to that release before following this procedure:
+
+- Where the project's `hotpath` requirement (each crate's `Cargo.toml`, or `[workspace.dependencies]`) does not allow that version, raise it to `"{{HOTPATH_VERSION}}"`, keeping its features. Then run `cargo update -p hotpath` and check that `Cargo.lock` resolves the release.
+- Build with and without the project's hotpath features (`cargo check`, and `cargo check --features` with the features the project defines) and fix what the update breaks, using the release notes in https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md.
+- Tell the user you updated hotpath: the old and the new version, and any code you changed for it.
+- If the update cannot be made to build, revert it, continue on the version the project had and tell the user why. When the docs then describe something that version does not have, tell the user instead of working around it.
 
 | Page | Covers |
 |---|---|
@@ -66,7 +71,7 @@ Docs: https://hotpath.rs/ci_integration ("Profiling modes"), https://hotpath.rs/
 
 Use **merged** when all of these hold, otherwise **native**:
 
-- The `hotpath` version in `Cargo.lock` is `0.29.2` or newer (it can merge reports). Never upgrade it for this; mention that `hotpath` `0.29.2` or newer would enable merged mode.
+- The `hotpath` version in `Cargo.lock` is `0.29.2` or newer (it can merge reports). The update at the start of this procedure provides it; if that update had to be reverted, use native mode and tell the user that merged mode needs `hotpath` `0.29.2` or newer.
 - The benchmark can run on the docs workflow's x86_64 Linux runner: it does not need macOS, Windows or an ARM runner.
 - The workload is CPU-bound and deterministic: its time goes into computation, not into network, disk, sleeps, timers or a database service, and it is not dominated by many threads racing each other (Valgrind serializes threads, so their interleaving moves the counts).
 - The code it should judge is in functions with `#[hotpath::measure]` (or `measure_all`); `measure_block!` blocks are not counted.
@@ -80,7 +85,7 @@ Never pick Callgrind only for a new benchmark. Merged mode is preferred, not req
 
 Docs: https://hotpath.rs/ci_integration ("Setup", and "Profiling modes").
 
-Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchmark crate's `Cargo.toml`, next to the existing hotpath features, unless it is already there. For merged mode add the `hotpath-callgrind` passthrough as well, and keep `hotpath-alloc`. Leave the `hotpath` dependency version as it is. Never add them to `default`. In the forks setup, the pull request job needs them too, although it does not upload.
+Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchmark crate's `Cargo.toml`, next to the existing hotpath features, unless it is already there. For merged mode add the `hotpath-callgrind` passthrough as well, and keep `hotpath-alloc`. Keep the `hotpath` version the update at the start of this procedure set. Never add them to `default`. In the forks setup, the pull request job needs them too, although it does not upload.
 
 ### 5. Add the policy file
 
