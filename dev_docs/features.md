@@ -18,10 +18,10 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 - `json` gates `hotpath::json` without pulling the profiler in (used by hotpath-backend to parse reports).
 - `demo` exists only for the TUI demo traffic (`bin/hotpath/cmd/console/demo.rs`).
 
-## Cloud
+## hotpath-cloud
 
 - `hotpath-cloud` upload: `lib_on/cloud.rs`, called from `HotpathGuard::drop`. Report provenance: `lib_on/report_meta.rs`, `lib_on/git_info.rs`, `lib_on/ci_info.rs`. Policy file lookup: `json/policy_file.rs`.
-- User docs: the "hotpath Cloud" pages in `docs/src/SUMMARY.md`.
+- User docs: the "hotpath-cloud" pages in `docs/src/SUMMARY.md`.
 - `cloud` CLI: `bin/hotpath/cmd/cloud.rs`, one file per command under `cmd/cloud/`, shared HTTP plumbing in `cmd/cloud/api.rs`.
 - `json/cloud_api.rs` is the client contract hotpath-backend imports; bodies the CLI only prints are owned by the backend. `validate_benchmark_name` must stay identical to the backend's copy.
 - The cloud path (upload or JSON output with the feature on) ignores display limits and renders exact precision; the live metrics server never does.

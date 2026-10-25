@@ -1,6 +1,6 @@
 ---
 name: hotpath-rs
-description: Set up, use and troubleshoot hotpath, the feature-gated Rust profiler, by fetching the matching hotpath.rs docs page or agent procedure. Use when adding hotpath to a project, instrumenting Rust code with it, reading a hotpath report or hotpath.rs pull request comment, fixing a regression hotpath flagged, measuring Callgrind instruction counts, configuring hotpath Cloud CI, policies or budgets, or any question about hotpath. Not for general Rust performance work in projects that do not use or want hotpath.
+description: Set up, use and troubleshoot hotpath, the feature-gated Rust profiler, by fetching the matching hotpath.rs docs page or agent procedure. Use when adding hotpath to a project, instrumenting Rust code with it, reading a hotpath report or hotpath.rs pull request comment, fixing a regression hotpath flagged, measuring Callgrind instruction counts, configuring hotpath-cloud CI, policies or budgets, or any question about hotpath. Not for general Rust performance work in projects that do not use or want hotpath.
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
@@ -47,13 +47,13 @@ Paths are relative to https://hotpath.rs. Fetch the pages listed for the task, p
 | Overhead, sampling, running in production | `/profiling_overhead`, `/faq`, `/configuration` |
 | Environment variables | `/configuration` |
 
-**hotpath Cloud**
+**hotpath-cloud**
 
 | Task | Pages |
 |---|---|
-| What Cloud is, how it works, pricing | `/cloud`, `/cloud_faq` |
-| Set up Cloud CI for pull requests, including CPU regression checks with instruction counts | `/agent/init_cloud` |
-| Change an existing Cloud benchmark's profiling mode | `/ci_integration` ("Profiling modes"), `/regression_policy` |
+| What hotpath-cloud is, how it works, pricing | `/cloud`, `/cloud_faq` |
+| Set up hotpath-cloud CI for pull requests, including CPU regression checks with instruction counts | `/agent/init_cloud` |
+| Change an existing hotpath-cloud benchmark's profiling mode | `/ci_integration` ("Profiling modes"), `/regression_policy` |
 | Edit or validate `hotpath/policy.toml` | `/regression_policy` |
 | Absolute performance budgets | `/performance_budgets`, `/regression_policy` |
 | Read a pull request comment, wait for a benchmark, fix a regression or broken budget | `/agent/cloud_cli` (+ the page of the regressed subsystem) |

@@ -1,6 +1,6 @@
 # A simple Rust profiler that shows exactly why your code is slow
 
-<h2 class="hero-subtitle"><b>Performance profiling for developers and coding agents.</b> Find CPU, memory, async, SQL, I/O and contention bottlenecks with a single Rust profiler. Export metrics to Prometheus and Grafana when you need production monitoring.</h2>
+<h2 class="hero-subtitle"><b>Performance profiling for developers and coding agents.</b> Profile CPU, memory allocations, async tasks, SQL queries, I/O, and lock contention in one place. Explore performance metrics in a live TUI, generate detailed reports, or export to Prometheus and Grafana.<br><br>Find bottlenecks locally, then use <a href="/cloud">hotpath-cloud</a> to track performance changes across pull requests.</h2>
 
 <div class="hero-badges">
   <a href="https://github.com/hotpath-rs/hotpath" target="_blank" rel="noopener noreferrer"><img src="{{#asset-hash images/stars-hotpath-rs-hotpath.svg}}" alt="GitHub Stars"></a>
@@ -190,7 +190,7 @@ correlate all performance signals in Grafana with minimal profiling overhead:
 
 catch performance regressions on every pull request with a simple [CI integration](/cloud):
 
-<img loading="lazy" src="{{#asset-hash images/cloud-pr-comment.webp}}" alt="hotpath Cloud pull request comment showing wall time, allocation and RSS changes against the main branch">
+<img loading="lazy" src="{{#asset-hash images/cloud-pr-comment.webp}}" alt="hotpath-cloud pull request comment showing wall time, allocation and RSS changes against the main branch">
 
 inspect throughput and latency of network, file or compression I/O streams:
 
@@ -237,7 +237,7 @@ The quickest way to set up hotpath is to let your own AI coding agent do it. Pas
 Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup
 ```
 
-The agent inspects your project, including workspaces and any existing hotpath setup, adds the feature-gated dependency, instruments `main` and a small starting set of hot functions, channels and locks, and verifies that everything compiles with profiling enabled and disabled. When the project has a workload that exits, it runs it and shows you the first report. It then explains how to run profiling and the live TUI. It finally asks once whether to optionally set up [hotpath Cloud](cloud.md) to benchmark pull requests in CI.
+The agent inspects your project, including workspaces and any existing hotpath setup, adds the feature-gated dependency, instruments `main` and a small starting set of hot functions, channels and locks, and verifies that everything compiles with profiling enabled and disabled. When the project has a workload that exits, it runs it and shows you the first report. It then explains how to run profiling and the live TUI. It finally asks once whether to optionally set up [hotpath-cloud](cloud.md) to benchmark pull requests in CI.
 
 The prompt is a one-time project setup. The `hotpath-rs` [agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath-rs/SKILL.md) is what stays: reusable hotpath knowledge your agent loads in every later session. To install it, for example in a repo that already uses hotpath, run:
 
@@ -393,7 +393,7 @@ Explore the docs for customization options and advanced profiling features.
 - [Tokio Runtime](./tokio_runtime.html) - monitor Tokio runtime worker stats and task scheduling
 - [Debug & Metrics](./debug.html) - track custom values with dbg!, val!, and gauge! macros
 - [Prometheus & Grafana](./prometheus_grafana.html) - export metrics to Prometheus and build Grafana dashboards
-- [hotpath Cloud CI integration](./ci_integration.html) - performance regression detection on every pull request
+- [hotpath-cloud CI integration](./ci_integration.html) - performance regression detection on every pull request
 - [MCP Server](./mcp.html) - LLM integration via Model Context Protocol
 - [Cargo flamegraph alternatives](/blog/sampling_comparison) - when to use `hotpath` vs sampling profilers like perf and samply
 - [Configuration](./configuration.html) - explore all config options

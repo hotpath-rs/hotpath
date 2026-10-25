@@ -1,6 +1,6 @@
-# Set up hotpath Cloud CI in a Rust project
+# Set up hotpath-cloud CI in a Rust project
 
-Instructions for an AI coding agent. Set up [hotpath Cloud](https://hotpath.rs/cloud) in the current Rust project. A GitHub Actions job runs a benchmark with hotpath profiling enabled and uploads the report. hotpath.rs compares each pull request's report with the default branch's, judges the difference under the repository's policy file and posts a comment on the pull request.
+Instructions for an AI coding agent. Set up [hotpath-cloud](https://hotpath.rs/cloud) in the current Rust project. A GitHub Actions job runs a benchmark with hotpath profiling enabled and uploads the report. hotpath.rs compares each pull request's report with the default branch's, judges the difference under the repository's policy file and posts a comment on the pull request.
 
 The benchmark runs in one of two profiling modes, picked in step 3:
 
@@ -37,18 +37,18 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 | https://hotpath.rs/callgrind | the `hotpath-callgrind` feature: merged reports ("Timing and instruction counts in one report"), what is counted, reproducibility limits, comparing runs, build requirements |
 | https://hotpath.rs/regression_policy | the policy file: sections, keys, validation, the pull request comment and check |
 | https://hotpath.rs/performance_budgets | absolute limits in the same policy file |
-| https://hotpath.rs/cloud | what hotpath Cloud is |
+| https://hotpath.rs/cloud | what hotpath-cloud is |
 
 ## Steps
 
 ### 1. Inspect the project
 
 - Find the crate(s), the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`, usually `main`) and the existing workflows in `.github/workflows/`.
-- Check whether hotpath Cloud is already set up: a workflow that sets `HOTPATH_UPLOAD` or calls `hotpath-relay.yml`. If it is:
+- Check whether hotpath-cloud is already set up: a workflow that sets `HOTPATH_UPLOAD` or calls `hotpath-relay.yml`. If it is:
   - Unless the user asked for another benchmark, do not set anything up. Report the existing setup instead: each workflow file and its `name:`, each `HOTPATH_BENCHMARK`, its profiling mode (merged when the Callgrind step sets `HOTPATH_MERGE_REPORT`, Callgrind only when the job runs `valgrind --tool=callgrind` without it, native otherwise), whether it uses the relay, the policy files in `hotpath/` and the README badge. Then stop.
   - If the user asked for another benchmark, continue to add only that one, with the setup (same repository or forks) the existing benchmarks use. Its benchmark name, workflow file, workflow `name:` and artifact name must all differ from the existing ones (steps 2 and 6).
   - Never change the profiling mode, the benchmark name, the workflow or the policy of an existing benchmark unless the user asks. If the user asks to switch a native or Callgrind-only benchmark to merged mode, check the requirements of step 3 and follow "Switching an existing benchmark to merged" in https://hotpath.rs/ci_integration.
-- Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented functions. If it is not, set it up first by following https://hotpath.rs/agent/setup (skip its "Offer hotpath Cloud" step), then continue here.
+- Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented functions. If it is not, set it up first by following https://hotpath.rs/agent/setup (skip its "Offer hotpath-cloud" step), then continue here.
 - Pick the setup, unless an existing benchmark already decides it. Check whether the repository is public or private (`gh repo view --json visibility`). A private repository uses the **same repository** setup. For a public repository, ask the user whether pull requests from forks should be benchmarked: if yes, use the **forks** setup, otherwise the **same repository** one, and tell them fork pull requests will then not get a comment.
 
 ### 2. Pick the benchmark
@@ -268,7 +268,7 @@ Without x86_64 Linux and Valgrind, do not install Valgrind or set up a container
 
 Docs: https://hotpath.rs/cloud ("README badge").
 
-Add the hotpath Cloud badge to the README that GitHub renders for the repository (the repository root `README.md`, not a member crate's README in a workspace), linking to the repository's page on hotpath.rs. Take `OWNER/NAME` from `gh repo view --json nameWithOwner -q .nameWithOwner`, or from the `origin` remote:
+Add the hotpath-cloud badge to the README that GitHub renders for the repository (the repository root `README.md`, not a member crate's README in a workspace), linking to the repository's page on hotpath.rs. Take `OWNER/NAME` from `gh repo view --json nameWithOwner -q .nameWithOwner`, or from the `origin` remote:
 
 ```markdown
 [![hotpath-cloud](https://img.shields.io/endpoint?url=https://hotpath.rs/badge-cloud.json)](https://hotpath.rs/app/repos/OWNER/NAME)

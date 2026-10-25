@@ -1,4 +1,4 @@
-# Read hotpath Cloud verdicts and fix performance regressions
+# Read hotpath-cloud verdicts and fix performance regressions
 
 Instructions for an AI coding agent. `hotpath cloud` is the command line client of hotpath.rs. CI uploads a hotpath benchmark report on every push to the default branch and every pull request. hotpath.rs compares each pull request report with its baseline (the report of the base branch), judges it under the repository's policy file and posts a comment on the pull request. The CLI returns the same judgement as JSON.
 

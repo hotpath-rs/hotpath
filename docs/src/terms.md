@@ -2,7 +2,7 @@
 
 ## Privacy policy
 
-hotpath Cloud collects a minimum amount of user data needed to work correctly. Data collected is used only to make the service work.
+hotpath-cloud collects a minimum amount of user data needed to work correctly. Data collected is used only to make the service work.
 
 Individual users' personally identifiable data stored on our servers consists of their GitHub identifier, login, email address and avatar, together with the GitHub authorization tokens used to check which repositories they can access.
 
@@ -33,19 +33,19 @@ VAT EU PL7282665486
 
 ## Terms of Service
 
-hotpath Cloud provides hosted performance reports, a GitHub integration and related performance analysis services. Using the service requires internet access, a modern web browser and a GitHub account.
+hotpath-cloud provides hosted performance reports, a GitHub integration and related performance analysis services. Using the service requires internet access, a modern web browser and a GitHub account.
 
-By installing the hotpath GitHub App or logging in to the hotpath Cloud dashboard, you agree to abide by these Terms of Service and to comply with all applicable laws and regulations. You may end the agreement at any time by removing the hotpath GitHub App and no longer using the service.
+By installing the hotpath GitHub App or logging in to the hotpath-cloud dashboard, you agree to abide by these Terms of Service and to comply with all applicable laws and regulations. You may end the agreement at any time by removing the hotpath GitHub App and no longer using the service.
 
-You may only use the hotpath Cloud service as permitted by law. We may investigate and/or suspend or terminate our service to you at any time if we find your use of our service violates the agreement and/or any policies.
+You may only use the hotpath-cloud service as permitted by law. We may investigate and/or suspend or terminate our service to you at any time if we find your use of our service violates the agreement and/or any policies.
 
 These terms cover the hosted service at hotpath.rs only. The open-source hotpath crates keep their own license.
 
 ### Limitations of use
 
-By using the hotpath Cloud service, you warrant on behalf of yourself, your users, and other parties you represent that you will not:
+By using the hotpath-cloud service, you warrant on behalf of yourself, your users, and other parties you represent that you will not:
 
-- knowingly or negligently use this website or any of its associated services in a way that abuses or disrupts our networks or any other service hotpath Cloud provides;
+- knowingly or negligently use this website or any of its associated services in a way that abuses or disrupts our networks or any other service hotpath-cloud provides;
 - use this website or its associated services to transmit or publish any harassing, indecent, obscene, fraudulent, or unlawful material;
 - use this website or its associated services in violation of any applicable laws or regulations;
 - use this website in conjunction with sending unauthorized advertising or spam;

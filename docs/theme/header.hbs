@@ -6,14 +6,14 @@
             <span class="hp-brand-prompt" aria-hidden="true">~$</span><span class="hp-brand-cmd">hotpath-rs</span>
         </a>
         <a class="hp-navlink" data-route="docs" href="/">docs</a>
-        <a class="hp-navlink hp-navlink-cloud" data-route="cloud" href="/cloud" title="hotpath Cloud: performance regressions caught in CI, reported on every PR"><span class="hp-cloud-label">Cloud</span></a>
+        <a class="hp-navlink hp-navlink-cloud" data-route="cloud" href="/cloud" title="hotpath-cloud: performance regressions caught in CI, reported on every PR"><span class="hp-cloud-label">cloud</span></a>
         <a class="hp-navlink" data-route="blog" href="/blog/">blog</a>
     </div>
 </nav>
 <script>
     (function () {
         var path = location.pathname;
-        // Pages of the docs "hotpath Cloud" section light up the cloud link
+        // Pages of the docs "hotpath-cloud" section light up the cloud link
         var cloudPages = ['/cloud', '/ci_integration', '/regression_policy', '/performance_budgets', '/agents_cli', '/cloud_faq'];
         var page = path.replace(/\.html$/, '').replace(/\/$/, '');
         var route = (path === '/blog' || path.indexOf('/blog/') === 0) ? 'blog'
