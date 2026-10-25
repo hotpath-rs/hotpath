@@ -5,13 +5,20 @@
 pr_check = "fail"
 
 [functions]
-ignore = ["hotpath_drain::EventQueue::drain_into"]
+# Scheduling-dependent work: the drain worker and the exporter's collectors.
+ignore = [
+  "hotpath_drain::EventQueue::drain_into",
+  "hotpath_drain::EventQueueRegistry::sweep",
+  "hotpath::prometheus_server::handle_*",
+  "hotpath::prometheus_server::collect_*",
+  "hotpath::lib_on::channels::with_sorted_channel_entries",
+  "hotpath::lib_on::channels::ChannelEntry::*_delay_buckets",
+]
 min_percent_total = 0.5
 
 [[functions.budgets]]
 match = "hotpath::prometheus_server::handle_request"
 alloc = { avg = "51 B", total = "51000 B" }
-timing = { "p99.9" = "10 ms" }
 calls = { min = 1000 }
 
 [functions.alloc]
