@@ -14,7 +14,7 @@ The [GitHub Actions integration](ci_integration.md) compares benchmark results a
 
 You can define acceptable regression thresholds using a customizable [regression policy](regression_policy.md) and set fine-tuned [performance budgets](performance_budgets.md). This helps eliminate noisy alerts and ensures that warnings are emitted only when performance changes in a meaningful way.
 
-For CPU work, benchmarks can run under [Callgrind](callgrind.md) and report instruction counts instead of wall-clock timings: a reproducible measure of computational work for deterministic workloads, unaffected by the noise of shared CI runners.
+For CPU work, benchmarks run in merged mode: the same build runs natively and under [Callgrind](callgrind.md), and one report carries the native timings next to instruction counts, a reproducible measure of computational work for deterministic workloads, unaffected by the noise of shared CI runners. The counts are judged; the timings are shown.
 
 ```toml
 # hotpath/policy.toml (excerpt)
@@ -60,7 +60,7 @@ The quickest way to set up `hotpath Cloud` is to let your own AI coding agent do
 Set up hotpath Cloud CI in this Rust project using the instructions at https://hotpath.rs/agent/init_cloud
 ```
 
-If the project does not use hotpath yet, the agent sets up profiling first. It then picks a benchmark with a fixed workload (asking you when the choice is not obvious), adds the `hotpath-cloud` feature (and, for a CPU-bound benchmark on `hotpath` `0.29` or newer, runs it under [Callgrind](ci_integration.md#instruction-counts-with-callgrind) for reproducible instruction counts), a [regression policy](regression_policy.md) file (an existing one is kept), a GitHub Actions benchmark workflow and the [README badge](#readme-badge), and runs the benchmark locally to verify the report. For public repositories, it asks whether pull requests from forks should be benchmarked too: they need a [separate setup](ci_integration.md#pull-requests-from-forks) with a relay workflow for security reasons.
+If the project does not use hotpath yet, the agent sets up profiling first. It then picks a benchmark with a fixed workload (asking you when the choice is not obvious), adds the `hotpath-cloud` feature (and, for a CPU-bound benchmark on `hotpath` `0.29.2` or newer, sets up [merged mode](ci_integration.md#profiling-modes): native timing + Callgrind instruction counts in one report), a [regression policy](regression_policy.md) file (an existing one is kept), a GitHub Actions benchmark workflow and the [README badge](#readme-badge), and runs the benchmark locally to verify the report. For public repositories, it asks whether pull requests from forks should be benchmarked too: they need a [separate setup](ci_integration.md#pull-requests-from-forks) with a relay workflow for security reasons.
 
 The agent does not commit, install the GitHub App or upload anything for you. Install the hotpath GitHub App from <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a> and merge the workflow: the first push to the default branch uploads the baseline, and from then on every pull request gets a performance comment.
 
