@@ -5,13 +5,30 @@
 pr_check = "fail"
 
 [functions]
-ignore = ["hotpath_drain::EventQueue::drain_into"]
+# Work that follows the run's scheduling, not the code, so its instruction
+# counts and allocations move between runs of one commit:
+# - the drain worker: how many sweeps run and how much each drains depends on
+#   where the 50ms ticks fall,
+# - the exporter's collectors: they render histograms of recorded wall-clock
+#   durations, and how many buckets are populated depends on their spread.
+# The serializers (`families::to_text`, `families::to_protobuf`) stay judged
+# and guard the exporter's cost deterministically.
+ignore = [
+  "hotpath_drain::EventQueue::drain_into",
+  "hotpath_drain::EventQueueRegistry::sweep",
+  "hotpath::prometheus_server::handle_*",
+  "hotpath::prometheus_server::collect_*",
+  "hotpath::lib_on::channels::with_sorted_channel_entries",
+  "hotpath::lib_on::channels::ChannelEntry::*_delay_buckets",
+]
 min_percent_total = 0.5
 
+# A budget wins over an overlapping `ignore` pattern (a literal name in both is
+# rejected). No timing bound: the native run's tail latency is wall-clock on a
+# shared runner.
 [[functions.budgets]]
 match = "hotpath::prometheus_server::handle_request"
 alloc = { avg = "51 B", total = "51000 B" }
-timing = { "p99.9" = "10 ms" }
 calls = { min = 1000 }
 
 [functions.alloc]
