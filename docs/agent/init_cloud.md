@@ -24,12 +24,7 @@ curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/ci_integration
 
 Before each step, fetch the pages it names and follow them instead of relying on memory. Keep `-fsSL` and the header. If a fetch fails, stop and tell the user which URL could not be retrieved; do not continue from memory. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 
-The site documents the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the crate version is the tag without its `v`). When the project already depends on an older `hotpath`, update it to that release before following this procedure:
-
-- Where the project's `hotpath` requirement (each crate's `Cargo.toml`, or `[workspace.dependencies]`) does not allow that version, raise it to `"{{HOTPATH_VERSION}}"`, keeping its features. Then run `cargo update -p hotpath` and check that `Cargo.lock` resolves the release.
-- Build with and without the project's hotpath features (`cargo check`, and `cargo check --features` with the features the project defines) and fix what the update breaks, using the release notes in https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md.
-- Tell the user you updated hotpath: the old and the new version, and any code you changed for it.
-- If the update cannot be made to build, revert it, continue on the version the project had and tell the user why. When the docs then describe something that version does not have, tell the user instead of working around it.
+The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}`. Keep the project's existing `hotpath` version and features; upgrade only when the user asks or approves. If the task needs something the installed version (see `Cargo.lock`) lacks, tell the user and propose an upgrade instead of working around it. After an approved upgrade, build with and without the project's hotpath features, fix breakage using https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md, and report the old and new version and any code you changed. Never make large dependency or lockfile changes silently.
 
 | Page | Covers |
 |---|---|
