@@ -90,6 +90,8 @@ Then run the workload from step 1 with `--features hotpath`; the report prints w
 
 State which of these you reached: both builds compile, instrumentation is in place, a report was produced (show its key lines). Then explain what you instrumented, which features you added, the exact command to profile (`--features hotpath`, or `hotpath-alloc` for allocations), what you left out, and one concrete next step. hotpath can stay a regular, non-optional dependency.
 
+Also explain in 1-3 sentences how to watch the running program in the optional live TUI, following "Live TUI dashboard" in https://hotpath.rs/profiling_modes: give its install and launch commands, then the project's own profiling command (with `-p`, `--bin` or `--example`) to run in a second terminal. Say that static reports work without it, and do not install or launch the TUI unless the user asks.
+
 #### Offer hotpath Cloud
 
 Skip this if https://hotpath.rs/agent/init_cloud sent you here (return to it), if the builds do not compile, or if `git remote -v` shows no `github.com` remote. Otherwise ask once, briefly, for example:
