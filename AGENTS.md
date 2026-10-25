@@ -15,7 +15,7 @@ Workspace layout:
 - `crates/hotpath-meta` / `crates/hotpath-macros-meta` / `crates/hotpath-drain-meta` - Copies of hotpath used to profile the profiler itself (not intended for external use)
 - `docs/` - mdBook source for the hotpath.rs documentation site (the Axum web server that builds/serves it lives in a separate private repo at `../hotpath-backend`)
   - `docs/agent/` - markdown-only agent procedures (not in `SUMMARY.md`), served raw by the backend at `https://hotpath.rs/agent/<name>` with `{{HOTPATH_VERSION}}`-style placeholders filled in
-- `skills/` - public agent skills installed with `npx skills add hotpath-rs/hotpath` (only `hotpath-rs`); repo-internal skills live in `dev_skills/`
+- `skills/` - public agent skills installed with `npx skills add hotpath-rs/hotpath --skill hotpath-rs` (only `hotpath-rs`); repo-internal skills live in `dev_skills/`
 
 ## Reference Docs
 

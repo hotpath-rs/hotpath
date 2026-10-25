@@ -148,7 +148,7 @@ Skip this step if https://hotpath.rs/agent/init_cloud sent you here, or if you a
 Otherwise, recommend that the user install the hotpath agent skill by running:
 
 ```bash
-npx skills add hotpath-rs/hotpath
+npx skills add hotpath-rs/hotpath --skill hotpath-rs
 ```
 
 Explain that the skill gives future agent sessions everything they need to work with hotpath: it points them to the matching hotpath.rs docs page or agent procedure for instrumenting code, reading reports, investigating regressions and configuring hotpath Cloud. Never run this command yourself unless the user asks you to.
