@@ -77,5 +77,8 @@ jobs:
             --callgrind-out-file="$HOTPATH_META_CALLGRIND_OUT_FILE" \
             target/release/examples/benchmark_meta
           test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
-          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0)' \
+          # `alloc_stats_update` is a `measure_block!` inside hotpath, so its
+          # instruction count proves blocks are counted too.
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0)
+            and any(.functions_icount.data[]; .name == "alloc_stats_update" and .calls > 0 and (.total | tonumber) > 0)' \
             "$HOTPATH_META_OUTPUT_PATH" > /dev/null

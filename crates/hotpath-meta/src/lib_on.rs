@@ -154,6 +154,9 @@ impl Drop for SuspendAllocTracking {
 /// The macro automatically uses the appropriate measurement based on enabled feature flags:
 /// - **Time profiling** (default): Measures execution duration
 /// - **Allocation profiling**: Tracks memory allocations when allocation features are enabled
+/// - **Instruction counts** (`hotpath-callgrind-meta`): Counted for a literal label, unless the
+///   block contains `?`, `return`, `.await`, a `break`/`continue` leaving it, or a macro
+///   other than the standard formatting and assert ones
 ///
 /// # Examples
 ///
@@ -177,9 +180,10 @@ macro_rules! measure_block {
     // A literal label shares the functions namespace with `#[measure(label)]`,
     // so both are checked for uniqueness under the `function` kind. The block
     // wrapping turns the literal into a plain expression for the arm below.
+    // Only a literal label can name a Callgrind marker at compile time.
     ($label:literal, $expr:expr) => {{
         $crate::__unique_label!(function, $label);
-        $crate::measure_block!({ $label }, $expr)
+        $crate::measure_block!({ $label }, $crate::__callgrind_block!($label, $expr))
     }};
 
     ($label:expr, $expr:expr) => {{
@@ -233,6 +237,10 @@ macro_rules! __register_location {
 // Build-time label uniqueness check; see the proc macro's docs.
 #[doc(hidden)]
 pub use hotpath_macros_meta::__unique_label;
+
+// Callgrind marker around a `measure_block!` body; see the proc macro's docs.
+#[doc(hidden)]
+pub use hotpath_macros_meta::__callgrind_block;
 
 /// Debug macro that tracks debug output in the profiler.
 ///

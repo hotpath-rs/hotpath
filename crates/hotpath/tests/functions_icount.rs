@@ -88,6 +88,19 @@ pub mod tests {
         )
     }
 
+    /// `measure_block!` bodies that would act on the marker closure instead
+    /// of the enclosing fn or loop, plus a runtime label: measured but never
+    /// counted.
+    const UNCOUNTED_BLOCKS: [&str; 7] = [
+        "try_block",
+        "macro_try_block",
+        "return_block",
+        "hidden_return_block",
+        "outer_break_block",
+        "await_block",
+        "runtime_block",
+    ];
+
     fn total(list: &JsonFunctionsList, name: &str) -> (u64, u64) {
         let entry = list
             .data
@@ -141,6 +154,10 @@ pub mod tests {
             ("instructions::tracked_future", 1, 1),
             ("instructions::nested::first", 1, 1),
             ("instructions::nested::second", 1, 1),
+            ("nested_block", 1, 1),
+            ("plain_block", 2, 2),
+            ("loop_block", 1, 1),
+            ("labeled_block", 1, 1),
         ];
         // `avg` is `total / calls` to the hundredth, rounded half-up, not a
         // truncated whole number.
@@ -174,6 +191,8 @@ pub mod tests {
             "instructions::Worker::evens",
             "instructions::Worker::cloned",
             "instructions::Worker::parse_first",
+            "coerce_block",
+            "borrow_block",
         ];
         for name in shapes {
             let (calls, total) = total(&list, name);
@@ -182,10 +201,28 @@ pub mod tests {
         }
         assert_eq!(
             list.data.len(),
-            expected.len() + shapes.len(),
+            expected.len() + shapes.len() + 1,
             "{:#?}",
             list.data
         );
+        // with_block's count includes its nested block's, and also the
+        // block's first-run registration (a randomly seeded map insert), so
+        // it is neither bit-exact across runs nor inside the tight window.
+        let (calls, outer) = total(&list, "instructions::with_block");
+        let (_, nested) = total(&list, "nested_block");
+        assert_eq!(calls, 1, "instructions::with_block calls");
+        let ratio = outer.saturating_sub(nested) as f64 / unit as f64;
+        assert!(
+            (0.99..1.01).contains(&ratio),
+            "with_block: {outer} Ir with nested_block's {nested}, expected about {unit} more"
+        );
+        for name in UNCOUNTED_BLOCKS {
+            assert!(
+                list.data.iter().all(|e| e.name != name),
+                "{name} must not be counted: {:#?}",
+                list.data
+            );
+        }
         // alpha::generated and beta::generated share a marker: excluded and
         // reported, never merged into one count.
         assert!(
@@ -234,21 +271,28 @@ pub mod tests {
         );
     }
 
-    // HOTPATH_OUTPUT_FORMAT=json cargo run --release -p test-callgrind --example instructions --features hotpath,hotpath-callgrind
+    // HOTPATH_FUNCTIONS_LIMIT=0 HOTPATH_OUTPUT_FORMAT=json cargo run --release -p test-callgrind --example instructions --features hotpath,hotpath-callgrind
     #[test]
     fn test_native_run_reports_timing() {
         let report = Example::new("test-callgrind", "instructions")
             .features(FEATURES)
             .release()
+            .env("HOTPATH_FUNCTIONS_LIMIT", "0")
             .json()
             .report();
 
         assert!(report.functions_icount.is_none());
         let timing = report.functions_timing.expect("timing section");
-        assert!(timing
-            .data
-            .iter()
-            .any(|e| e.name == "instructions::free_fn"));
+        for name in ["instructions::free_fn", "plain_block"]
+            .into_iter()
+            .chain(UNCOUNTED_BLOCKS)
+        {
+            assert!(
+                timing.data.iter().any(|e| e.name == name),
+                "{name} missing from {:#?}",
+                timing.data
+            );
+        }
     }
 
     const MERGE_FEATURES: &str = "hotpath,hotpath-callgrind,hotpath-cloud";

@@ -6,6 +6,17 @@ mod lib_on;
 #[cfg(not(feature = "hotpath-meta"))]
 mod lib_off;
 
+/// Splits `__callgrind_block!` input at its first top-level comma into the
+/// label and the body, untouched. A `$label:literal` holds no comma.
+fn split_block_input(input: TokenStream) -> (TokenStream, TokenStream) {
+    let mut tokens = input.into_iter();
+    let label = tokens
+        .by_ref()
+        .take_while(|t| !matches!(t, proc_macro::TokenTree::Punct(p) if p.as_char() == ','))
+        .collect();
+    (label, tokens.collect())
+}
+
 /// Initializes the hotpath profiling system and generates a performance report on program exit.
 ///
 /// Apply to `main` (or another entry point) to enable profiling: starts the background
@@ -324,5 +335,21 @@ pub fn __unique_label(input: TokenStream) -> TokenStream {
     #[cfg(not(feature = "hotpath-meta"))]
     {
         lib_off::unique_label_impl(input)
+    }
+}
+
+/// Wraps a `measure_block!` body (`"label", expr`) in a Callgrind marker
+/// under `hotpath-callgrind-meta`, unless running it as a closure would change
+/// what it does; expands to the body unchanged otherwise.
+#[doc(hidden)]
+#[proc_macro]
+pub fn __callgrind_block(input: TokenStream) -> TokenStream {
+    #[cfg(feature = "hotpath-meta")]
+    {
+        lib_on::callgrind_block_impl(input)
+    }
+    #[cfg(not(feature = "hotpath-meta"))]
+    {
+        lib_off::callgrind_block_impl(input)
     }
 }

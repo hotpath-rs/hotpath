@@ -82,7 +82,8 @@ In [hotpath Cloud](#cloud-ci), merged mode is the recommended way to benchmark i
 - **Async functions** count the instructions executed while their body is polled. Work in tasks spawned with `tokio::spawn` runs elsewhere and is not part of the caller's count.
 - **Calls** come from hotpath's own counters, `Avg` is total divided by calls.
 - `% Total` is relative to all instructions the program executed between guard creation and drop.
-- `measure_block!` blocks are not counted, nor are measured functions that a `macro_rules!` generates from one source position (a warning names them), nor sync `#[track_caller]` functions (counting them would break `Location::caller()`).
+- **`measure_block!` blocks** with a literal label are counted. A block is measured but gets no count when it uses a runtime label, or contains `?`, `return`, `.await`, a `break`/`continue` that leaves the block, or a macro other than the standard formatting and assert ones (such as `println!`, `format!`, `assert!` or `vec!`). Counting runs the block inside a closure, which would change what these do. Move such code into a `#[measure]` function to count it.
+- Measured functions that a `macro_rules!` generates from one source position are not counted (a warning names them), nor are sync `#[track_caller]` functions (counting them would break `Location::caller()`).
 
 Counts are reproducible for deterministic workloads. Randomized hashing (`HashMap` with the default `RandomState`) and concurrent workloads can produce different counts between runs. Valgrind serializes thread execution, so counts from multi-threaded code may not represent native scheduling behavior.
 

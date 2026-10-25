@@ -514,17 +514,13 @@ fn contains_impl_trait(tokens: &proc_macro2::TokenStream) -> bool {
 }
 
 /// `__hotpath_cg_<16 hex>` and its hash as a `u64` literal, unique per
-/// measured fn within a build: the hash covers the crate scope, the fn
-/// name's source position (its own span, so `measure_all` items differ) and
-/// the measured name parts. Only the runtime registry maps the ident back to
-/// a name; functions a `macro_rules!` expands from one source position share
-/// a marker, which the registry detects and excludes.
-fn callgrind_marker(
-    fn_ident: &syn::Ident,
-    label: Option<&LitStr>,
-    impl_type: Option<&LitStr>,
-) -> (syn::Ident, LitInt) {
-    let span = fn_ident.span().unwrap();
+/// measured site within a build: the hash covers the crate scope, the site's
+/// source position (the fn name's own span, so `measure_all` items differ,
+/// or a block's label) and the measured name parts. Only the runtime
+/// registry maps the ident back to a name; functions a `macro_rules!`
+/// expands from one source position share a marker, which the registry
+/// detects and excludes.
+fn callgrind_marker(span: proc_macro::Span, name_parts: &[String]) -> (syn::Ident, LitInt) {
     let mut key = Vec::new();
     for var in [
         "CARGO_CRATE_NAME",
@@ -540,11 +536,11 @@ fn callgrind_marker(
         span.file(),
         span.line().to_string(),
         span.column().to_string(),
-        fn_ident.to_string(),
-        label.map(LitStr::value).unwrap_or_default(),
-        impl_type.map(LitStr::value).unwrap_or_default(),
-    ] {
-        key.extend(part.into_bytes());
+    ]
+    .iter()
+    .chain(name_parts)
+    {
+        key.extend(part.as_bytes());
         key.push(0);
     }
     let hash = fnv1a(&key);
@@ -555,6 +551,255 @@ fn callgrind_marker(
         ),
         LitInt::new(&format!("{hash}u64"), proc_macro2::Span::call_site()),
     )
+}
+
+/// The marker fn a measured body runs inside (sync, through a closure) or is
+/// polled through (async), and the once-per-site registration mapping its
+/// ident to `name`.
+fn callgrind_marker_items(
+    marker: &syn::Ident,
+    hash: &LitInt,
+    is_async: bool,
+    name: &proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    // A per-site constant keeps LLVM's MergeFunctions and linker ICF
+    // from folding markers with identical bodies into one symbol.
+    let unique = quote! { ::core::hint::black_box(#hash); };
+    let marker_fn = if is_async {
+        quote! {
+            #[inline(never)]
+            fn #marker<__HotpathF: ::core::future::Future>(
+                fut: ::core::pin::Pin<&mut __HotpathF>,
+                cx: &mut ::core::task::Context<'_>,
+            ) -> ::core::task::Poll<__HotpathF::Output> {
+                #unique
+                __HotpathF::poll(fut, cx)
+            }
+        }
+    } else {
+        quote! {
+            #[inline(never)]
+            fn #marker<__HotpathR>(body: impl ::core::ops::FnOnce() -> __HotpathR) -> __HotpathR {
+                #unique
+                body()
+            }
+        }
+    };
+    quote! {
+        #marker_fn
+        {
+            static __HOTPATH_CG_ONCE: ::std::sync::Once = ::std::sync::Once::new();
+            __HOTPATH_CG_ONCE.call_once(|| {
+                hotpath_meta::functions::register_callgrind_marker(stringify!(#marker), #name);
+            });
+        }
+    }
+}
+
+/// Runs a `measure_block!` body (`"label", expr`) inside a Callgrind marker
+/// when `hotpath-callgrind-meta` is on and the body behaves the same as a closure
+/// (see [`BlockEscapes`]); otherwise returns it unchanged, measured but
+/// without an instruction count. The body is only parsed under
+/// `hotpath-callgrind-meta`, and one syn cannot parse is returned untouched, so
+/// this never fails a build the plain block compiles in.
+pub fn callgrind_block_impl(input: TokenStream) -> TokenStream {
+    let (label, body) = crate::split_block_input(input);
+    if !cfg!(feature = "hotpath-callgrind-meta") {
+        return body;
+    }
+    let (Ok(label), Ok(expr)) = (
+        syn::parse::<LitStr>(label),
+        syn::parse::<syn::Expr>(body.clone()),
+    ) else {
+        return body;
+    };
+    if BlockEscapes::found_in(&expr) {
+        return body;
+    }
+    let (marker, hash) = callgrind_marker(
+        label.span().unwrap(),
+        &["measure_block".to_string(), label.value()],
+    );
+    let items = callgrind_marker_items(&marker, &hash, false, &quote! { #label });
+    quote! {
+        {
+            #items
+            #marker(|| #expr)
+        }
+    }
+    .into()
+}
+
+/// Macros a block body may call and still run as a closure: their own
+/// expansion holds no `return`, `?`, `break` or `continue` (their arguments
+/// are still scanned). Any other macro could hide one (`anyhow::bail!`), so
+/// its block gets no marker. Matched by the path's last segment.
+const CLOSURE_SAFE_MACROS: &[&str] = &[
+    "assert",
+    "assert_eq",
+    "assert_ne",
+    "concat",
+    "dbg",
+    "debug_assert",
+    "debug_assert_eq",
+    "debug_assert_ne",
+    "eprint",
+    "eprintln",
+    "format",
+    "format_args",
+    "matches",
+    "measure_block",
+    "panic",
+    "print",
+    "println",
+    "stringify",
+    "todo",
+    "unimplemented",
+    "unreachable",
+    "vec",
+    "write",
+    "writeln",
+];
+
+/// Finds what makes a block body behave differently once wrapped in a
+/// closure: `?`, `return`, `.await` and `yield` (all would act on the closure
+/// instead of the enclosing fn), a `break`/`continue` targeting a loop or
+/// labeled block outside the body, or a macro outside
+/// [`CLOSURE_SAFE_MACROS`]. Nested closures, async blocks and items are
+/// scopes of their own and are skipped.
+#[derive(Default)]
+struct BlockEscapes {
+    loops: Vec<Option<String>>,
+    block_labels: Vec<String>,
+    found: bool,
+}
+
+impl BlockEscapes {
+    fn found_in(expr: &syn::Expr) -> bool {
+        let mut scan = Self::default();
+        syn::visit::Visit::visit_expr(&mut scan, expr);
+        scan.found
+    }
+
+    fn knows_label(&self, label: &syn::Lifetime) -> bool {
+        let name = label.ident.to_string();
+        self.loops.iter().flatten().any(|l| *l == name) || self.block_labels.contains(&name)
+    }
+
+    fn in_loop(&mut self, label: Option<&syn::Label>, visit: impl FnOnce(&mut Self)) {
+        self.loops.push(label.map(|l| l.name.ident.to_string()));
+        visit(self);
+        self.loops.pop();
+    }
+
+    /// Macro arguments are opaque to syn, so any escaping keyword or `?` in
+    /// them counts.
+    fn scan_tokens(&mut self, tokens: proc_macro2::TokenStream) {
+        for token in tokens {
+            match token {
+                proc_macro2::TokenTree::Group(group) => self.scan_tokens(group.stream()),
+                proc_macro2::TokenTree::Ident(ident) => {
+                    if ["return", "break", "continue", "await", "yield"]
+                        .iter()
+                        .any(|kw| ident == kw)
+                    {
+                        self.found = true;
+                    }
+                }
+                proc_macro2::TokenTree::Punct(punct) => {
+                    if punct.as_char() == '?' {
+                        self.found = true;
+                    }
+                }
+                proc_macro2::TokenTree::Literal(_) => {}
+            }
+        }
+    }
+}
+
+impl<'ast> syn::visit::Visit<'ast> for BlockEscapes {
+    fn visit_expr_try(&mut self, _: &'ast syn::ExprTry) {
+        self.found = true;
+    }
+
+    fn visit_expr_return(&mut self, _: &'ast syn::ExprReturn) {
+        self.found = true;
+    }
+
+    fn visit_expr_await(&mut self, _: &'ast syn::ExprAwait) {
+        self.found = true;
+    }
+
+    fn visit_expr_yield(&mut self, _: &'ast syn::ExprYield) {
+        self.found = true;
+    }
+
+    fn visit_expr_break(&mut self, node: &'ast syn::ExprBreak) {
+        let inside = match &node.label {
+            Some(label) => self.knows_label(label),
+            None => !self.loops.is_empty(),
+        };
+        self.found |= !inside;
+        syn::visit::visit_expr_break(self, node);
+    }
+
+    fn visit_expr_continue(&mut self, node: &'ast syn::ExprContinue) {
+        let inside = match &node.label {
+            Some(label) => {
+                let name = label.ident.to_string();
+                self.loops.iter().flatten().any(|l| *l == name)
+            }
+            None => !self.loops.is_empty(),
+        };
+        self.found |= !inside;
+    }
+
+    fn visit_expr_loop(&mut self, node: &'ast syn::ExprLoop) {
+        self.in_loop(node.label.as_ref(), |s| {
+            syn::visit::visit_expr_loop(s, node)
+        });
+    }
+
+    fn visit_expr_while(&mut self, node: &'ast syn::ExprWhile) {
+        self.in_loop(node.label.as_ref(), |s| {
+            syn::visit::visit_expr_while(s, node)
+        });
+    }
+
+    fn visit_expr_for_loop(&mut self, node: &'ast syn::ExprForLoop) {
+        self.in_loop(node.label.as_ref(), |s| {
+            syn::visit::visit_expr_for_loop(s, node)
+        });
+    }
+
+    fn visit_expr_block(&mut self, node: &'ast syn::ExprBlock) {
+        // An unlabeled `break` inside a labeled block still targets the
+        // enclosing loop, so only the label is recorded.
+        let label = node.label.as_ref().map(|l| l.name.ident.to_string());
+        if let Some(label) = &label {
+            self.block_labels.push(label.clone());
+        }
+        syn::visit::visit_expr_block(self, node);
+        if label.is_some() {
+            self.block_labels.pop();
+        }
+    }
+
+    fn visit_macro(&mut self, node: &'ast syn::Macro) {
+        let safe = node
+            .path
+            .segments
+            .last()
+            .is_some_and(|s| CLOSURE_SAFE_MACROS.iter().any(|m| s.ident == m));
+        self.found |= !safe;
+        self.scan_tokens(node.tokens.clone());
+    }
+
+    fn visit_expr_closure(&mut self, _: &'ast syn::ExprClosure) {}
+
+    fn visit_expr_async(&mut self, _: &'ast syn::ExprAsync) {}
+
+    fn visit_item(&mut self, _: &'ast syn::Item) {}
 }
 
 fn fnv1a(bytes: &[u8]) -> u64 {
@@ -748,49 +993,22 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     // its caller propagation.
     let track_caller = attrs.iter().any(|a| a.path().is_ident("track_caller"));
     let marker = (cfg!(feature = "hotpath-callgrind-meta") && !(track_caller && !is_async_fn))
-        .then(|| callgrind_marker(fn_ident, label.as_ref(), impl_type.as_ref()));
-    let (marker_items, sync_body, async_body) = match &marker {
-        Some((marker, hash)) => {
-            // A per-site constant keeps LLVM's MergeFunctions and linker ICF
-            // from folding markers with identical bodies into one symbol.
-            let unique = quote! { ::core::hint::black_box(#hash); };
-            let marker_fn = if is_async_fn {
-                quote! {
-                    #[inline(never)]
-                    fn #marker<__HotpathF: ::core::future::Future>(
-                        fut: ::core::pin::Pin<&mut __HotpathF>,
-                        cx: &mut ::core::task::Context<'_>,
-                    ) -> ::core::task::Poll<__HotpathF::Output> {
-                        #unique
-                        __HotpathF::poll(fut, cx)
-                    }
-                }
-            } else {
-                quote! {
-                    #[inline(never)]
-                    fn #marker<__HotpathR>(body: impl ::core::ops::FnOnce() -> __HotpathR) -> __HotpathR {
-                        #unique
-                        body()
-                    }
-                }
-            };
-            (
-                quote! {
-                    #marker_fn
-                    {
-                        static __HOTPATH_CG_ONCE: ::std::sync::Once = ::std::sync::Once::new();
-                        __HOTPATH_CG_ONCE.call_once(|| {
-                            hotpath_meta::functions::register_callgrind_marker(
-                                stringify!(#marker),
-                                #measurement_loc,
-                            );
-                        });
-                    }
-                },
-                quote! { #marker(|| #block) },
-                quote! { hotpath_meta::functions::CallgrindFuture::new(async #block, #marker) },
+        .then(|| {
+            callgrind_marker(
+                fn_ident.span().unwrap(),
+                &[
+                    fn_ident.to_string(),
+                    label.as_ref().map(LitStr::value).unwrap_or_default(),
+                    impl_type.as_ref().map(LitStr::value).unwrap_or_default(),
+                ],
             )
-        }
+        });
+    let (marker_items, sync_body, async_body) = match &marker {
+        Some((marker, hash)) => (
+            callgrind_marker_items(marker, hash, is_async_fn, &measurement_loc),
+            quote! { #marker(|| #block) },
+            quote! { hotpath_meta::functions::CallgrindFuture::new(async #block, #marker) },
+        ),
         None => (quote! {}, quote! { #block }, quote! { async #block }),
     };
 

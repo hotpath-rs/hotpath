@@ -389,16 +389,18 @@ pub(crate) fn process_measurement(
     let elapsed = Duration::from_nanos(m.elapsed_since_start_ns);
     if let Some(&id) = name_to_id.get(m.name) {
         if let Some(s) = stats.get_mut(&id) {
-            #[cfg(feature = "hotpath-prometheus")]
-            s.record_route(m.route, m.duration_ns, m.bytes_total, m.count_total);
-            s.update_alloc(
-                m.bytes_total,
-                m.count_total,
-                m.duration_ns,
-                elapsed,
-                m.tid,
-                m.result_log,
-            );
+            crate::lib_on::meta_measure_block!("alloc_stats_update", {
+                #[cfg(feature = "hotpath-prometheus")]
+                s.record_route(m.route, m.duration_ns, m.bytes_total, m.count_total);
+                s.update_alloc(
+                    m.bytes_total,
+                    m.count_total,
+                    m.duration_ns,
+                    elapsed,
+                    m.tid,
+                    m.result_log,
+                );
+            })
         }
     } else {
         let id = crate::functions::next_function_id();

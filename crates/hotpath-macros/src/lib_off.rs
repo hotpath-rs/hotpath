@@ -29,3 +29,8 @@ pub fn measure_all_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn unique_label_impl(_input: TokenStream) -> TokenStream {
     TokenStream::new()
 }
+
+/// No-op version of `hotpath::__callgrind_block!`: the body after the label.
+pub fn callgrind_block_impl(input: TokenStream) -> TokenStream {
+    crate::split_block_input(input).1
+}

@@ -56,7 +56,7 @@ hotpath-macros-meta = { path = "./crates/hotpath-macros-meta", version = "0.29.2
 hotpath-drain-meta = { path = "./crates/hotpath-drain-meta", version = "0.29.2" }
 proc-macro2 = "1.0.75"
 quote = "1.0.35"
-syn = { version = "2.0.52", features = ["full"] }
+syn = { version = "2.0.52", features = ["full", "visit"] }
 
 [profile.profiling]
 inherits = "release"
