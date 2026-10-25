@@ -15,7 +15,7 @@ Yes. The core `hotpath-rs` library remains open source, and hotpath-cloud is an 
 
 ## Is it free? Will it stay free for open source?
 
-hotpath-cloud is free to use during the open beta. Paid plans will be introduced after the beta, but there will always be a free tier for public repositories. See [Pricing](cloud.md#pricing).
+hotpath-cloud is free to use during the open beta. Paid plans will be introduced after the beta, but there will always be a free tier for public repositories.
 
 ## How long are benchmark reports kept?
 

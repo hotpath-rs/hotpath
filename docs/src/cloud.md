@@ -8,7 +8,7 @@ Compare benchmarks against your baseline to see which functions execute more CPU
 
 Get actionable feedback directly in GitHub PRs, with detailed reports that developers and coding agents can use to investigate regressions.
 
-**Open beta - free to use. Public repositories stay free.**
+> **Open beta:** free to use. Public repositories will remain free after beta.
 
 To get started, log in at <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a>. The hotpath-rs GitHub App asks for minimal permissions: **no access to your code**, only pull request write access to post comments, and checks to optionally report the status of each benchmark. The only data it gets from your CI is the benchmark reports your workflow uploads. 
 
@@ -87,7 +87,3 @@ Link your repository's hotpath-cloud page from its README:
 ```
 
 Replace `OWNER/NAME` with your GitHub repository. The page opens once the hotpath GitHub App is installed on the repository. Reports of a public repository are public by default; for a private repository the page opens only for users with access to it.
-
-## Pricing
-
-hotpath-cloud is free during the open beta. Public repositories will remain free. Paid plans for private repositories and optional features will be introduced later.
