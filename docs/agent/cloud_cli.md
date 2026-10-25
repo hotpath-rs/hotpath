@@ -12,9 +12,14 @@ curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/agents_cli
 
 Fetch https://hotpath.rs/agents_cli before the first `hotpath cloud` command, and the other pages when the task reaches them, instead of relying on memory. Keep `-fsSL` and the header. If a fetch fails, stop and tell the user which URL could not be retrieved; do not continue from memory. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 
-The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}`. Keep the project's existing `hotpath` version and features; upgrade only when the user asks or approves. If the task needs something the installed version (see `Cargo.lock`) lacks, tell the user and propose an upgrade instead of working around it. After an approved upgrade, build with and without the project's hotpath features, fix breakage using https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md, and report the old and new version and any code you changed. Never make large dependency or lockfile changes silently.
+The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the crate version is the tag without its `v`). Check the installed version in `Cargo.lock`:
 
-Make the update a commit of its own, never part of a regression fix: a new hotpath release can change what the reports measure, so the next verdict compares across two versions. Tell the user so when the update lands in a pull request that is being judged.
+- If it supports what the task needs, keep it; do not upgrade. A hotpath cargo feature that is not enabled on the dependency yet (`tokio`, an integration) only needs enabling, not an upgrade.
+- If it lacks functionality the task needs (compare the docs with https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md), upgrade to the latest release without asking. Save the `Cargo.toml` files and `Cargo.lock` first. Raise the `hotpath` requirement (each crate's `Cargo.toml`, or `[workspace.dependencies]`) where it does not allow `"{{HOTPATH_VERSION}}"`, keeping its features, and run `cargo update -p hotpath`; change no other dependency. Build with and without the project's hotpath features (`cargo check`, and `cargo check --features` with the feature names the project defines) and fix breakage using the changelog.
+- Tell the user about every upgrade: the old and new version, why it was needed and any code you changed for it.
+- If the upgrade cannot be made to build, restore the saved `Cargo.toml` files and `Cargo.lock` (and revert only the code you changed for it), tell the user why it failed and which functionality stays unavailable.
+
+Do not commit unless the user asks. If they do and you upgraded hotpath, keep the upgrade in a commit of its own, never part of a regression fix: a new hotpath release can change what the reports measure, so the next verdict compares across two versions. Tell the user so when the upgrade lands in a pull request that is being judged.
 
 | Page | Covers |
 |---|---|

@@ -22,12 +22,12 @@ curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/prometheus_grafana
 
 Fetch https://hotpath.rs/prometheus_grafana before building the dashboard, and check every metric and label name a panel uses against its "Available metrics" tables instead of relying on memory. Keep `-fsSL` and the header. If a fetch fails, stop and tell the user which URL could not be retrieved; do not continue from memory. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 
-The site documents the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the crate version is the tag without its `v`). When the project already depends on an older `hotpath`, update it to that release before following this procedure:
+The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the crate version is the tag without its `v`). Check the installed version in `Cargo.lock`:
 
-- Where the project's `hotpath` requirement (each crate's `Cargo.toml`, or `[workspace.dependencies]`) does not allow that version, raise it to `"{{HOTPATH_VERSION}}"`, keeping its features. Then run `cargo update -p hotpath` and check that `Cargo.lock` resolves the release.
-- Build with and without the project's hotpath features (`cargo check`, and `cargo check --features` with the features the project defines) and fix what the update breaks, using the release notes in https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md.
-- Tell the user you updated hotpath: the old and the new version, and any code you changed for it.
-- If the update cannot be made to build, revert it, continue on the version the project had and tell the user why. When the docs then describe something that version does not have, tell the user instead of working around it.
+- If it supports what the task needs, keep it; do not upgrade. A hotpath cargo feature that is not enabled on the dependency yet (`tokio`, an integration) only needs enabling, not an upgrade.
+- If it lacks functionality the task needs (compare the docs with https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md), upgrade to the latest release without asking. Save the `Cargo.toml` files and `Cargo.lock` first. Raise the `hotpath` requirement (each crate's `Cargo.toml`, or `[workspace.dependencies]`) where it does not allow `"{{HOTPATH_VERSION}}"`, keeping its features, and run `cargo update -p hotpath`; change no other dependency. Build with and without the project's hotpath features (`cargo check`, and `cargo check --features` with the feature names the project defines) and fix breakage using the changelog.
+- Tell the user about every upgrade: the old and new version, why it was needed and any code you changed for it.
+- If the upgrade cannot be made to build, restore the saved `Cargo.toml` files and `Cargo.lock` (and revert only the code you changed for it), tell the user why it failed and which functionality stays unavailable.
 
 | Page | Covers |
 |---|---|

@@ -71,7 +71,7 @@ Paths are relative to https://hotpath.rs. Fetch the pages listed for the task, p
 
 ## Rules
 
-- hotpath version: the docs describe the latest release (`cargo search hotpath --limit 1`). Add the latest release for a new dependency. Keep an existing dependency's version and features; upgrade only when the user asks or approves. If the task needs something the installed version (see `Cargo.lock`) lacks, explain that and propose an upgrade, using https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md. Never make large dependency or lockfile changes silently.
+- hotpath version: the docs describe the latest release (`cargo search hotpath --limit 1`); add it for a new dependency. Keep an existing version (see `Cargo.lock`) when it supports the task; a hotpath cargo feature that is only not enabled yet needs enabling, not an upgrade. When the installed version lacks functionality the task needs (compare with https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md), upgrade to the latest release without asking: raise the requirement keeping its features, `cargo update -p hotpath`, no other dependency changes, build with and without the project's hotpath features, and tell the user the old and new version, why and what code changed. If it cannot be made to build, restore the previous `Cargo.toml`/`Cargo.lock` state, and report the failure and what stays unavailable.
 - Never add `hotpath` or any `hotpath-*` feature to `default` features; profiling stays opt-in.
 - Verify instrumentation compiles both ways: `cargo check` and `cargo check --features hotpath`.
 - Wrapper macros return `hotpath::wrap::` types (no-op with the feature off). Do not silently rewrite public APIs to fit them; tell the user.

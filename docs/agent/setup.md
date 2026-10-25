@@ -16,12 +16,12 @@ Fetch a page only when the project uses what it covers, fetch it once and reuse 
 
 ## hotpath version
 
-The docs describe the latest release, `{{HOTPATH_RELEASE_TAG}}`.
+The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the crate version is the tag without its `v`). For a new dependency, add the latest release (`cargo add`, step 2). For an existing one, check the installed version in `Cargo.lock`:
 
-- New dependency: add the latest release.
-- Existing dependency: keep its version and features. Upgrade it only when the user asks or approves.
-- If the task needs something the installed version (see `Cargo.lock`) lacks, tell the user and propose an upgrade instead of working around it. After an approved upgrade, build with and without the project's hotpath features, fix breakage using https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md, and report the old and new version and any code you changed.
-- Never make large dependency or lockfile changes silently.
+- If it supports what the task needs, keep it; do not upgrade. A hotpath cargo feature that is not enabled on the dependency yet (`tokio`, an integration) only needs enabling, not an upgrade.
+- If it lacks functionality the task needs (compare the docs with https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md), upgrade to the latest release without asking. Save the `Cargo.toml` files and `Cargo.lock` first. Raise the `hotpath` requirement (each crate's `Cargo.toml`, or `[workspace.dependencies]`) where it does not allow `"{{HOTPATH_VERSION}}"`, keeping its features, and run `cargo update -p hotpath`; change no other dependency. Build with and without the project's hotpath features (`cargo check`, and `cargo check --features` with the feature names the project defines) and fix breakage using the changelog.
+- Tell the user about every upgrade: the old and new version, why it was needed and any code you changed for it.
+- If the upgrade cannot be made to build, restore the saved `Cargo.toml` files and `Cargo.lock` (and revert only the code you changed for it), tell the user why it failed and which functionality stays unavailable.
 
 ## Steps
 
