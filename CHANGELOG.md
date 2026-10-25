@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.29.2] - 2026-10-25
+
+### 🚀 Features
+
+- Comma separated counts display
+
+- Merge native and Callgrind reports with HOTPATH_MERGE_REPORT
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Run meta and drain benchmarks as merged Callgrind reports
+
+- Release 0.29.2
+
+
 ## [0.29.1] - 2026-10-24
 
 ### 🚀 Features
