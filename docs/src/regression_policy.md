@@ -66,7 +66,7 @@ Metrics: `avg` and `total` time per function, percentiles such as `p95`.
 
 ### Functions instructions
 
-Instructions executed by instrumented functions, from benchmarks run under [Callgrind](callgrind.md) with the `hotpath-callgrind` feature (the report's `functions_icount` section). Instruction counts measure computational work, not elapsed time; a deterministic workload executes nearly the same instructions on every run, so a small change usually reflects a change in the code's work.
+Instructions executed by instrumented functions, from benchmarks run under [Callgrind](callgrind.md) with the `hotpath-callgrind` feature, alone or merged with a native run (the report's `functions_icount` section). Instruction counts measure computational work, not elapsed time; a deterministic workload executes nearly the same instructions on every run, so a small change usually reflects a change in the code's work.
 
 ```toml
 [functions.icount]
@@ -79,9 +79,15 @@ min_calls = 1
 
 Metrics: `avg` and `total` instructions per function. Callgrind counts have no percentiles.
 
-Counts only compare within one environment: when the two reports differ in Valgrind version, `rustc` or OS, or one side lacks the Valgrind version, the section is skipped as an environment mismatch and not judged. Pin them in CI, see [CI integration](ci_integration.md#instruction-counts-with-callgrind).
+Counts only compare within one environment: when the two reports differ in Valgrind version, `rustc` or OS, or one side lacks the Valgrind version, the section is skipped as an environment mismatch and not judged. Pin them in CI, see [CI integration](ci_integration.md#profiling-modes).
 
 The built-in 2% suits deterministic single-threaded workloads. Thread interleaving moves the counts of concurrent code between runs of one commit by an amount that depends on the workload, so run the benchmark a few times, measure that spread and set `min_percent_change` above it; 3% is a conservative start.
+
+In a merged report (native timing + Callgrind instruction counts in one report, the [recommended CI mode](ci_integration.md#profiling-modes)), the instruction counts are judged here and the native timing comes with them:
+
+- Timing stays listed under `[functions.timing]` with `judged = false`, as the default policy writes it: native timing on shared runners is too noisy to judge, but it shows next to the counts on the comparison page and under "Related metrics" in the pull request comment, where a finding shows its function's row in every section the policy lists.
+- Leaving `[functions.timing]` out stops timing being judged and also hides it from the comparison page and the comment. The report's own page still shows every measured section.
+- A timing [budget](performance_budgets.md) on a merged report judges native timing measured on a shared runner, so give it headroom (a tail percentile such as `p99.9` moves the most), or bound the work with the instruction counts instead.
 
 ### Functions allocations
 

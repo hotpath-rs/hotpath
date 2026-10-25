@@ -18,7 +18,10 @@ hotpath = "{{HOTPATH_VERSION}}"
 hotpath = ["hotpath/hotpath"]
 hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
 hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
+hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
 ```
+
+`hotpath-callgrind` is for the recommended merged mode below (`hotpath` `0.29.2` or newer); a [native](#native) benchmark leaves it out.
 
 Add a policy file. Every benchmark needs one: its own `hotpath/<benchmark>-policy.toml`, or the shared `hotpath/policy.toml` when it has none. An upload without one is refused. `hotpath cloud init` writes the default policy to `hotpath/policy.toml`:
 
@@ -40,7 +43,7 @@ There are two ways to wire the workflow, depending on where pull requests come f
 
 The fork setup also handles pull requests from the same repository, so a project that accepts both needs only that one.
 
-On x86_64 Linux runners, a CPU-bound benchmark can run under Valgrind for reproducible [instruction counts](#instruction-counts-with-callgrind) instead of noisy timings, with either setup.
+Both setups run the benchmark in **merged** mode (native timing + Callgrind instruction counts in one report), the recommended mode on x86_64 Linux runners. One build runs twice: natively, for timing, allocations and every other section, then under Valgrind's [Callgrind](callgrind.md), which adds instruction counts and uploads one merged report. Timing on shared runners is too noisy to judge small changes, while instruction counts are reproducible for a deterministic workload, so the counts are judged and the timing is shown next to them. Where Valgrind cannot run the benchmark, use [native mode](#native); [Profiling modes](#profiling-modes) compares the modes.
 
 ## Pull requests from the same repository
 
@@ -59,31 +62,69 @@ jobs:
     name: benchmark
     # Fork pull requests get no `id-token: write`, so there is nothing to upload.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Instruction counts only compare within one Valgrind build and Rust
+    # toolchain, so the image, the package and the toolchain are pinned.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write # the upload authenticates with the job's OIDC token
+    # Shared by both runs, so their reports describe one benchmark. Static
+    # values: job-level `env` cannot read the `runner` context.
+    env:
+      HOTPATH_BENCHMARK: my_benchmark
+      HOTPATH_USER_METADATA: runner=Linux-X64,toolchain=1.99.0,profile=release,valgrind=3.26.0
+      HOTPATH_OUTPUT_FORMAT: json
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.0"
       - uses: Swatinem/rust-cache@v2
-      - name: Run benchmark and upload report
+      - name: Install valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind=1:3.26.0-0ubuntu1
+          valgrind --version
+      - name: Build benchmark
+        run: |
+          cargo build -q --release --example my_benchmark \
+            --features hotpath-alloc,hotpath-cloud,hotpath-callgrind
+      - name: Run benchmark natively
+        env:
+          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/native.json
+        run: target/release/examples/my_benchmark
+      - name: Run benchmark under Callgrind and upload the merged report
         env:
           HOTPATH_UPLOAD: fail-on-error
           HOTPATH_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload.json
-          HOTPATH_BENCHMARK: my_benchmark
-          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,profile=release
-          HOTPATH_OUTPUT_FORMAT: none
+          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/merged.json
+          HOTPATH_MERGE_REPORT: ${{ runner.temp }}/native.json
+          HOTPATH_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
         run: |
-          cargo run -q --release --example my_benchmark \
-            --features hotpath-alloc,hotpath-cloud
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_CALLGRIND_OUT_FILE" \
+            target/release/examples/my_benchmark
           test -s "$HOTPATH_UPLOAD_RESPONSE_PATH"
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0)' \
+            "$HOTPATH_OUTPUT_PATH" > /dev/null
 ```
 
-Pushes to the default branch upload the **baseline** that pull requests are compared against. 
+Pushes to the default branch upload the **baseline** that pull requests are compared against.
 
-The response file is written only when the server accepted the report, and removed when the upload was skipped or failed, so `test -s` fails the job when no report was stored. Keep its path absolute: a relative one resolves against the working directory of the benchmark program. Give every uploading program its own file.
+What each part is for:
+
+- **One build, two runs.** The benchmark is built once and the same binary runs natively, then under Valgrind. Never `valgrind cargo run`, which would instrument Cargo. For a binary target the path is `target/release/<name>`.
+- **Shared settings in the job's `env`.** The benchmark name, the metadata and the JSON output must be the same for both runs, so they are set once for the job, with static values: job-level `env` cannot read the `runner` context, and the metadata describes the pinned environment anyway. `HOTPATH_UPLOAD`, `HOTPATH_MERGE_REPORT` and the output paths belong to their step. Set on the native step, `HOTPATH_UPLOAD` would upload a second, native-only report, and `HOTPATH_MERGE_REPORT` fails it, since that run is not under Valgrind.
+- **The merge.** `HOTPATH_MERGE_REPORT` names the native run's report. The Callgrind run takes it as the base, adds its own instruction counts and uploads the result. It checks that both runs come from the same build, checkout, benchmark and CI run first. A failed merge fails the step whatever `HOTPATH_UPLOAD` says, writes no JSON and uploads nothing. [Timing and instruction counts in one report](callgrind.md#timing-and-instruction-counts-in-one-report) describes what a merged report carries.
+- **Run from the repository root**, both runs from the same directory, so the git information and the policy file are found and the two reports describe the same checkout. The native report goes outside the checkout (`runner.temp`), to a different file than the merged one.
+- **Pinned environment.** Instruction counts depend on the Valgrind version, the Rust toolchain and the OS, and hotpath.rs only compares counts whose Valgrind version, `rustc` and OS match: a mismatch is skipped, not judged. Pin the runner label, the Valgrind package and the toolchain instead of `ubuntu-latest` and `stable`, and bump them deliberately: the first push to the default branch after a bump uploads the new baseline. A runner label is not an immutable image, so system libraries can still change under it; the pins make reports comparable, not identical.
+- **`--instr-atstart=no`** keeps Callgrind's instrumentation off until hotpath turns it on at guard creation. That cuts the cost of startup, but the program still runs under Valgrind the whole time.
+- **`HOTPATH_CALLGRIND_OUT_FILE`** names the same file as `--callgrind-out-file`, here outside the checkout. Without it hotpath looks for `callgrind.out.<pid>` in the working directory.
+- **`test -s` and the `jq` check.** The response file is written only when the server accepted the report, and removed when the upload was skipped or failed, so `test -s` fails the job when no report was stored. Keep its path absolute: a relative one resolves against the working directory of the benchmark program. Give every uploading program its own file. The `jq` check fails the job when the stored report is not a merged one with both instruction counts and timing.
+- **A longer timeout**, for Valgrind, which runs the benchmark tens of times slower. The `hotpath-callgrind` feature also costs one extra call per measured invocation in the native run, which is visible in its timings.
+
+The workload must run twice in one job doing the same work: fixed inputs and seeds, no network, and nothing the first run leaves behind (a database it fills, files it creates) changing the second run. Before relying on the verdicts, re-run the job a few times on one commit and set `min_percent_change` of [`[functions.icount]`](regression_policy.md#functions-instructions) above the variation you see: how much concurrent code moves between runs depends on the workload.
 
 ### Failing the job
 
@@ -94,7 +135,7 @@ The response file is written only when the server accepted the report, and remov
 | `enabled` (or `1`, `true`) | warning |
 | `fail-on-error` | job fails |
 
-A skipped upload (not in GitHub Actions, no OIDC token, invalid benchmark name, the program panicked) never fails the job. A regression or a broken budget never fails the job either: it is a warning in the job log. The pull request's `hotpath / <benchmark>` check fails when the policy sets [`pr_check = "fail"`](regression_policy.md#pull-request-check) and the finding comes from a block with `fail_check = true`: every budget rule by default, a policy section only when it opts in.
+A failed merge (`HOTPATH_MERGE_REPORT` set) always fails the job, whatever `HOTPATH_UPLOAD` says. A skipped upload (not in GitHub Actions, no OIDC token, invalid benchmark name, the program panicked) never fails the job. A regression or a broken budget never fails the job either: it is a warning in the job log. The pull request's `hotpath / <benchmark>` check fails when the policy sets [`pr_check = "fail"`](regression_policy.md#pull-request-check) and the finding comes from a block with `fail_check = true`: every budget rule by default, a policy section only when it opts in.
 
 To block merging a pull request with a regression, make `hotpath / <benchmark>` a required check in the branch protection rules. A required check also blocks merges while hotpath.rs is unavailable, since no check is posted then.
 
@@ -109,7 +150,10 @@ To block merging a pull request with a regression, make `hotpath / <benchmark>` 
 | `HOTPATH_USER_METADATA` | Comma-separated `key=value` pairs stored with the report and shown on its page, e.g. `runner=linux-x64,profile=release`. |
 | `HOTPATH_SOURCE_ROOT` | Path of the build workspace relative to the repository root, for source links in the comment. Derived from the checkout when unset. |
 | `HOTPATH_API_URL` | Base URL of the server. (default: `https://hotpath.rs`) |
-| `HOTPATH_OUTPUT_FORMAT` | Set to `none` to keep the local report out of the job log. The upload does not depend on it. |
+| `HOTPATH_OUTPUT_FORMAT` | `json` in merged mode, for both runs: the native run writes the report the merge reads, the Callgrind run the merged report the `jq` check reads. In native mode, `none` keeps the local report out of the job log. The upload does not depend on it. |
+| `HOTPATH_OUTPUT_PATH` | File the JSON report is written to. Set per step in merged mode, each run to its own file. |
+| `HOTPATH_MERGE_REPORT` | On the Callgrind step only: the native run's JSON report, merged into this run's report before it is written and uploaded. A failed merge fails the job whatever `HOTPATH_UPLOAD` says. (default: not set) |
+| `HOTPATH_CALLGRIND_OUT_FILE` | The `--callgrind-out-file` value Valgrind was started with; `%p` and `%q{VAR}` are expanded like Valgrind does. (default: `callgrind.out.%p`) |
 
 See [configuration](configuration.md) for the variables that shape the report itself.
 
@@ -119,7 +163,7 @@ A job triggered by a pull request from a fork runs the fork's code, so GitHub gi
 
 ### The benchmark workflow
 
-Pushes to the default branch upload directly, as in the same-repository setup. Pull requests write the report to a file and store it as an artifact.
+Pushes to the default branch upload directly, as in the same-repository setup. Pull requests run the same two runs, write the merged report to a file and store it as an artifact.
 
 ```yaml
 name: Benchmark
@@ -133,51 +177,92 @@ jobs:
   upload:
     name: benchmark (push)
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
+    env:
+      HOTPATH_BENCHMARK: my_benchmark
+      HOTPATH_USER_METADATA: runner=Linux-X64,toolchain=1.99.0,profile=release,valgrind=3.26.0
+      HOTPATH_OUTPUT_FORMAT: json
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.0"
       - uses: Swatinem/rust-cache@v2
-      - name: Run benchmark and upload report
+      - name: Install valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind=1:3.26.0-0ubuntu1
+      - name: Build benchmark
+        run: |
+          cargo build -q --release --example my_benchmark \
+            --features hotpath-alloc,hotpath-cloud,hotpath-callgrind
+      - name: Run benchmark natively
+        env:
+          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/native.json
+        run: target/release/examples/my_benchmark
+      - name: Run benchmark under Callgrind and upload the merged report
         env:
           HOTPATH_UPLOAD: fail-on-error
           HOTPATH_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload.json
-          HOTPATH_BENCHMARK: my_benchmark
-          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,profile=release
-          HOTPATH_OUTPUT_FORMAT: none
+          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/merged.json
+          HOTPATH_MERGE_REPORT: ${{ runner.temp }}/native.json
+          HOTPATH_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
         run: |
-          cargo run -q --release --example my_benchmark \
-            --features hotpath-alloc,hotpath-cloud
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_CALLGRIND_OUT_FILE" \
+            target/release/examples/my_benchmark
           test -s "$HOTPATH_UPLOAD_RESPONSE_PATH"
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0)' \
+            "$HOTPATH_OUTPUT_PATH" > /dev/null
 
   report:
     name: benchmark (pull request)
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
     permissions:
       contents: read
+    env:
+      HOTPATH_BENCHMARK: my_benchmark
+      HOTPATH_USER_METADATA: runner=Linux-X64,toolchain=1.99.0,profile=release,valgrind=3.26.0
+      HOTPATH_OUTPUT_FORMAT: json
     steps:
       - uses: actions/checkout@v4
         with:
           # The pull request's head commit, not the default merge commit.
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.0"
       - uses: Swatinem/rust-cache@v2
-      - name: Run benchmark and write report
-        env:
-          HOTPATH_BENCHMARK: my_benchmark
-          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,profile=release
-          HOTPATH_OUTPUT_FORMAT: json
-          HOTPATH_OUTPUT_PATH: report.json
+      - name: Install valgrind
         run: |
-          cargo run -q --release --example my_benchmark \
-            --features hotpath-alloc,hotpath-cloud
+          sudo apt-get update
+          sudo apt-get install -y valgrind=1:3.26.0-0ubuntu1
+      - name: Build benchmark
+        run: |
+          cargo build -q --release --example my_benchmark \
+            --features hotpath-alloc,hotpath-cloud,hotpath-callgrind
+      - name: Run benchmark natively
+        env:
+          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/native.json
+        run: target/release/examples/my_benchmark
+      - name: Run benchmark under Callgrind and write the merged report
+        env:
+          HOTPATH_OUTPUT_PATH: report.json
+          HOTPATH_MERGE_REPORT: ${{ runner.temp }}/native.json
+          HOTPATH_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
+        run: |
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_CALLGRIND_OUT_FILE" \
+            target/release/examples/my_benchmark
           test -s report.json
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0)' \
+            report.json > /dev/null
       - uses: actions/upload-artifact@v4
         with:
           name: hotpath-report
@@ -186,7 +271,7 @@ jobs:
           if-no-files-found: error
 ```
 
-The pull request job still builds with the `hotpath-cloud` feature. The feature is what adds the commit, the pull request, the benchmark name and the policy file to the JSON report. `HOTPATH_UPLOAD` is not set in that job: it has no token to upload with.
+The pull request job still builds with the `hotpath-cloud` feature. The feature is what adds the commit, the pull request, the benchmark name and the policy file to the JSON report. `HOTPATH_UPLOAD` is not set in that job: it has no token to upload with. A failed merge fails it before the artifact upload, so the relay never posts a report that is not merged. The parts the two jobs share are explained in the [same-repository setup](#pull-requests-from-the-same-repository).
 
 ### The relay workflow
 
@@ -248,29 +333,41 @@ In the pull request job, which writes the report:
 |---|---|
 | `HOTPATH_BENCHMARK` | Name of the benchmark series. The relay's `benchmark` input must name the same one. |
 | `HOTPATH_OUTPUT_FORMAT` | Must be `json`. |
-| `HOTPATH_OUTPUT_PATH` | File the report is written to, the one stored as the artifact. |
+| `HOTPATH_OUTPUT_PATH` | File the report is written to: the native report for the native step, the merged report stored as the artifact for the Callgrind step. |
+| `HOTPATH_MERGE_REPORT` | On the Callgrind step only: the native run's JSON report. |
+| `HOTPATH_CALLGRIND_OUT_FILE` | The `--callgrind-out-file` value Valgrind was started with. |
 | `HOTPATH_POLICY_PATH` | Policy file to embed instead of the one found in `hotpath/`. |
 | `HOTPATH_USER_METADATA` | Comma-separated `key=value` pairs stored with the report. |
 
 The push job takes the variables of the [same-repository setup](#environment-variables).
 
-## Instruction counts with Callgrind
+<a id="instruction-counts-with-callgrind"></a>
 
-Timing on shared GitHub runners is too noisy to judge small changes. A benchmark run under [Callgrind](callgrind.md) reports the instructions each function executed instead. Instruction counts measure computational work rather than speed, but they are reproducible for a deterministic workload, so a change of a few percent in a function's work stands out from run-to-run variation. Allocation profiling keeps working; timing is not reported under Valgrind.
+## Profiling modes
 
-It needs `hotpath` `0.29` or newer, an x86_64 Linux runner and a workload that finishes under Valgrind, which runs it tens of times slower. Add the feature next to the others:
+| Mode | Report carries | Judged by default | Use when |
+|---|---|---|---|
+| merged (recommended) | native timing, allocations and every other native section, plus instruction counts | instruction counts, allocations; timing shown, not judged | x86_64 Linux runner, a CPU-bound and mostly deterministic workload that runs twice the same way and finishes under Valgrind |
+| native | timing, allocations and every other section | allocations; timing shown, not judged | no Valgrind (macOS, Windows or ARM runners), a workload too slow under Valgrind, or one that cannot run twice the same way |
+| Callgrind only | instruction counts and allocations, no timing | instruction counts, allocations | existing setups; not recommended for new benchmarks |
 
-```toml
-[features]
-hotpath = ["hotpath/hotpath"]
-hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
-hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
-hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
-```
+Merged mode needs:
 
-and judge the counts in the policy file under [`[functions.icount]`](regression_policy.md#functions-instructions).
+- `hotpath` `0.29.2` or newer;
+- an x86_64 Linux runner;
+- a CPU-bound workload: its time goes into computation, not into network, disk, sleeps, timers or a database service, and it is not dominated by many threads racing each other (Valgrind serializes threads, so their interleaving moves the counts);
+- the code to judge in functions with `#[hotpath::measure]` (or `measure_all`): `measure_block!` blocks are not counted;
+- a `[profile.release]` that keeps symbols (no `strip = true` or `"symbols"`);
+- a workload that finishes under Valgrind within the job timeout: one that takes more than about a minute natively should be made smaller or run natively;
+- a workload that runs twice in one job doing the same work.
 
-The workflow is the [same-repository one](#pull-requests-from-the-same-repository) with the benchmark built first and its binary run under Valgrind:
+### Merged
+
+The workflows of both setups above. The judged instruction counts are configured under [`[functions.icount]`](regression_policy.md#functions-instructions), and timing stays listed under `[functions.timing]` with `judged = false`, as the default policy writes it, so it shows next to the counts.
+
+### Native
+
+Without Valgrind, the benchmark runs once and uploads its native report:
 
 ```yaml
 name: Benchmark
@@ -285,10 +382,8 @@ jobs:
     name: benchmark
     # Fork pull requests get no `id-token: write`, so there is nothing to upload.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    # Instruction counts only compare within one Valgrind build and Rust
-    # toolchain, so the image, the package and the toolchain are pinned.
-    runs-on: ubuntu-26.04
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       id-token: write # the upload authenticates with the job's OIDC token
@@ -298,44 +393,28 @@ jobs:
         with:
           toolchain: "1.99.0"
       - uses: Swatinem/rust-cache@v2
-      - name: Install valgrind
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y valgrind=1:3.26.0-0ubuntu1
-          valgrind --version
-      - name: Build benchmark
-        run: |
-          cargo build -q --release --example my_benchmark \
-            --features hotpath-alloc,hotpath-cloud,hotpath-callgrind
-      - name: Run benchmark under Callgrind and upload report
+      - name: Run benchmark and upload report
         env:
           HOTPATH_UPLOAD: fail-on-error
           HOTPATH_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload.json
           HOTPATH_BENCHMARK: my_benchmark
-          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=1.99.0,profile=release,valgrind=3.26.0
-          HOTPATH_OUTPUT_FORMAT: json
-          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/report.json
-          HOTPATH_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=1.99.0,profile=release
+          HOTPATH_OUTPUT_FORMAT: none
         run: |
-          valgrind -q --tool=callgrind --instr-atstart=no \
-            --callgrind-out-file="$HOTPATH_CALLGRIND_OUT_FILE" \
-            target/release/examples/my_benchmark
+          cargo run -q --release --example my_benchmark \
+            --features hotpath-alloc,hotpath-cloud
           test -s "$HOTPATH_UPLOAD_RESPONSE_PATH"
-          jq -e '.functions_icount.data | length > 0' "$HOTPATH_OUTPUT_PATH" > /dev/null
 ```
 
-What differs from the timing workflow:
+The build needs no `hotpath-callgrind` feature. In the fork setup, both jobs take the same shape: no Valgrind, no native step and no merge, one `cargo run`; the pull request job keeps writing `report.json` and storing it as the artifact.
 
-- **Pinned environment.** Counts depend on the Valgrind version, the Rust toolchain and the OS, and hotpath.rs only compares reports whose Valgrind version, `rustc` and OS match: a mismatch is skipped, not judged. Pin the runner label, the Valgrind package and the toolchain instead of `ubuntu-latest` and `stable`, and bump them deliberately: the first push to the default branch after a bump uploads the new baseline. A runner label is not an immutable image, so system libraries can still change under it; the pins make reports comparable, not identical.
-- **Build, then run the binary.** The workflow builds first and runs the compiled binary directly under Valgrind, which keeps the command and the out-file simple and predictable. Cargo's target runner (as in [Callgrind](callgrind.md#running-under-callgrind)) works too; `valgrind cargo run` does not, since it would instrument Cargo. Run from the repository root, so the git information and the policy file are found. For a binary target the path is `target/release/<name>`.
-- **`--instr-atstart=no`** keeps Callgrind's instrumentation off until hotpath turns it on at guard creation. That cuts the cost of startup, but the program still runs under Valgrind the whole time.
-- **`HOTPATH_CALLGRIND_OUT_FILE`** names the same file as `--callgrind-out-file`, here outside the checkout. Without it hotpath looks for `callgrind.out.<pid>` in the working directory.
-- **The `jq` check.** When the Callgrind dump cannot be read, hotpath prints `[hotpath] icount report unavailable: ...` and the report carries allocations only; a run outside Valgrind reports timing instead. The check fails the job in both cases, so a run without instruction counts does not pass unnoticed. The JSON output is written next to the upload, which does not depend on it.
-- **A longer timeout**, for Valgrind's slowdown.
+### Callgrind only
 
-Before relying on the verdicts, run the benchmark a few times on one commit (re-run the job) and set `min_percent_change` above the variation you see: how much concurrent code moves between runs depends on the workload.
+A benchmark that already runs only under Callgrind keeps working: its report carries instruction counts and allocations, and no timing, since durations under Valgrind are meaningless. It is the merged workflow without the native step and without `HOTPATH_MERGE_REPORT`, with the `jq` check reduced to `.functions_icount.data | length > 0`. New benchmarks should use merged mode, which adds timing at the cost of one native run.
 
-For [pull requests from forks](#pull-requests-from-forks), make the same changes to both jobs of the benchmark workflow: the pinned runner, toolchain and Valgrind package, the `hotpath-callgrind` build, and the Valgrind run with `HOTPATH_CALLGRIND_OUT_FILE`. The push job also switches to `HOTPATH_OUTPUT_FORMAT: json` with a `HOTPATH_OUTPUT_PATH` for its `jq` check, as above. The pull request job keeps its read-only permissions and no `HOTPATH_UPLOAD`; it already writes the JSON report, so run the `jq` check on `report.json` before the artifact upload. The relay workflow does not change.
+### Switching an existing benchmark to merged
+
+Keep the benchmark name, so the series keeps its history. Until the first push to the default branch uploads a merged baseline, a pull request compares against a baseline that lacks one section (timing for a Callgrind-only series, instruction counts for a native one), and that section is left out of the comment. Merge the workflow change on its own, so the next pull requests compare merged reports.
 
 ## Several benchmarks in one repository
 
@@ -355,5 +434,11 @@ Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or jo
 | The comment reads "report not readable" | The report was produced by a `hotpath` version the server no longer reads. Update `hotpath`. |
 | The report is uploaded but no comment or check appears | The upload line ends with `comment failed: ...`, and the job shows it as a warning. The usual cause is that the App's "Pull requests: write" or "Checks: write" permission is not approved for the installation. Approve it in the installation settings on GitHub (your account or organization settings, under Applications). |
 | The relay does not run | The `workflows:` name does not match the benchmark workflow's `name:`, the relay workflow is not on the default branch yet, or the benchmark run failed. |
-| `[hotpath] icount report unavailable: failed to read Callgrind dump ...` | Valgrind ran without `--tool=callgrind`, or `HOTPATH_CALLGRIND_OUT_FILE` differs from `--callgrind-out-file`. See [Instruction counts with Callgrind](#instruction-counts-with-callgrind). |
+| `[hotpath] icount report unavailable: failed to read Callgrind dump ...`, or `merge failed: no instruction counts: failed to read Callgrind dump ...` | Valgrind ran without `--tool=callgrind`, or `HOTPATH_CALLGRIND_OUT_FILE` differs from `--callgrind-out-file`. See [Profiling modes](#profiling-modes). |
+| `merge failed: the native report's ... is ..., this run's is ...` | The two runs differ in build, checkout, benchmark or CI run. Run both from one build, in one job, from the same directory. |
+| `merge failed: this run is not under valgrind --tool=callgrind` | `HOTPATH_MERGE_REPORT` is set on the native step, or for the whole job. Set it only on the Callgrind step. |
+| `merge failed: cannot read the native report ...` | The path is wrong, or the native step did not run first or did not write JSON (`HOTPATH_OUTPUT_FORMAT: json`). |
+| `merge failed: the native report has no timing to merge ...` | The native run had function timing off: a sampling rate of `0`, or timing left out of `HOTPATH_REPORT`. |
+| `upload failed: the report is ... bytes, over the 5 MiB ... limit of hotpath.rs` | The report is too large to upload, and is never cut to fit. Measure fewer functions or split the benchmark. The relay reports the same limit as an `::error::`. |
+| The `jq` check fails although the upload succeeded | The stored report is not merged: `HOTPATH_MERGE_REPORT` is missing on the Callgrind step, or the native run wrote no timing. |
 | The comment reads `functions_icount: environment mismatch (...)` | The two reports come from a different Valgrind version, `rustc` or OS, so their instruction counts were not compared. Pin all three; after a deliberate bump, the next push to the default branch uploads a comparable baseline. |

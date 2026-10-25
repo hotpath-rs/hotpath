@@ -44,9 +44,37 @@ icount - Inclusive instructions executed per function (Callgrind Ir).
 
 In the JSON report it is the `functions_icount` section; select it with `HOTPATH_REPORT=functions-icount` and judge it in a [policy file](./regression_policy.md) under `[functions.icount]`.
 
-The same build run natively prints the usual timing report, so one binary serves both runs. Under Valgrind durations are not measured at all (every time sampling rate is forced to `0.0`), so even an explicit `HOTPATH_REPORT=functions-timing` contains no timings.
+The same build run natively prints the usual timing report, so one binary serves both runs. Under Valgrind durations are not measured at all (every time sampling rate is forced to `0.0`), so even an explicit `HOTPATH_REPORT=functions-timing` contains no timings. To get timing and instruction counts in one report, merge a native run's report into the Callgrind run's, as described [below](#timing-and-instruction-counts-in-one-report).
 
 Callgrind writes its counts to `callgrind.out.<pid>` files in the working directory. If you pass a custom `--callgrind-out-file`, set `HOTPATH_CALLGRIND_OUT_FILE` to the same value (`%p` and `%q{VAR}` are expanded like Valgrind does).
+
+## Timing and instruction counts in one report
+
+A Callgrind run has no timing, and a native run has no instruction counts. **Merged** mode (native timing + Callgrind instruction counts in one report) runs the same build twice and combines the two: run it natively with a JSON report first, then under Callgrind with `HOTPATH_MERGE_REPORT` naming that report:
+
+```bash
+cargo build --release --example my_benchmark --features hotpath-alloc,hotpath-cloud,hotpath-callgrind
+
+HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=native.json \
+  target/release/examples/my_benchmark
+
+HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=merged.json \
+  HOTPATH_MERGE_REPORT=native.json \
+  valgrind -q --tool=callgrind --instr-atstart=no \
+  target/release/examples/my_benchmark
+```
+
+`merged.json` is the native report with the Callgrind run's instruction counts added, and `meta.run` set to `"merged"`:
+
+- **Native sections**: timing, allocations, threads, channels, locks and every other section come from the native run. Both runs measure allocations; the native run's are kept.
+- **Instruction counts** come from the Callgrind run, with its own call counts, which can differ slightly from the timing section's for a workload that is not deterministic.
+- **Elapsed time** is the native run's on the timing and allocation sections, and never shown for the instruction counts, which were measured under Valgrind.
+
+Merging needs the `hotpath-callgrind` and `hotpath-cloud` features (`hotpath` `0.29.2` or newer). The Callgrind run refuses a native report that does not belong to it: a different `hotpath` version, benchmark, `rustc`, OS, working directory, git commit or branch, policy file or CI run, a report that is not from a native run, or one without timing (a sampling rate of `0`). It also refuses when it did not count any instructions itself. A refused merge prints `merge failed: ...` with the reason and exits with status 1, whatever `HOTPATH_UPLOAD` says; it writes no report, uploads nothing and leaves an existing output file untouched. A program that panics skips the merge.
+
+Both runs must do the same work: the same binary, arguments, environment, inputs and working directory, a fixed workload (fixed inputs and seeds, no network), and nothing the first run leaves behind (a database it fills, files it creates) changing the second.
+
+In [hotpath Cloud](#cloud-ci), merged mode is the recommended way to benchmark in CI.
 
 ## What is counted
 
@@ -64,7 +92,7 @@ Only compare counts produced by the same Valgrind version, Rust toolchain and ta
 
 ## Cloud CI
 
-Reproducible counts let [hotpath Cloud](cloud.md) judge changes in CPU work on shared GitHub runners, where timing is too noisy to judge small changes. A higher count means more work, which usually but not always means slower code. Build the benchmark with `hotpath-alloc,hotpath-cloud,hotpath-callgrind` and run it under Callgrind in a pinned environment: the uploaded report carries instruction counts and allocations, judged under `[functions.icount]` and `[functions.alloc]` of the [policy file](./regression_policy.md#functions-instructions). [CI integration](./ci_integration.md#instruction-counts-with-callgrind) has the workflow; the [AI setup](./cloud.md#ai-setup-recommended) picks Callgrind for suitable new benchmarks on its own.
+Reproducible counts let [hotpath Cloud](cloud.md) judge changes in CPU work on shared GitHub runners, where timing is too noisy to judge small changes. A higher count means more work, which usually but not always means slower code. The recommended setup is [merged mode](#timing-and-instruction-counts-in-one-report): build the benchmark with `hotpath-alloc,hotpath-cloud,hotpath-callgrind`, run it natively, then under Callgrind in a pinned environment, which uploads one merged report. Its instruction counts and allocations are judged under `[functions.icount]` and `[functions.alloc]` of the [policy file](./regression_policy.md#functions-instructions), and its native timing is shown next to them. [CI integration](./ci_integration.md#profiling-modes) has the workflows; the [AI setup](./cloud.md#ai-setup-recommended) picks merged mode for suitable new benchmarks on its own.
 
 ## Build requirements
 

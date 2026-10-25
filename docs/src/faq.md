@@ -81,7 +81,7 @@ Criterion.rs measures the workload as a whole. It doesn't automatically provide 
 
 - Profiles many functions at once and shows which of them dominate the total execution time.
 - Collects signals beyond timing: memory allocations, [SQL queries](sql_tracing.md), [HTTP calls](http_tracing.md), [lock contention](locks.md), [channel queues](data_flow.md#channels-monitoring), and [I/O](io_tracing.md). Counts like executed queries or allocated bytes usually stay the same between runs of the same workload, even when timings are noisy.
-- Reproducible instruction counts in CI. Under [Valgrind's Callgrind](callgrind.md), the `hotpath-callgrind` feature reports instructions executed per function instead of elapsed time. With a deterministic workload and the same Valgrind version, Rust toolchain, and target, counts repeat closely between runs, so small changes stay visible on shared GitHub Actions runners.
+- Reproducible instruction counts in CI. Under [Valgrind's Callgrind](callgrind.md), the `hotpath-callgrind` feature reports instructions executed per function instead of elapsed time; in CI, a merged report carries both, the native run's timing next to the counts. With a deterministic workload and the same Valgrind version, Rust toolchain, and target, counts repeat closely between runs, so small changes stay visible on shared GitHub Actions runners.
 
 Its trade-offs are a small per-call [overhead](profiling_overhead.md) and no built-in statistical analysis of timings. Callgrind runs only on x86_64 Linux and slows the program down substantially. Instruction counts track CPU work, not time spent waiting on I/O or locks, and fewer instructions don't guarantee faster execution.
 

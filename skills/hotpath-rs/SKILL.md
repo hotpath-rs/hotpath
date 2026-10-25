@@ -1,6 +1,6 @@
 ---
 name: hotpath-rs
-description: Set up, use and troubleshoot hotpath, the feature-gated Rust profiler, by fetching the matching hotpath.rs documentation page or agent procedure. Use when the user wants to add hotpath to a project, instrument Rust code with hotpath, read a hotpath report or a hotpath.rs pull request comment, investigate or fix a performance regression flagged by hotpath, measure deterministic instruction counts with Callgrind, configure hotpath Cloud CI, CPU regression checks, policies or budgets, or asks anything about hotpath. Not for general Rust performance questions in projects that do not use or want hotpath.
+description: Set up, use and troubleshoot hotpath, the feature-gated Rust profiler, by fetching the matching hotpath.rs documentation page or agent procedure. Use when the user wants to add hotpath to a project, instrument Rust code with hotpath, read a hotpath report or a hotpath.rs pull request comment, investigate or fix a performance regression flagged by hotpath, measure deterministic instruction counts with Callgrind, alone or merged with native timing, configure hotpath Cloud CI, CPU regression checks, policies or budgets, or asks anything about hotpath. Not for general Rust performance questions in projects that do not use or want hotpath.
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
@@ -10,7 +10,7 @@ allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 
 Setup and multi-step workflows have their own agent pages (see "Agent procedures" below): fetch the matching one and follow it step by step.
 
-hotpath Cloud benchmarks every pull request in CI, compares the reports with their baseline under a regression policy and performance budgets, and posts the verdict as a pull request comment and check. Start any Cloud task with https://hotpath.rs/cloud, then follow the Cloud pages below. New Cloud benchmarks run under Callgrind for reproducible instruction counts when the workload suits it; `/agent/init_cloud` decides that.
+hotpath Cloud benchmarks every pull request in CI, compares the reports with their baseline under a regression policy and performance budgets, and posts the verdict as a pull request comment and check. Start any Cloud task with https://hotpath.rs/cloud, then follow the Cloud pages below. New Cloud benchmarks run in merged mode (native timing + Callgrind instruction counts in one report) when the workload suits it, native otherwise; `/agent/init_cloud` decides that.
 
 ## Fetching the docs
 
@@ -38,7 +38,7 @@ curl -fsSL https://hotpath.rs/agent/setup
 | Page | Procedure |
 |---|---|
 | https://hotpath.rs/agent/setup | add hotpath to a crate: dependency and feature passthrough, `main`, a starting set of instrumented functions, channels, locks, SQL, HTTP, axum and I/O, verification, then an optional hotpath Cloud offer |
-| https://hotpath.rs/agent/init_cloud | hotpath Cloud CI: benchmark choice, Callgrind or native profiling mode, `hotpath-cloud` feature, policy file, GitHub Actions workflow, the relay workflow for pull requests from forks, README badge |
+| https://hotpath.rs/agent/init_cloud | hotpath Cloud CI: benchmark choice, merged or native profiling mode, `hotpath-cloud` feature, policy file, GitHub Actions workflow, the relay workflow for pull requests from forks, README badge |
 | https://hotpath.rs/agent/init_grafana | a Grafana dashboard JSON with panels for what the project instruments |
 | https://hotpath.rs/agent/cloud_cli | the `hotpath cloud` CLI loop: wait for a benchmark, read the verdict, fix regressions and broken budgets |
 
@@ -52,7 +52,7 @@ curl -fsSL https://hotpath.rs/agent/setup
 | https://hotpath.rs/profiling_modes | static reports, `#[hotpath::main]` vs `HotpathGuardBuilder`, report configuration, timed shutdown, live TUI dashboard, optional vs non-optional dependency |
 | https://hotpath.rs/profiling_overhead | zero overhead when disabled, overhead per profiled type (functions, locks, channels, futures, streams), time sampling to reduce overhead |
 | https://hotpath.rs/functions | `#[hotpath::main]`, `#[hotpath::measure]`, async functions and `future = true`, `#[hotpath::measure_all]`, `#[hotpath::skip]`, `measure_block!`, memory and allocation profiling modes, custom inner allocator, `CountingAllocator` with `HotpathGuardBuilder` |
-| https://hotpath.rs/callgrind | deterministic instruction counts with Valgrind's Callgrind (`hotpath-callgrind`): running under Callgrind, the `icount` report, what is counted, reproducibility, comparing runs, build requirements, Cloud CI |
+| https://hotpath.rs/callgrind | deterministic instruction counts with Valgrind's Callgrind (`hotpath-callgrind`): running under Callgrind, the `icount` report, merged reports (timing and instruction counts in one report), what is counted, reproducibility, comparing runs, build requirements, Cloud CI |
 | https://hotpath.rs/cpu_profiling | samply CPU sampling, macOS and Linux permissions, exclusive vs inclusive attribution, inlined functions, symbol attribution for impl methods |
 | https://hotpath.rs/threads | per-thread CPU and memory monitoring, metrics reference, reading the output |
 | https://hotpath.rs/data_flow | `channel!`, `stream!`, `future!` and `future_fn`: wrapped types, supported libraries and their cargo features, optional config, call-site aggregation and `iter = true`, `capacity` |
@@ -118,7 +118,7 @@ Fetch every page listed for the task; add the pages of any other subsystem the t
 | Build a Grafana dashboard | `/agent/init_grafana`, `/prometheus_grafana` |
 | Query live metrics from an AI agent over MCP | `/mcp` |
 | Set up hotpath Cloud, benchmark pull requests in CI | `/agent/init_cloud`, `/ci_integration` |
-| Set up deterministic CPU regression checks in hotpath Cloud (instruction counts) | `/agent/init_cloud`, `/callgrind`; for an existing Cloud benchmark, `/ci_integration` ("Instruction counts with Callgrind") and `/regression_policy` |
+| Set up deterministic CPU regression checks in hotpath Cloud (instruction counts) | `/agent/init_cloud`, `/callgrind`; for an existing Cloud benchmark, `/ci_integration` ("Profiling modes") and `/regression_policy` |
 | Decide what counts as a regression, edit or validate `hotpath/policy.toml` | `/regression_policy` |
 | Set absolute limits that must never be exceeded | `/performance_budgets`, `/regression_policy` |
 | Read a hotpath.rs pull request comment, wait for a CI benchmark, fix a regression or a broken budget | `/agent/cloud_cli`, `/agents_cli`, `/regression_policy`, `/performance_budgets`, plus the page of the regressed subsystem |
