@@ -9,7 +9,28 @@
 </div>
 
 <div class="hero-row">
-  <img src="{{#asset-hash images/hotpath-ferris.webp}}" alt="hotpath-rs Rust profiling mascot Ferris the crab" class="ferris-img-hero">
+  <div class="ferris-hero" data-mood="angry">
+    <img src="{{#asset-hash images/hotpath-ferris.webp}}" alt="hotpath-rs Rust profiling mascot Ferris the crab" class="ferris-img-hero">
+    <svg class="ferris-overlay" viewBox="0 0 500 491" aria-hidden="true" shape-rendering="crispEdges">
+      <g fill="#010100"><rect class="ferris-eye-anchor" x="200" y="339" width="11" height="9"/><rect class="ferris-eye-anchor" x="283" y="339" width="11" height="9"/></g>
+      <g class="ferris-face-plate" fill="#f92518"><rect x="186" y="320" width="52" height="18"/><rect x="223" y="338" width="15" height="12"/><rect x="262" y="320" width="52" height="18"/><rect x="262" y="338" width="14" height="12"/><rect x="220" y="362" width="62" height="24"/></g>
+      <g class="ferris-mood-neutral" fill="#010100"><rect x="197" y="326" width="26" height="6"/><rect x="277" y="326" width="26" height="6"/><rect x="232" y="368" width="36" height="7"/></g>
+      <g class="ferris-mood-happy" fill="#010100"><rect x="200" y="322" width="18" height="6"/><rect x="195" y="327" width="6" height="6"/><rect x="217" y="327" width="6" height="6"/><rect x="280" y="322" width="18" height="6"/><rect x="275" y="327" width="6" height="6"/><rect x="297" y="327" width="6" height="6"/><rect x="224" y="362" width="8" height="8"/><rect x="268" y="362" width="8" height="8"/><rect x="229" y="368" width="10" height="8"/><rect x="261" y="368" width="10" height="8"/><rect x="236" y="374" width="28" height="7"/></g>
+      <g class="ferris-mood-joy">
+        <g fill="#f92518"><rect x="192" y="334" width="38" height="28"/><rect x="270" y="334" width="38" height="28"/></g>
+        <g fill="#010100"><rect x="203" y="338" width="12" height="6"/><rect x="198" y="342" width="7" height="7"/><rect x="213" y="342" width="7" height="7"/><rect x="194" y="347" width="6" height="7"/><rect x="218" y="347" width="6" height="7"/><rect x="283" y="338" width="12" height="6"/><rect x="278" y="342" width="7" height="7"/><rect x="293" y="342" width="7" height="7"/><rect x="274" y="347" width="6" height="7"/><rect x="298" y="347" width="6" height="7"/><rect x="224" y="362" width="52" height="6"/><rect x="226" y="368" width="48" height="5"/><rect x="230" y="373" width="40" height="5"/><rect x="237" y="378" width="26" height="5"/></g>
+        <g fill="#ff7f7f"><rect x="241" y="373" width="18" height="6"/></g>
+        <g fill="#ff8f80"><rect x="184" y="358" width="14" height="6"/><rect x="302" y="358" width="14" height="6"/></g>
+      </g>
+      <g class="ferris-hearts" fill="#ff5c8a">
+        <g class="ferris-heart"><rect x="22" y="190" width="12" height="12"/><rect x="34" y="190" width="12" height="12"/><rect x="58" y="190" width="12" height="12"/><rect x="70" y="190" width="12" height="12"/><rect x="10" y="202" width="12" height="12"/><rect x="22" y="202" width="12" height="12"/><rect x="34" y="202" width="12" height="12"/><rect x="46" y="202" width="12" height="12"/><rect x="58" y="202" width="12" height="12"/><rect x="70" y="202" width="12" height="12"/><rect x="82" y="202" width="12" height="12"/><rect x="10" y="214" width="12" height="12"/><rect x="22" y="214" width="12" height="12"/><rect x="34" y="214" width="12" height="12"/><rect x="46" y="214" width="12" height="12"/><rect x="58" y="214" width="12" height="12"/><rect x="70" y="214" width="12" height="12"/><rect x="82" y="214" width="12" height="12"/><rect x="22" y="226" width="12" height="12"/><rect x="34" y="226" width="12" height="12"/><rect x="46" y="226" width="12" height="12"/><rect x="58" y="226" width="12" height="12"/><rect x="70" y="226" width="12" height="12"/><rect x="34" y="238" width="12" height="12"/><rect x="46" y="238" width="12" height="12"/><rect x="58" y="238" width="12" height="12"/><rect x="46" y="250" width="12" height="12"/></g>
+        <g class="ferris-heart"><rect x="412" y="150" width="12" height="12"/><rect x="424" y="150" width="12" height="12"/><rect x="448" y="150" width="12" height="12"/><rect x="460" y="150" width="12" height="12"/><rect x="400" y="162" width="12" height="12"/><rect x="412" y="162" width="12" height="12"/><rect x="424" y="162" width="12" height="12"/><rect x="436" y="162" width="12" height="12"/><rect x="448" y="162" width="12" height="12"/><rect x="460" y="162" width="12" height="12"/><rect x="472" y="162" width="12" height="12"/><rect x="400" y="174" width="12" height="12"/><rect x="412" y="174" width="12" height="12"/><rect x="424" y="174" width="12" height="12"/><rect x="436" y="174" width="12" height="12"/><rect x="448" y="174" width="12" height="12"/><rect x="460" y="174" width="12" height="12"/><rect x="472" y="174" width="12" height="12"/><rect x="412" y="186" width="12" height="12"/><rect x="424" y="186" width="12" height="12"/><rect x="436" y="186" width="12" height="12"/><rect x="448" y="186" width="12" height="12"/><rect x="460" y="186" width="12" height="12"/><rect x="424" y="198" width="12" height="12"/><rect x="436" y="198" width="12" height="12"/><rect x="448" y="198" width="12" height="12"/><rect x="436" y="210" width="12" height="12"/></g>
+        <g class="ferris-heart"><rect x="340" y="10" width="10" height="10"/><rect x="350" y="10" width="10" height="10"/><rect x="370" y="10" width="10" height="10"/><rect x="380" y="10" width="10" height="10"/><rect x="330" y="20" width="10" height="10"/><rect x="340" y="20" width="10" height="10"/><rect x="350" y="20" width="10" height="10"/><rect x="360" y="20" width="10" height="10"/><rect x="370" y="20" width="10" height="10"/><rect x="380" y="20" width="10" height="10"/><rect x="390" y="20" width="10" height="10"/><rect x="330" y="30" width="10" height="10"/><rect x="340" y="30" width="10" height="10"/><rect x="350" y="30" width="10" height="10"/><rect x="360" y="30" width="10" height="10"/><rect x="370" y="30" width="10" height="10"/><rect x="380" y="30" width="10" height="10"/><rect x="390" y="30" width="10" height="10"/><rect x="340" y="40" width="10" height="10"/><rect x="350" y="40" width="10" height="10"/><rect x="360" y="40" width="10" height="10"/><rect x="370" y="40" width="10" height="10"/><rect x="380" y="40" width="10" height="10"/><rect x="350" y="50" width="10" height="10"/><rect x="360" y="50" width="10" height="10"/><rect x="370" y="50" width="10" height="10"/><rect x="360" y="60" width="10" height="10"/></g>
+      </g>
+    </svg>
+    <span class="ferris-glint ferris-eye-left" aria-hidden="true"></span>
+    <span class="ferris-glint ferris-eye-right" aria-hidden="true"></span>
+  </div>
   <div class="ssh-demo-container">
     <p class="ssh-demo-label">Try the TUI demo via SSH - no installation required:</p>
     <button type="button" class="terminal-shell terminal-copyable copy-tooltip" data-tooltip-copied="Copied" onclick="hotpathCopy(this)" title="Click to copy">
@@ -36,6 +57,7 @@ function hotpathCopy(button) {
   var status = button.querySelector('[role="status"]');
   navigator.clipboard.writeText(text).then(function () {
     button.classList.add('copied');
+    if (button.classList.contains('agent-pill')) ferrisHappyJump();
     if (status) status.textContent = button.dataset.tooltipCopied;
     button.addEventListener('mouseleave', function () {
       button.classList.remove('copied');
@@ -43,6 +65,83 @@ function hotpathCopy(button) {
     }, { once: true });
   });
 }
+
+function ferrisHappyJump() {
+  var ferris = document.querySelector('.ferris-hero');
+  if (ferris && ferris.celebrate) ferris.celebrate();
+}
+
+(function () {
+  var ferris = document.querySelector('.ferris-hero');
+  if (!ferris) return;
+  var pill = document.querySelector('.agent-pill');
+  var glints = ferris.querySelectorAll('.ferris-glint');
+  // Measure from the static anchors, the glints themselves move.
+  var anchors = ferris.querySelectorAll('.ferris-eye-anchor');
+  var animate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var celebrating = null;
+  var pointer = null;
+  var scheduled = false;
+
+  // Angry far away, calmer as the cursor heads for the AI setup pill, happy on it.
+  function moodFor(point) {
+    if (!pill || !point) return 'angry';
+    var rect = pill.getBoundingClientRect();
+    var dx = Math.max(rect.left - point.x, 0, point.x - rect.right);
+    var dy = Math.max(rect.top - point.y, 0, point.y - rect.bottom);
+    var dist = Math.hypot(dx, dy);
+    if (dist <= 50) return 'happy';
+    if (dist <= 220) return 'neutral';
+    return 'angry';
+  }
+
+  function update() {
+    scheduled = false;
+    if (!celebrating) ferris.dataset.mood = moodFor(pointer);
+    if (!animate) return;
+    var body = ferris.getBoundingClientRect();
+    var tilt = Math.max(-1, Math.min(1, (pointer.x - (body.left + body.width / 2)) / 600));
+    ferris.style.setProperty('--ferris-tilt', (tilt * 5).toFixed(2) + 'deg');
+    glints.forEach(function (glint, i) {
+      var eye = anchors[i].getBoundingClientRect();
+      var dx = pointer.x - (eye.left + eye.width / 2);
+      var dy = pointer.y - (eye.top + eye.height / 2);
+      var dist = Math.hypot(dx, dy);
+      // Glint travels up to one glint-width from the eye center, less when the cursor is close.
+      var reach = dist === 0 ? 0 : Math.min(1, dist / 150) / dist;
+      glint.style.transform = 'translate(' + (dx * reach * 100).toFixed(1) + '%, ' + (dy * reach * 100).toFixed(1) + '%)';
+    });
+  }
+
+  ferris.celebrate = function () {
+    clearTimeout(celebrating);
+    ferris.dataset.mood = 'joy';
+    if (animate) {
+      ferris.classList.remove('jumping');
+      // Force a reflow so repeated copies restart the animation.
+      void ferris.offsetWidth;
+      ferris.classList.add('jumping');
+    }
+    celebrating = setTimeout(function () {
+      celebrating = null;
+      ferris.classList.remove('jumping');
+      ferris.dataset.mood = moodFor(pointer);
+    }, 1600);
+  };
+
+  function schedule() {
+    if (pointer && !scheduled) {
+      scheduled = true;
+      requestAnimationFrame(update);
+    }
+  }
+  document.addEventListener('pointermove', function (event) {
+    pointer = { x: event.clientX, y: event.clientY };
+    schedule();
+  }, { passive: true });
+  // Scrolling moves the pill under a still cursor.
+  document.addEventListener('scroll', schedule, { passive: true, capture: true });
+})();
 </script>
 
 [hotpath-rs](https://github.com/hotpath-rs/hotpath) is an easy-to-configure Rust performance profiling toolkit that shows exactly where your code spends time, burns CPU, and allocates memory. 
