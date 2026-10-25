@@ -24,12 +24,12 @@ curl -fsSL -H 'Accept: text/markdown' https://hotpath.rs/ci_integration
 
 Before each step, fetch the pages it names and follow them instead of relying on memory. Keep `-fsSL` and the header. If a fetch fails, stop and tell the user which URL could not be retrieved; do not continue from memory. A `#fragment` is not sent to the server: fetch the whole page and find the heading.
 
-The site documents the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the crate version is the tag without its `v`). When the project already depends on an older `hotpath`, update it to that release before following this procedure:
+The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the crate version is the tag without its `v`). Check the installed version in `Cargo.lock`:
 
-- Where the project's `hotpath` requirement (each crate's `Cargo.toml`, or `[workspace.dependencies]`) does not allow that version, raise it to `"{{HOTPATH_VERSION}}"`, keeping its features. Then run `cargo update -p hotpath` and check that `Cargo.lock` resolves the release.
-- Build with and without the project's hotpath features (`cargo check`, and `cargo check --features` with the features the project defines) and fix what the update breaks, using the release notes in https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md.
-- Tell the user you updated hotpath: the old and the new version, and any code you changed for it.
-- If the update cannot be made to build, revert it, continue on the version the project had and tell the user why. When the docs then describe something that version does not have, tell the user instead of working around it.
+- If it supports what the task needs, keep it; do not upgrade. A hotpath cargo feature that is not enabled on the dependency yet (`tokio`, an integration) only needs enabling, not an upgrade.
+- If it lacks functionality the task needs (compare the docs with https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md), upgrade to the latest release without asking. Save the `Cargo.toml` files and `Cargo.lock` first. Raise the `hotpath` requirement (each crate's `Cargo.toml`, or `[workspace.dependencies]`) where it does not allow `"{{HOTPATH_VERSION}}"`, keeping its features, and run `cargo update -p hotpath`; change no other dependency. Build with and without the project's hotpath features (`cargo check`, and `cargo check --features` with the feature names the project defines) and fix breakage using the changelog.
+- Tell the user about every upgrade: the old and new version, why it was needed and any code you changed for it.
+- If the upgrade cannot be made to build, restore the saved `Cargo.toml` files and `Cargo.lock` (and revert only the code you changed for it), tell the user why it failed and which functionality stays unavailable.
 
 | Page | Covers |
 |---|---|
@@ -71,7 +71,7 @@ Docs: https://hotpath.rs/ci_integration ("Profiling modes"), https://hotpath.rs/
 
 Use **merged** when all of these hold, otherwise **native**:
 
-- The `hotpath` version in `Cargo.lock` is `0.29.2` or newer (it can merge reports). The update at the start of this procedure provides it; if that update had to be reverted, use native mode and tell the user that merged mode needs `hotpath` `0.29.2` or newer.
+- The `hotpath` version in `Cargo.lock` is `0.29.2` or newer (it can merge reports). If it is older, upgrade it as the version rules under "Documentation" describe before configuring merged mode; an outdated version alone is never a reason for native mode. If the upgrade fails, use native mode and tell the user that merged mode needs `hotpath` `0.29.2` or newer.
 - The benchmark can run on the docs workflow's x86_64 Linux runner: it does not need macOS, Windows or an ARM runner.
 - The workload is CPU-bound and deterministic: its time goes into computation, not into network, disk, sleeps, timers or a database service, and it is not dominated by many threads racing each other (Valgrind serializes threads, so their interleaving moves the counts).
 - The code it should judge is in functions with `#[hotpath::measure]` (or `measure_all`); `measure_block!` blocks are not counted.
@@ -85,7 +85,7 @@ Never pick Callgrind only for a new benchmark. Merged mode is preferred, not req
 
 Docs: https://hotpath.rs/ci_integration ("Setup", and "Profiling modes").
 
-Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchmark crate's `Cargo.toml`, next to the existing hotpath features, unless it is already there. For merged mode add the `hotpath-callgrind` passthrough as well, and keep `hotpath-alloc`. Keep the `hotpath` version the update at the start of this procedure set. Never add them to `default`. In the forks setup, the pull request job needs them too, although it does not upload.
+Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchmark crate's `Cargo.toml`, next to the existing hotpath features, unless it is already there. For merged mode add the `hotpath-callgrind` passthrough as well, and keep `hotpath-alloc`. Keep the project's `hotpath` version, upgraded only as the version rules under "Documentation" require (for merged mode, step 3). Never add them to `default`. In the forks setup, the pull request job needs them too, although it does not upload.
 
 ### 5. Add the policy file
 
@@ -193,10 +193,10 @@ Every benchmark workflow gets its own relay. Create `.github/workflows/hotpath-r
 
 - The `workflows:` entry is exactly the `name:` of this benchmark's workflow.
 - `benchmark`, `artifact_name` and `report_file` match what the `report` job of the benchmark workflow uses.
-- The relay is always pinned by the full commit SHA of a release tag, with the tag in a comment, never by the bare tag and never `@main`: the relay job holds `id-token: write`, and a tag can be moved. The tag is `{{HOTPATH_RELEASE_TAG}}`, whatever tag the docs workflow shows, unless the project's `Cargo.lock` resolves another `hotpath` version: then use that version's tag, so the relay matches the release the benchmark builds with. Resolve the commit with `git ls-remote https://github.com/hotpath-rs/hotpath 'refs/tags/{{HOTPATH_RELEASE_TAG}}*'` (if a `^{}` line is listed, take its SHA, the commit an annotated tag points to) and replace the docs' `@{{HOTPATH_RELEASE_TAG}}` with it:
+- The relay is always pinned by the full commit SHA of a release tag, with the tag in a comment, never by the bare tag and never `@main`: the relay job holds `id-token: write`, and a tag can be moved. The tag must match the release the benchmark builds with: read the `hotpath` version from `Cargo.lock` after any upgrade and use `v<version>` (for example `v0.29.2`). Never assume it is the latest release or the tag the docs workflow shows. Resolve the commit with `git ls-remote https://github.com/hotpath-rs/hotpath 'refs/tags/v<version>*'` (if a `^{}` line is listed, take its SHA, the commit an annotated tag points to) and replace the docs' `@{{HOTPATH_RELEASE_TAG}}` with it:
 
   ```yaml
-      uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@<40-character commit sha> # {{HOTPATH_RELEASE_TAG}}
+      uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@<40-character commit sha> # v<version>
   ```
 
   Never shorten the SHA or guess it: if `git ls-remote` fails or lists no such tag, stop and ask the user.
