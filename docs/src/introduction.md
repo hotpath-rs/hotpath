@@ -1,6 +1,8 @@
 # A simple Rust profiler that shows exactly why your code is slow
 
-<h2 class="hero-subtitle"><b>Performance profiling for developers and coding agents.</b> Profile CPU, memory allocations, async tasks, SQL queries, I/O, and lock contention in one place. Explore performance metrics in a live TUI, generate detailed reports, or export to Prometheus and Grafana.<br><br>Find bottlenecks locally, then use <a href="/cloud">hotpath-cloud</a> to track performance changes across pull requests.</h2>
+<h2 class="hero-subtitle"><b>Performance profiling for developers and coding agents.</b> Profile CPU, memory allocations, async tasks, SQL queries, I/O, and lock contention in one place. Explore performance metrics in a live TUI, generate detailed reports, or export to Prometheus and Grafana.</h2>
+
+<p class="hero-tagline">Find bottlenecks locally, then use <a href="/cloud">hotpath-cloud</a> to track performance changes across pull requests.</p>
 
 <div class="hero-badges">
   <a href="https://github.com/hotpath-rs/hotpath" target="_blank" rel="noopener noreferrer"><img src="{{#asset-hash images/stars-hotpath-rs-hotpath.svg}}" alt="GitHub Stars"></a>

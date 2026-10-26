@@ -10,11 +10,16 @@ Get actionable feedback directly in GitHub PRs, with detailed reports that devel
 
 > **Open beta:** free to use. Public repositories will remain free after beta.
 
-To get started, log in at <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a>. The hotpath-rs GitHub App asks for minimal permissions: **no access to your code**, only pull request write access to post comments, and checks to optionally report the status of each benchmark. The only data it gets from your CI is the benchmark reports your workflow uploads. 
+<div class="cta-row">
+  <a class="agent-pill cta-link" href="/app">Get started - free beta</a>
+  <a class="agent-pill cta-link cta-secondary" href="https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a124b3-d1f1-72ea-87ce-95057a276319/diff">See example performance diff</a>
+</div>
 
 The [GitHub Actions integration](ci_integration.md) compares benchmark results against a baseline and posts a PR comment whenever a significant regression or improvement is detected:
 
 <img loading="lazy" src="{{#asset-hash images/cloud-pr-comment.webp}}" alt="hotpath-cloud pull request comment">
+
+To get started, log in at <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a>. The hotpath-rs GitHub App asks for minimal permissions: **no access to your code**, only pull request write access to post comments, and checks to optionally report the status of each benchmark. The only data it gets from your CI is the benchmark reports your workflow uploads.
 
 ## Reliable CPU performance comparisons in CI
 
@@ -53,8 +58,6 @@ The [`hotpath cloud`](agents_cli.md) CLI and the `hotpath-rs` [agent skill](http
 Benchmark reports are persisted in hotpath-cloud, making it easy to share results with your team and compare each report against its baseline:
 
 <img loading="lazy" src="{{#asset-hash images/cloud-dashboard-diff.webp}}" alt="hotpath-cloud dashboard diff page">
-
-<a href="https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a124b3-d1f1-72ea-87ce-95057a276319/diff" target="_blank" rel="noopener noreferrer">See this diff on hotpath.rs</a>
 
 ## Getting Started
 
