@@ -730,6 +730,43 @@ impl HotpathGuard {
                                 let current_elapsed_ns = config.total_elapsed.as_nanos() as u64;
 
                                 match query_request {
+                                    #[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+                                    FunctionsQuery::PrototypePause { entered, release } => {
+                                        let _ = entered.send(());
+                                        let _ = release.recv_timeout(std::time::Duration::from_secs(10));
+                                    }
+                                    #[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+                                    FunctionsQuery::DrainAlloc { prefix, generation, label, deadline, response_tx } => {
+                                        use crate::functions::{DrainAck, DrainError};
+                                        use crate::functions::alloc::state::{MEASUREMENT_QUEUES, LOST_MEASUREMENTS};
+                                        let result = (|| {
+                                            let mut extra_sweeps = 0;
+                                            loop {
+                                                if std::time::Instant::now() >= deadline { return Err(DrainError::Timeout); }
+                                                if !MEASUREMENT_QUEUES.is_active() || crate::functions::alloc::state::MEASUREMENT_GENERATION.load(std::sync::atomic::Ordering::Acquire) != generation { return Err(DrainError::Closed); }
+                                                if LOST_MEASUREMENTS.load(std::sync::atomic::Ordering::Acquire) || !MEASUREMENT_QUEUES.transport_valid() { return Err(DrainError::LostEvents); }
+                                                // The previous batch has already been fully aggregated.
+                                                if prefix.is_processed().map_err(|_| DrainError::LostEvents)? { break; }
+                                                extra_sweeps += 1;
+                                                sweep_measurements(&mut swept);
+                                                for measurement in swept.drain(..) {
+                                                    process_measurement(&mut local_stats, &mut name_to_id, measurement);
+                                                }
+                                            }
+                                            let stats = local_stats.values().find(|s| s.name == label && s.has_data && !(*crate::functions::EXCLUDE_WRAPPER && s.wrapper)).ok_or(DrainError::MissingSeries)?;
+                                            if stats.is_async { return Err(DrainError::UnknownAllocations); }
+                                            if stats.total_bytes_sum >= (1u64 << 53) || stats.total_count_sum >= (1u64 << 53) { return Err(DrainError::InexactCounter); }
+                                            let raw = stats.to_raw_alloc(crate::prometheus_server::NATIVE_SCHEMA, crate::prometheus_server::ALLOC_LADDER_BYTES, crate::prometheus_server::ALLOC_LADDER_COUNT);
+                                            // Reuse the actual HTTP exporter's Counter/Histogram family
+                                            // construction and text encoder; never ack on dequeue alone.
+                                            let counter_exposition = crate::prometheus_server::render_alloc_prefix(vec![raw]);
+                                            if std::time::Instant::now() >= deadline { return Err(DrainError::Timeout); }
+                                            if !MEASUREMENT_QUEUES.is_active() || crate::functions::alloc::state::MEASUREMENT_GENERATION.load(std::sync::atomic::Ordering::Acquire) != generation { return Err(DrainError::Closed); }
+                                            if LOST_MEASUREMENTS.load(std::sync::atomic::Ordering::Acquire) || !MEASUREMENT_QUEUES.transport_valid() { return Err(DrainError::LostEvents); }
+                                            Ok(DrainAck { bytes: stats.total_bytes_sum, allocations: stats.total_count_sum, calls: stats.count, prefix_queues: prefix.queue_count(), prefix_events: prefix.event_count().ok_or(DrainError::LostEvents)?, extra_sweeps, counter_exposition, quiescent: false })
+                                        })();
+                                        let _ = response_tx.send(result);
+                                    }
                                     FunctionsQuery::Alloc(response_tx) => {
                                         cfg_if::cfg_if! {
                                             if #[cfg(feature = "hotpath-alloc")] {
@@ -1057,11 +1094,11 @@ impl Drop for HotpathGuard {
                     ) {
                         Some(r) => {
                             info!(
-                                    "cpu report: caller={caller_name} total_samples={} attributed_samples={} stats_rows={}",
-                                    r.total_samples,
-                                    r.attributed_samples,
-                                    r.stats.len()
-                                );
+                                "cpu report: caller={caller_name} total_samples={} attributed_samples={} stats_rows={}",
+                                r.total_samples,
+                                r.attributed_samples,
+                                r.stats.len()
+                            );
                             Some(Ok(r))
                         }
                         None => {
