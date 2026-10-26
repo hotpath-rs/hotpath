@@ -284,15 +284,15 @@ impl<M: Send> EventQueueRegistry<M> {
     /// Snapshot completed pushes on all currently registered queues. A producer
     /// created after this snapshot is outside the prefix. Join producers first
     /// when the caller needs the entire workload rather than a finite prefix.
-    pub fn published_prefix(&self) -> Result<PublishedPrefix<M>, ()> {
+    pub fn published_prefix(&self) -> Result<PublishedPrefix<M>, PrefixError> {
         if !self.valid.load(Ordering::Acquire) {
-            return Err(());
+            return Err(PrefixError);
         }
-        let queues = self.queues.lock().map_err(|_| ())?;
+        let queues = self.queues.lock().map_err(|_| PrefixError)?;
         let mut targets = Vec::with_capacity(queues.len());
         for queue in queues.iter() {
             if !queue.valid.load(Ordering::Acquire) {
-                return Err(());
+                return Err(PrefixError);
             }
             targets.push((Arc::clone(queue), queue.published.load(Ordering::Acquire)));
         }
@@ -352,6 +352,18 @@ impl<M: Send> EventQueueRegistry<M> {
     }
 }
 
+/// The event transport cannot provide a reliable prefix.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PrefixError;
+
+impl std::fmt::Display for PrefixError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("event prefix is unavailable or invalid")
+    }
+}
+
+impl std::error::Error for PrefixError {}
+
 /// Opaque per-queue prefix. A consumer must check only AFTER processing the
 /// entire drained batch into its aggregation state, not merely dequeuing it.
 pub struct PublishedPrefix<M> {
@@ -365,10 +377,10 @@ impl<M> std::fmt::Debug for PublishedPrefix<M> {
     }
 }
 impl<M> PublishedPrefix<M> {
-    pub fn is_processed(&self) -> Result<bool, ()> {
+    pub fn is_processed(&self) -> Result<bool, PrefixError> {
         for (queue, target) in &self.targets {
             if !queue.valid.load(Ordering::Acquire) {
-                return Err(());
+                return Err(PrefixError);
             }
             if queue.drained.load(Ordering::Acquire) < *target {
                 return Ok(false);
