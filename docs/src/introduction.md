@@ -1,6 +1,6 @@
 # A simple Rust profiler that shows exactly why your code is slow
 
-<h2 class="hero-subtitle"><b>Performance profiling for developers and coding agents.</b> Profile CPU, memory allocations, async tasks, SQL queries, I/O, and lock contention in one place. Explore performance metrics in a live TUI, generate detailed reports, or export to Prometheus and Grafana.</h2>
+<h2 class="hero-subtitle"><b>Performance profiling for developers and coding agents.</b> Profile CPU, memory allocations, async tasks, SQL queries, I/O, and lock contention in one place. Explore performance metrics in a live TUI, or export to Prometheus and Grafana when you need production monitoring..</h2>
 
 <p class="hero-tagline">Find bottlenecks locally, then use <a href="/cloud">hotpath-cloud</a> to track performance changes across pull requests.</p>
 

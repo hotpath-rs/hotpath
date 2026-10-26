@@ -1,17 +1,17 @@
-# See what changed in your Rust app's performance
+# Performance reviews for every Rust pull request
 
 <img src="{{#asset-hash images/hotpath-cloud-ferris.webp}}" alt="hotpath-cloud mascot, an angry crab on fire sitting on a cloud" class="ferris-img">
 
-hotpath-cloud turns profiling data into automated performance reviews for pull requests.
+`hotpath-cloud` turns profiling data into automated performance reviews for pull requests.
 
 Compare benchmarks against your baseline to see which functions execute more CPU instructions, allocate more memory, or perform additional work. Set regression thresholds and performance budgets to focus on changes that matter.
 
 Get actionable feedback directly in GitHub PRs, with detailed reports that developers and coding agents can use to investigate regressions.
 
-> **Open beta:** Free to use. Public repositories will remain free. Paid plans for private repositories will be introduced after beta.
+**Open beta:** Free to use. Public repositories will remain free. Paid plans for private repositories will be introduced after beta.
 
 <div class="cta-row">
-  <a class="agent-pill cta-link" href="/app">Get started - free beta</a>
+  <a class="agent-pill cta-link" href="/app">Get started</a>
   <a class="agent-pill cta-link cta-secondary" href="https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a124b3-d1f1-72ea-87ce-95057a276319/diff">See example performance diff</a>
 </div>
 
@@ -19,13 +19,13 @@ The [GitHub Actions integration](ci_integration.md) compares benchmark results a
 
 <img loading="lazy" src="{{#asset-hash images/cloud-pr-comment.webp}}" alt="hotpath-cloud pull request comment">
 
-To get started, log in at <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a>. The hotpath-rs GitHub App asks for minimal permissions: **no access to your code**, only pull request write access to post comments, and checks to optionally report the status of each benchmark. The only data it gets from your CI is the benchmark reports your workflow uploads.
+The hotpath-rs GitHub App asks for minimal permissions: **no access to your source code**, only pull request write access to post comments, and checks to optionally report the status of each benchmark. The only data it gets from your CI is the benchmark reports your workflow uploads.
 
 ## Reliable CPU performance comparisons in CI
 
-Shared CI runners make timing measurements noisy. hotpath-cloud can use Valgrind [Callgrind](callgrind.md) to compare executed CPU instructions instead of relying on wall-clock timing alone.
+Shared CI runners make timing measurements noisy. `hotpath-cloud` uses Valgrind [Callgrind](callgrind.md) to compare executed CPU instructions instead of relying on wall-clock timing alone. In our own CI benchmarks, instruction counts typically vary by **less than 0.5%** between runs, even on shared GitHub CI runners.
 
-For deterministic workloads, instruction counts provide a more repeatable signal of changes in computational work. [Combined reports](ci_integration.md#profiling-modes) also preserve native timing, allocations, and other profiling metrics, giving you a fuller picture of what changed.
+For deterministic workloads, instruction counts provide a more repeatable signal of changes in computational work. [Combined reports](ci_integration.md#profiling-modes) also preserve native timing, allocations, and other profiling metrics, helping you understand what changed and where to investigate.
 
 You can define acceptable regression thresholds using a customizable [regression policy](regression_policy.md) and set fine-tuned [performance budgets](performance_budgets.md). This helps eliminate noisy alerts and ensures that warnings are emitted only when performance changes in a meaningful way.
 
