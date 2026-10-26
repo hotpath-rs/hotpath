@@ -1,6 +1,6 @@
 # CI integration: benchmark Rust pull requests in GitHub Actions
 
-`hotpath Cloud` reviews the performance of every pull request. Your CI job runs a benchmark with `hotpath` profiling enabled and uploads the report. hotpath.rs compares it with the report of the base branch and posts the result as a comment and a `hotpath / <benchmark>` check on the pull request.
+hotpath-cloud reviews the performance of every pull request. Your CI job runs a benchmark with `hotpath` profiling enabled and uploads the report. hotpath.rs compares it with the report of the base branch and posts the result as a comment and a `hotpath / <benchmark>` check on the pull request.
 
 What counts as a regression is customizable with a [regression policy](regression_policy.md) and [performance budgets](performance_budgets.md).
 

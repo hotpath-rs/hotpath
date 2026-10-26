@@ -33,7 +33,7 @@ correlate all performance signals in Grafana with minimal profiling overhead:
 
 catch performance regressions on every pull request with a simple [CI integration](https://hotpath.rs/cloud):
 
-![hotpath Cloud pull request comment showing wall time, allocation and RSS changes against the main branch](docs/src/images/cloud-pr-comment.webp)
+![hotpath-cloud pull request comment showing wall time, allocation and RSS changes against the main branch](docs/src/images/cloud-pr-comment.webp)
 
 inspect throughput and latency of network, file or compression I/O streams:
 
@@ -77,7 +77,7 @@ The quickest way to set up hotpath is to let your own AI coding agent do it. Pas
 Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup
 ```
 
-The agent inspects your project, including workspaces and any existing hotpath setup, adds the feature-gated dependency, instruments `main` and a small starting set of hot functions, channels and locks, and verifies that everything compiles with profiling enabled and disabled. When the project has a workload that exits, it runs it and shows you the first report; it does not start long-running servers just to get one. It then explains how to run profiling and the live TUI. It finally asks once whether to optionally set up [hotpath Cloud](https://hotpath.rs/cloud) to benchmark pull requests in CI.
+The agent inspects your project, including workspaces and any existing hotpath setup, adds the feature-gated dependency, instruments `main` and a small starting set of hot functions, channels and locks, and verifies that everything compiles with profiling enabled and disabled. When the project has a workload that exits, it runs it and shows you the first report; it does not start long-running servers just to get one. It then explains how to run profiling and the live TUI. It finally asks once whether to optionally set up [hotpath-cloud](https://hotpath.rs/cloud) to benchmark pull requests in CI.
 
 The prompt is a one-time project setup. The `hotpath-rs` [agent skill](skills/hotpath-rs/SKILL.md) is what stays: reusable hotpath knowledge your agent loads in every later session. To install it, for example in a repo that already uses hotpath, run:
 
@@ -211,12 +211,12 @@ Read the [complete guide to profiling Rust applications](https://hotpath.rs/blog
 - [Tokio Runtime](https://hotpath.rs/tokio_runtime) - monitor Tokio runtime worker stats and task scheduling
 - [Debug & Metrics](https://hotpath.rs/debug) - track custom values with dbg!, val!, and gauge! macros
 - [Prometheus & Grafana](https://hotpath.rs/prometheus_grafana) - export metrics to Prometheus and build Grafana dashboards
-- [hotpath Cloud CI integration](https://hotpath.rs/ci_integration) - performance regression detection on every pull request
+- [hotpath-cloud CI integration](https://hotpath.rs/ci_integration) - performance regression detection on every pull request
 - [MCP Server](https://hotpath.rs/mcp) - LLM integration via Model Context Protocol
 - [Cargo flamegraph alternatives](https://hotpath.rs/blog/sampling_comparison) - when to use `hotpath` vs sampling profilers like perf and samply
 - [Configuration](https://hotpath.rs/configuration) - explore all config options
 
-## hotpath Cloud
+## hotpath-cloud
 
 My long-term goal for hotpath-rs is to become the single place to understand all performance signals in a Rust application. From CPU and memory usage to locks, channels, and async execution, all the way up to SQL queries and HTTP/RPC calls.
 

@@ -74,7 +74,7 @@ Merging needs the `hotpath-callgrind` and `hotpath-cloud` features (`hotpath` `0
 
 Both runs must do the same work: the same binary, arguments, environment, inputs and working directory, a fixed workload (fixed inputs and seeds, no network), and nothing the first run leaves behind (a database it fills, files it creates) changing the second.
 
-In [hotpath Cloud](#cloud-ci), merged mode is the recommended way to benchmark in CI.
+In [hotpath-cloud](#cloud-ci), merged mode is the recommended way to benchmark in CI.
 
 ## What is counted
 
@@ -92,7 +92,7 @@ Only compare counts produced by the same Valgrind version, Rust toolchain and ta
 
 ## Cloud CI
 
-Reproducible counts let [hotpath Cloud](cloud.md) judge changes in CPU work on shared GitHub runners, where timing is too noisy to judge small changes. A higher count means more work, which usually but not always means slower code. The recommended setup is [merged mode](#timing-and-instruction-counts-in-one-report): build the benchmark with `hotpath-alloc,hotpath-cloud,hotpath-callgrind`, run it natively, then under Callgrind in a pinned environment, which uploads one merged report. Its instruction counts and allocations are judged under `[functions.icount]` and `[functions.alloc]` of the [policy file](./regression_policy.md#functions-instructions), and its native timing is shown next to them. [CI integration](./ci_integration.md#profiling-modes) has the workflows; the [AI setup](./cloud.md#ai-setup-recommended) picks merged mode for suitable new benchmarks on its own.
+Reproducible counts let [hotpath-cloud](cloud.md) judge changes in CPU work on shared GitHub runners, where timing is too noisy to judge small changes. A higher count means more work, which usually but not always means slower code. The recommended setup is [merged mode](#timing-and-instruction-counts-in-one-report): build the benchmark with `hotpath-alloc,hotpath-cloud,hotpath-callgrind`, run it natively, then under Callgrind in a pinned environment, which uploads one merged report. Its instruction counts and allocations are judged under `[functions.icount]` and `[functions.alloc]` of the [policy file](./regression_policy.md#functions-instructions), and its native timing is shown next to them. [CI integration](./ci_integration.md#profiling-modes) has the workflows; the [AI setup](./cloud.md#ai-setup-recommended) picks merged mode for suitable new benchmarks on its own.
 
 ## Build requirements
 

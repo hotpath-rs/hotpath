@@ -92,11 +92,11 @@ State which of these you reached: both builds compile, instrumentation is in pla
 
 Also explain in 1-3 sentences how to watch the running program in the optional live TUI, following "Live TUI dashboard" in https://hotpath.rs/profiling_modes: give its install and launch commands, then the project's own profiling command (with `-p`, `--bin` or `--example`) to run in a second terminal. Say that static reports work without it, and do not install or launch the TUI unless the user asks.
 
-#### Offer hotpath Cloud
+#### Offer hotpath-cloud
 
 Skip this if https://hotpath.rs/agent/init_cloud sent you here (return to it), if the builds do not compile, or if `git remote -v` shows no `github.com` remote. Otherwise ask once, briefly, for example:
 
-> Local profiling is set up and works without anything else. Would you also like hotpath Cloud? It benchmarks every pull request in GitHub Actions and comments on regressions against your default branch; free for public repositories. It adds a workflow and a policy file, and CI uploads reports to hotpath.rs.
+> Local profiling is set up and works without anything else. Would you also like hotpath-cloud? It benchmarks every pull request in GitHub Actions and comments on regressions against your default branch; free for public repositories. It adds a workflow and a policy file, and CI uploads reports to hotpath.rs.
 
 If the user agrees, fetch https://hotpath.rs/agent/init_cloud and follow it. Otherwise do not bring it up again. Configure no CI, install no GitHub App and upload nothing without consent. For pricing or data questions, fetch https://hotpath.rs/cloud_faq.
 
@@ -116,6 +116,6 @@ Never run it yourself unless the user asks.
 - Keep existing instrumentation and unrelated changes intact; the setup must be idempotent.
 - Verify with the feature both off and on.
 - Do not silently rewrite public APIs.
-- Do not create `hotpath/policy.toml` or CI workflows; they belong to the Cloud setup.
+- Do not create `hotpath/policy.toml` or CI workflows; they belong to the hotpath-cloud setup.
 - When the docs and your memory disagree, the docs win.
 - Do not commit or push unless the user asks.

@@ -330,6 +330,41 @@
     font-weight: 600;
 }
 
+/* Follows the hero subtitle: pulled up into its bottom margin so the two
+   read as one block */
+.content .hero-tagline {
+    margin: -0.75rem 0 1.25rem 0;
+    font-size: 1.5rem;
+    line-height: 1.6;
+    opacity: 0.85;
+}
+
+/* Link CTAs styled as the hero's agent pill */
+.cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 1.5rem 0 2rem 0;
+}
+
+.cta-row .agent-pill {
+    margin: 0;
+}
+
+.content a.cta-link,
+.content a.cta-link:visited,
+.content a.cta-link:hover {
+    color: #fff;
+    text-decoration: none;
+}
+
+/* Same dark fill as .terminal-shell so the white label stays readable on
+   the light mdbook themes too */
+.agent-pill.cta-secondary {
+    background: #0d0d0d;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
 .hero-badges {
     display: flex;
     justify-content: flex-start;
