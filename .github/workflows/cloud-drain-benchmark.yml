@@ -14,11 +14,13 @@ on:
 # instruction counts to the separate `drain` series. A regression fails the
 # pull request's `hotpath / drain` check run (`pr_check` in
 # `hotpath/drain-policy.toml`), not the job.
+#
+# Pushes upload in process with the job's OIDC token. Fork PRs get no
+# `id-token: write`, so every pull request writes the merged report to an
+# artifact and `cloud-drain-benchmark-relay.yml` uploads it.
 jobs:
   benchmark:
     name: cloud drain benchmark
-    # Fork pull requests get no `id-token: write`, so there is nothing to upload.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     # Instruction counts depend on the Valgrind build, and reports only compare
     # within one (`tool`), so the image and the package are pinned: an upgrade
     # is a deliberate bump, not a silent gap in verdicts.
@@ -33,6 +35,9 @@ jobs:
       HOTPATH_META_OUTPUT_FORMAT: json
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The pull request's head commit, not the default merge commit.
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Record rustc version
         id: rustc
@@ -55,13 +60,14 @@ jobs:
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
         run: target/release/examples/throughput
       # The Callgrind dump goes to the runner's temp dir, named for hotpath-meta
-      # by HOTPATH_META_CALLGRIND_OUT_FILE. The response file exists only after
-      # an accepted upload; the `jq` check fails a report that is not a merged
-      # one.
-      - name: Run drain benchmark under Callgrind and upload the merged report
+      # by HOTPATH_META_CALLGRIND_OUT_FILE. Only pushes upload (an empty
+      # HOTPATH_META_UPLOAD is off); their response file exists only after an
+      # accepted upload. The `jq` check fails a report that is not a merged
+      # one, before a pull request stores it for the relay.
+      - name: Run drain benchmark under Callgrind and write the merged report
         env:
           HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.26.0
-          HOTPATH_META_UPLOAD: fail-on-error
+          HOTPATH_META_UPLOAD: ${{ github.event_name == 'push' && 'fail-on-error' || '' }}
           HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
           HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
@@ -70,6 +76,15 @@ jobs:
           valgrind -q --tool=callgrind --instr-atstart=no \
             --callgrind-out-file="$HOTPATH_META_CALLGRIND_OUT_FILE" \
             target/release/examples/throughput
-          test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
+          fi
           jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0)' \
             "$HOTPATH_META_OUTPUT_PATH" > /dev/null
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request'
+        with:
+          name: drain-report
+          path: ${{ runner.temp }}/merged.json
+          retention-days: 1
+          if-no-files-found: error

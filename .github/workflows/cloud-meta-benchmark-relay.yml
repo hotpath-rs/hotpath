@@ -1,0 +1,21 @@
+name: Cloud meta benchmark relay
+
+on:
+  workflow_run:
+    workflows: ["Cloud meta benchmark"]
+    types: [completed]
+
+# Uploads the merged report every pull request run of `cloud-meta-benchmark.yml`
+# stores as an artifact (fork PRs get no OIDC token). Called like
+# `cloud-random-benchmark-relay.yml`, from `@main`.
+jobs:
+  relay:
+    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@main
+    permissions:
+      actions: read
+      id-token: write
+      pull-requests: read
+    with:
+      benchmark: meta
+      artifact_name: meta-report
+      report_file: merged.json
