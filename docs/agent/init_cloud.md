@@ -45,8 +45,8 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 
 - Find the crate(s), the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`, usually `main`) and the existing workflows in `.github/workflows/`.
 - Check whether hotpath-cloud is already set up: a workflow that sets `HOTPATH_UPLOAD` or calls `hotpath-relay.yml`. If it is:
-  - Unless the user asked for another benchmark, do not set anything up. Report the existing setup instead: each workflow file and its `name:`, each `HOTPATH_BENCHMARK`, its profiling mode (merged when the Callgrind step sets `HOTPATH_MERGE_REPORT`, Callgrind only when the job runs `valgrind --tool=callgrind` without it, native otherwise), whether it uses the relay, the policy files in `hotpath/` and the README badge. Then stop.
-  - If the user asked for another benchmark, continue to add only that one, with the setup (same repository or forks) the existing benchmarks use. Its benchmark name, workflow file, workflow `name:` and artifact name must all differ from the existing ones (steps 2 and 6).
+  - Unless the user asked for another benchmark, do not set anything up. Report the existing setup instead: each workflow file and its `name:`, each `HOTPATH_BENCHMARK`, its profiling mode (merged when the Callgrind step sets `HOTPATH_MERGE_REPORT`, Callgrind only when the job runs `valgrind --tool=callgrind` without it, native otherwise), whether it uses the relay (each relay file, its `workflows:` and its inputs), the policy files in `hotpath/` and the README badge. Then stop.
+  - If the user asked for another benchmark, continue to add only that one, with the setup (same repository or forks) the existing benchmarks use. Its benchmark name, workflow file and workflow `name:` must all differ from the existing ones (steps 2 and 6).
   - Never change the profiling mode, the benchmark name, the workflow or the policy of an existing benchmark unless the user asks. If the user asks to switch a native or Callgrind-only benchmark to merged mode, check the requirements of step 3 and follow "Switching an existing benchmark to merged" in https://hotpath.rs/ci_integration.
 - Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented functions. If it is not, set it up first by following https://hotpath.rs/agent/setup (skip its "Offer hotpath-cloud" step), then continue here.
 - Pick the setup, unless an existing benchmark already decides it. Check whether the repository is public or private (`gh repo view --json visibility`). A private repository uses the **same repository** setup. For a public repository, ask the user whether pull requests from forks should be benchmarked: if yes, use the **forks** setup, otherwise the **same repository** one, and tell them fork pull requests will then not get a comment.
@@ -179,9 +179,11 @@ Create `.github/workflows/hotpath-benchmark.yml` (or the unique name above) from
 - `main`: the default branch.
 - `name:`: it must be unique among the repository's workflows, since the relay matches the benchmark workflow by name. If another workflow already has that name, rename this one (e.g. `hotpath benchmark`).
 - `my_benchmark`: the benchmark name, in `HOTPATH_BENCHMARK` and in the commands of both jobs.
-- `hotpath-report`: the artifact name. Keep it for the first benchmark; an additional one uses `hotpath-report-<benchmark>`.
+- Keep the `hotpath-report` artifact and `report.json`: artifacts belong to one run, so names never collide between benchmarks, and the relay's defaults expect them.
 - the `cargo build` line and the binary paths of both jobs (for native mode, both `cargo run` lines): the command that builds and runs the benchmark (`-p <crate>` in a workspace, `--bin` or `--example` as appropriate). Keep `--release`. Drop `hotpath-alloc` from `--features` only if the crate has no such feature.
 - Add any setup the benchmark needs (system packages, a database service) to both jobs, before the benchmark, copied from the repository's existing CI.
+
+Every benchmark in the forks setup gets its own workflow: the relay uploads one report per workflow run, so never add a benchmark as a second job of an existing benchmark workflow. The exception is a repository that already relays several scenarios of one workflow with a matrix: add the new scenario to that workflow and to the relay's matrix instead.
 
 Never set `HOTPATH_UPLOAD` or `id-token: write` in the `report` job: it runs untrusted code. Merged mode does not change its permissions: the `report` job keeps `contents: read` alone and the checkout of the pull request's head commit.
 
@@ -189,10 +191,17 @@ Never set `HOTPATH_UPLOAD` or `id-token: write` in the `report` job: it runs unt
 
 Docs: https://hotpath.rs/ci_integration ("The relay workflow").
 
-Every benchmark workflow gets its own relay. Create `.github/workflows/hotpath-relay.yml` (for an additional benchmark, or when the name is taken, `hotpath-relay-<benchmark>.yml`, with a unique `name:`) from the workflow in that section, copied as is. Never edit an existing relay to point at the new benchmark. Then check:
+One relay serves every benchmark workflow. Find the existing relays first: workflows that call `hotpath-relay.yml`, with their `workflows:` and inputs.
 
-- The `workflows:` entry is exactly the `name:` of this benchmark's workflow.
-- `benchmark`, `artifact_name` and `report_file` match what the `report` job of the benchmark workflow uses.
+- **No relay:** create `.github/workflows/hotpath-relay.yml` (or, when that file name is taken, a unique one) from the workflow in that section, copied as is. Add `source_root` (the build workspace relative to the repository root) when the benchmark is built in a nested Cargo workspace.
+- **One relay:** never add a second one. Add the new benchmark workflow's `name:` to its `workflows:` and turn its inputs into the lookups from "Several benchmarks in one repository" in https://hotpath.rs/ci_integration: `benchmark` gets an entry for every listed workflow; `artifact_name`, `report_file` and `source_root` keep each existing workflow's current value as an entry when it differs from the default. The new benchmark uses the default `artifact_name` and `report_file`; determine its `source_root` from its actual build workspace, adding an entry to the lookup when it differs from the repository root.
+- **Several relays** (one per benchmark, from an older setup): leave them as they are and give the new benchmark its own relay in the same shape. Merge them into one only if the user asks, moving every value into the lookups and deleting the old files in the same change.
+
+Never change an existing benchmark's artifact name, report file or source root, and never list a workflow in more than one relay's `workflows:`: it would be uploaded twice. Keep a relay's pinned commit SHA unless the hotpath version changed. Then check:
+
+- Every `workflows:` entry is exactly the `name:` of a benchmark workflow, and with several benchmarks each has an entry in the `benchmark` lookup naming its `HOTPATH_BENCHMARK`.
+- For every listed workflow, `benchmark`, `artifact_name`, `report_file` and `source_root` resolve to what its `report` job writes and where it builds.
+- A relay you create has `permissions: {}` at the top and grants only the three permissions of the docs workflow to its job.
 - The relay is always pinned by the full commit SHA of a release tag, with the tag in a comment, never by the bare tag and never `@main`: the relay job holds `id-token: write`, and a tag can be moved. The tag must match the release the benchmark builds with: read the `hotpath` version from `Cargo.lock` after any upgrade and use `v<version>` (for example `v0.29.2`). Never assume it is the latest release or the tag the docs workflow shows. Resolve the commit with `git ls-remote https://github.com/hotpath-rs/hotpath 'refs/tags/v<version>*'` (if a `^{}` line is listed, take its SHA, the commit an annotated tag points to) and replace the docs' `@{{HOTPATH_RELEASE_TAG}}` with it:
 
   ```yaml
@@ -293,7 +302,7 @@ Do not commit or push unless the user asks.
 - Never enable `hotpath`, `hotpath-alloc`, `hotpath-cloud` or `hotpath-callgrind` by default; profiling stays opt-in.
 - Never put a token or secret in a workflow; uploads authenticate with the OIDC token of trusted jobs.
 - In the forks setup, never give the pull request job `id-token: write` or secrets, and never check out pull request code in the relay.
-- One benchmark per `HOTPATH_BENCHMARK` name, workflow file, workflow `name:`, artifact and relay. For several benchmarks, follow "Several benchmarks in one repository" in https://hotpath.rs/ci_integration.
+- One benchmark per `HOTPATH_BENCHMARK` name, workflow file and workflow `name:`; in the forks setup, one relay for all of them unless the repository already has one relay per benchmark. For several benchmarks, follow "Several benchmarks in one repository" in https://hotpath.rs/ci_integration.
 - Never overwrite an existing workflow, policy file or badge. Running this procedure again on a configured repository reports the setup (step 1) instead of adding anything.
 - Keep the edits to the feature, the policy file, the workflow(s), the README badge and, if the user agreed, the benchmark program. Leave unrelated workflows and repository settings alone.
 - Do not install the GitHub App, log in to hotpath.rs or trigger an upload on the user's behalf; tell them the steps instead.

@@ -1,0 +1,21 @@
+name: Cloud benchmark relay
+
+on:
+  workflow_run:
+    workflows: ["Cloud random benchmark", "Cloud drain benchmark", "Cloud meta benchmark"]
+    types: [completed]
+
+permissions: {}
+
+# Uploads the `hotpath-report` artifact of each benchmark's pull request run.
+# The series is looked up from the workflow name, so keep the lookup in sync
+# with `workflows:`. `@main` tests the relay on the default branch.
+jobs:
+  relay:
+    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@main
+    permissions:
+      actions: read
+      id-token: write
+      pull-requests: read
+    with:
+      benchmark: ${{ fromJSON('{"Cloud random benchmark":"random","Cloud drain benchmark":"drain","Cloud meta benchmark":"meta"}')[github.event.workflow_run.name] }}

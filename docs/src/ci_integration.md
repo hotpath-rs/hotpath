@@ -281,6 +281,8 @@ on:
     workflows: ["Benchmark"] # the `name:` of the benchmark workflow
     types: [completed]
 
+permissions: {} # jobs get only what they declare
+
 jobs:
   relay:
     uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@{{HOTPATH_RELEASE_TAG}}
@@ -412,7 +414,53 @@ A benchmark that already runs only under Callgrind keeps working: its report car
 
 ## Several benchmarks in one repository
 
-Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or job. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise; without either, its uploads are refused. In the fork setup, every benchmark workflow also needs a unique `name:`, its own artifact name and its own relay workflow that names it in `workflows:`.
+Give every benchmark its own `HOTPATH_BENCHMARK` name. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise; without either, its uploads are refused.
+
+In the same-repository setup, each benchmark can be its own workflow or a job in a shared one: every job uploads its own report.
+
+In the fork setup, each benchmark needs its own workflow with a unique `name:`. The relay receives one `workflow_run` event per workflow run and relays one report from it, so a second benchmark job in the same workflow would never be uploaded (the matrix setup below is the exception). One relay workflow serves every benchmark workflow: list them all in `workflows:` and look up the series from the name of the workflow that triggered the run. Artifacts belong to one run, so every pull request job can keep the default `hotpath-report` artifact with `report.json` in it, without collisions:
+
+```yaml
+name: Benchmark relay
+
+on:
+  workflow_run:
+    workflows: ["Benchmark", "Parser benchmark"]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  relay:
+    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@{{HOTPATH_RELEASE_TAG}}
+    permissions:
+      actions: read
+      id-token: write
+      pull-requests: read
+    with:
+      # benchmark workflow `name:` -> its `HOTPATH_BENCHMARK`
+      benchmark: ${{ fromJSON('{"Benchmark":"my_benchmark","Parser benchmark":"parser"}')[github.event.workflow_run.name] }}
+```
+
+Keep `workflows:` and the lookup in sync: a workflow missing from `workflows:` is never relayed, and one missing from the lookup is relayed with an empty `benchmark`, which fails the upload.
+
+When the benchmark workflows differ in `artifact_name`, `report_file` or `source_root` (for example a benchmark built in a nested Cargo workspace), look those up the same way, listing only the workflows that differ and falling back to the default for the rest:
+
+```yaml
+      artifact_name: ${{ fromJSON('{"Parser benchmark":"parser-report"}')[github.event.workflow_run.name] || 'hotpath-report' }}
+      source_root: ${{ fromJSON('{"Parser benchmark":"parser"}')[github.event.workflow_run.name] || '' }}
+```
+
+List each benchmark workflow in exactly one relay: a workflow named in two relays' `workflows:` is uploaded twice.
+
+hotpath's own repository runs this setup: three benchmark workflows, [`cloud-random-benchmark.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-random-benchmark.yml) (native mode) and [`cloud-drain-benchmark.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-drain-benchmark.yml) and [`cloud-meta-benchmark.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-meta-benchmark.yml) (merged mode), relayed by one [`cloud-benchmark-relay.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-benchmark-relay.yml). The drain and meta benchmarks profile hotpath itself, so their variables are prefixed `HOTPATH_META_` instead of `HOTPATH_`.
+
+An alternative for several scenarios of one program is a single benchmark workflow that writes one report file per scenario into one artifact, relayed by a matrix over the scenarios with `benchmark: ${{ matrix.scenario }}` and `report_file: ${{ matrix.scenario }}.json`. [MapLibre Martin](https://github.com/maplibre/martin) runs this setup: [`hotpath-benchmark.yml`](https://github.com/maplibre/martin/blob/main/.github/workflows/hotpath-benchmark.yml) and [`hotpath-relay.yml`](https://github.com/maplibre/martin/blob/main/.github/workflows/hotpath-relay.yml).
+
+| | One workflow per benchmark | One workflow, matrix relay |
+|---|---|---|
+| Pros | each benchmark gets its verdict on its own; benchmarks can differ in mode, runner or timeout | one workflow and one build; no workflow-name lookup to keep in sync |
+| Cons | a workflow file per benchmark; workflow names listed twice in the relay | the relay runs only after the whole run succeeds, so one failing scenario holds back every verdict; every scenario shares one job's setup |
 
 ## Troubleshooting
 
