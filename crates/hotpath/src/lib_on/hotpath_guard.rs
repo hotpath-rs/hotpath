@@ -103,7 +103,9 @@ const DEFAULT_DRAIN_INTERVAL_MS: u64 = 50;
 /// Interval between worker sweeps of the per-thread event queues. Lowering it
 /// bounds queue growth for high-traffic apps at the cost of more worker wakeups.
 pub(crate) static DRAIN_INTERVAL_MS: LazyLock<u64> = LazyLock::new(|| {
-    std::env::var("HOTPATH_DRAIN_INTERVAL")
+    // `HOTPATH_DRAIN_INTERVAL` is the legacy name, still honored when the new one is unset.
+    std::env::var("HOTPATH_DRAIN_INTERVAL_MS")
+        .or_else(|_| std::env::var("HOTPATH_DRAIN_INTERVAL"))
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEFAULT_DRAIN_INTERVAL_MS)
