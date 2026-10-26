@@ -453,6 +453,8 @@ When the benchmark workflows differ in `artifact_name`, `report_file` or `source
 
 List each benchmark workflow in exactly one relay: a workflow named in two relays' `workflows:` is uploaded twice.
 
+hotpath's own repository runs this setup: three benchmark workflows, [`cloud-random-benchmark.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-random-benchmark.yml) (native mode) and [`cloud-drain-benchmark.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-drain-benchmark.yml) and [`cloud-meta-benchmark.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-meta-benchmark.yml) (merged mode), relayed by one [`cloud-benchmark-relay.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-benchmark-relay.yml). The drain and meta benchmarks profile hotpath itself, so their variables are prefixed `HOTPATH_META_` instead of `HOTPATH_`.
+
 ## Troubleshooting
 
 | What you see | Cause |
