@@ -62,7 +62,7 @@ Adopters pin the reusable relay workflow to the release tag, so these point at t
 
 - `.github/workflows/hotpath-relay.yml` - the `hotpath-relay.yml@vX.Y.Z` pin in the usage comment at the top
 
-Leave `.github/workflows/cloud-random-benchmark-relay.yml` on `@main`: it tests the relay on the default branch.
+Leave `.github/workflows/cloud-benchmark-relay.yml` on `@main`: it tests the relay on the default branch.
 
 ## 4. Verify
 

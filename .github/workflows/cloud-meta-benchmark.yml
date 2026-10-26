@@ -15,7 +15,7 @@ on:
 # and instruction counts. Pushes upload in process with the job's OIDC token,
 # and a failed merge or upload fails the job. Fork PRs get no
 # `id-token: write`, so every pull request writes the merged report to an
-# artifact and `cloud-meta-benchmark-relay.yml` uploads it. A regression fails
+# artifact and `cloud-benchmark-relay.yml` uploads it. A regression fails
 # the pull request's `hotpath / meta` check run (`pr_check` in
 # `hotpath/meta-policy.toml`), not the job.
 jobs:
@@ -73,7 +73,7 @@ jobs:
           HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.26.0
           HOTPATH_META_UPLOAD: ${{ github.event_name == 'push' && 'fail-on-error' || '' }}
           HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
-          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/report.json
           HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
           HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
         run: |
@@ -88,7 +88,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'pull_request'
         with:
-          name: meta-report
-          path: ${{ runner.temp }}/merged.json
+          name: hotpath-report
+          path: ${{ runner.temp }}/report.json
           retention-days: 1
           if-no-files-found: error

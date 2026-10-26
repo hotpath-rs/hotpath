@@ -17,7 +17,7 @@ on:
 #
 # Pushes upload in process with the job's OIDC token. Fork PRs get no
 # `id-token: write`, so every pull request writes the merged report to an
-# artifact and `cloud-drain-benchmark-relay.yml` uploads it.
+# artifact and `cloud-benchmark-relay.yml` uploads it.
 jobs:
   benchmark:
     name: cloud drain benchmark
@@ -69,7 +69,7 @@ jobs:
           HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.26.0
           HOTPATH_META_UPLOAD: ${{ github.event_name == 'push' && 'fail-on-error' || '' }}
           HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
-          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/report.json
           HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
           HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
         run: |
@@ -84,7 +84,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'pull_request'
         with:
-          name: drain-report
-          path: ${{ runner.temp }}/merged.json
+          name: hotpath-report
+          path: ${{ runner.temp }}/report.json
           retention-days: 1
           if-no-files-found: error

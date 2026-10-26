@@ -13,7 +13,7 @@ on:
 #
 # Pushes upload in process with the job's OIDC token. Fork PRs get no
 # `id-token: write`, so pull requests write the report to an artifact and
-# `cloud-random-benchmark-relay.yml` uploads it.
+# `cloud-benchmark-relay.yml` uploads it.
 jobs:
   upload:
     name: cloud random benchmark (push)
@@ -80,14 +80,14 @@ jobs:
           HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
           HOTPATH_EXCLUDE_WRAPPER: "true"
           HOTPATH_OUTPUT_FORMAT: json
-          HOTPATH_OUTPUT_PATH: random-report.json
+          HOTPATH_OUTPUT_PATH: report.json
         run: |
           cargo run -q --release -p test-axum --example benchmark_random \
             --features hotpath-alloc,hotpath-cloud
-          test -s random-report.json
+          test -s report.json
       - uses: actions/upload-artifact@v4
         with:
-          name: random-report
-          path: random-report.json
+          name: hotpath-report
+          path: report.json
           retention-days: 1
           if-no-files-found: error
