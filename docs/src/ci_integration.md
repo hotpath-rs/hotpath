@@ -1,12 +1,12 @@
 # CI integration: benchmark Rust pull requests in GitHub Actions
 
-hotpath-cloud reviews the performance of every pull request. Your CI job runs a benchmark with `hotpath` profiling enabled and uploads the report. hotpath.rs compares it with the report of the base branch and posts the result as a comment and a `hotpath / <benchmark>` check on the pull request.
+`hotpath-cloud` reviews the performance of every pull request. Your CI job runs a benchmark with `hotpath` profiling enabled and uploads the report. hotpath.rs compares it with the report of the base branch and posts the result as a comment on the pull request.
 
 What counts as a regression is customizable with a [regression policy](regression_policy.md) and [performance budgets](performance_budgets.md).
 
 ## Setup
 
-Log in at <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a> and install the hotpath GitHub App on the repository from the dashboard. The App has no access to your code, only write access to pull requests to post comments, and to checks to report the result of each benchmark.
+Log in at <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a> and install the [hotpath-rs GitHub App](https://github.com/apps/hotpath-rs) on the repository from the dashboard. The app has no access to your code, only write access to pull requests to post comments, and to checks to report the result of each benchmark.
 
 Add the `hotpath-cloud` feature next to the profiling features you use:
 
@@ -21,8 +21,6 @@ hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
 ```
 
-`hotpath-callgrind` is for the recommended merged mode below (`hotpath` `0.29.2` or newer); a [native](#native) benchmark leaves it out.
-
 Add a policy file. Every benchmark needs one: its own `hotpath/<benchmark>-policy.toml`, or the shared `hotpath/policy.toml` when it has none. An upload without one is refused. `hotpath cloud init` writes the default policy to `hotpath/policy.toml`:
 
 ```bash
@@ -32,7 +30,7 @@ hotpath cloud init
 
 Commit the file. The [regression policy](regression_policy.md) page explains what it contains and how to change it.
 
-The benchmark is any program of yours instrumented with `hotpath`: an example, a binary or an integration test that runs a fixed workload. The report is uploaded when the `hotpath` guard is dropped, at the end of the run.
+The benchmark is any program of yours instrumented with `hotpath`: an example, a binary or an integration test that runs a fixed workload. The report is uploaded at the end of the run.
 
 There are two ways to wire the workflow, depending on where pull requests come from:
 
@@ -411,10 +409,6 @@ The build needs no `hotpath-callgrind` feature. In the fork setup, both jobs tak
 ### Callgrind only
 
 A benchmark that already runs only under Callgrind keeps working: its report carries instruction counts and allocations, and no timing, since durations under Valgrind are meaningless. It is the merged workflow without the native step and without `HOTPATH_MERGE_REPORT`, with the `jq` check reduced to `.functions_icount.data | length > 0`. New benchmarks should use merged mode, which adds timing at the cost of one native run.
-
-### Switching an existing benchmark to merged
-
-Keep the benchmark name, so the series keeps its history. Until the first push to the default branch uploads a merged baseline, a pull request compares against a baseline that lacks one section (timing for a Callgrind-only series, instruction counts for a native one), and that section is left out of the comment. Merge the workflow change on its own, so the next pull requests compare merged reports.
 
 ## Several benchmarks in one repository
 

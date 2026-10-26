@@ -225,8 +225,8 @@ monitor throughput, performance and max queue depth of instrumented channels:
 - **Prometheus & Grafana integration** - export profiling metrics to your existing dashboards.
 - **Live TUI dashboard & static reports** - real-time or one-off analysis.
 - **CI regression detection** - benchmark every PR automatically.
-- **[Deterministic instruction counts](callgrind.md)** - Callgrind-based CPU measurements, stable across noisy CI runners, merged with native timing in one report.
-- **MCP server for AI agents** - query profiling data in real time.
+- **Deterministic instruction counts** - Callgrind-based CPU measurements, stable across noisy CI runners.
+- **MCP server and CLI skill for AI agents** - analyze profiling and benchmarks data.
 - **Zero cost when disabled** - fully feature-gated.
 
 ## Getting Started
