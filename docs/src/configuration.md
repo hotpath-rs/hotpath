@@ -69,6 +69,7 @@ Measure durations for only a fraction of calls to reduce profiling overhead in e
 |----------|-------------|
 | `HOTPATH_CALLGRIND_OUT_FILE` | The `--callgrind-out-file` value Valgrind was started with, under the `hotpath-callgrind` feature; `%p` and `%q{VAR}` are expanded like Valgrind does. (default: `callgrind.out.%p`) |
 | `HOTPATH_MERGE_REPORT` | Path of a native run's JSON report, merged into this Callgrind run's report (native timing + Callgrind instruction counts in one report, see [Callgrind](callgrind.md#timing-and-instruction-counts-in-one-report)). Needs the `hotpath-callgrind` and `hotpath-cloud` features; a failed merge exits with status 1 and writes no report. (default: not set) |
+| `HOTPATH_CRITERION_ITERATIONS` | Run the selected Criterion benchmark routine exactly this many times and write one report, under the `criterion-0-8` feature (see [Criterion benchmarks](criterion.md)). Needs Criterion's test mode and a filter matching one benchmark; must be a positive integer. (default: not set, Criterion runs unchanged) |
 
 ## Metrics Server
 

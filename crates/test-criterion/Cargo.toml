@@ -1,0 +1,20 @@
+[package]
+name = "test-criterion"
+version = "0.0.0"
+publish = false
+edition = "2021"
+description = "Tests for the Criterion adapter via the criterion-0-8 feature."
+
+[dependencies]
+hotpath = { workspace = true, features = ["criterion-0-8"] }
+criterion = { version = "0.8", default-features = false }
+
+[features]
+hotpath = ["hotpath/hotpath"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
+
+[[bench]]
+name = "codec"
+harness = false

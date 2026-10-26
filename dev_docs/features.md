@@ -16,6 +16,7 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 - `tokio` is only for tokio-specific integrations; async function profiling is runtime-agnostic.
 - `sqlx` / `toasty` are generic `tracing` layers with no sqlx/toasty dependency; filtering out the `sqlx::query` / `toasty::query` targets silently disables them.
 - `json` gates `hotpath::json` without pulling the profiler in (used by hotpath-backend to parse reports).
+- `criterion-0-8`: adapter in `src/criterion.rs` (wrappers, `criterion_group!`/`criterion_main!`); `lib.rs` declares `extern crate self as hotpath` so it can use `#[hotpath::measure]`. Tests: `tests/criterion.rs` on `crates/test-criterion`.
 - `demo` exists only for the TUI demo traffic (`bin/hotpath/cmd/console/demo.rs`).
 
 ## hotpath-cloud

@@ -16,6 +16,10 @@ compile_error!("the `hotpath-cpu` feature is only supported on macOS and Linux")
 #[doc(hidden)]
 pub use hotpath_meta;
 
+// Lets in-crate code use `#[hotpath::measure]`, whose expansion names
+// `hotpath::` paths.
+extern crate self as hotpath;
+
 #[cfg(feature = "hotpath")]
 #[doc(inline)]
 pub use lib_on::*;
@@ -72,6 +76,9 @@ pub(crate) mod tid;
 pub use lib_off::*;
 #[cfg(not(feature = "hotpath"))]
 mod lib_off;
+
+#[cfg(feature = "criterion-0-8")]
+pub mod criterion;
 
 /// Mirror of `std` paths so instrumented types can be used as drop-in
 /// replacements by prefixing imports with `hotpath::wrap::` (e.g.
