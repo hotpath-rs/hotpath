@@ -8,7 +8,7 @@ Compare benchmarks against your baseline to see which functions execute more CPU
 
 Get actionable feedback directly in GitHub PRs, with detailed reports that developers and coding agents can use to investigate regressions.
 
-> **Open beta:** free to use. Public repositories will remain free after beta.
+> **Open beta:** Free to use. Public repositories will remain free. Paid plans for private repositories will be introduced after beta.
 
 <div class="cta-row">
   <a class="agent-pill cta-link" href="/app">Get started - free beta</a>
