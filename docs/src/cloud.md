@@ -1,12 +1,10 @@
-# Performance reviews for every Rust pull request
+# Detect Rust performance regressions before they ship
 
 <img src="{{#asset-hash images/hotpath-cloud-ferris.webp}}" alt="hotpath-cloud mascot, an angry crab on fire sitting on a cloud" class="ferris-img">
 
-`hotpath-cloud` turns profiling data into automated performance reviews for pull requests.
+`hotpath-cloud` turns profiling data into automated performance reviews for Rust pull requests.
 
-Compare benchmarks against your baseline to see which functions execute more CPU instructions, allocate more memory, or perform additional work. Set regression thresholds and performance budgets to focus on changes that matter.
-
-Get actionable feedback directly in GitHub PRs, with detailed reports that developers and coding agents can use to investigate regressions.
+Compare each PR's benchmark results against its baseline to find functions that execute more CPU instructions, allocate more memory, or trigger additional SQL queries. Set performance budgets and get actionable feedback directly in GitHub PRs.
 
 **Open beta:** Free to use. Public repositories will remain free. Paid plans for private repositories will be introduced after beta.
 
@@ -71,7 +69,7 @@ The quickest way to set up hotpath-cloud is to let your own AI coding agent do i
 Set up hotpath-cloud CI in this Rust project using the instructions at https://hotpath.rs/agent/init_cloud
 ```
 
-If the project does not use hotpath yet, the agent sets up profiling first. It then picks a benchmark with a fixed workload (asking you when the choice is not obvious), adds the `hotpath-cloud` feature (and, for a CPU-bound benchmark on `hotpath` `0.29.2` or newer, sets up [merged mode](ci_integration.md#profiling-modes): native timing + Callgrind instruction counts in one report), a [regression policy](regression_policy.md) file (an existing one is kept), a GitHub Actions benchmark workflow and the [README badge](#readme-badge), and runs the benchmark locally to verify the report. For public repositories, it asks whether pull requests from forks should be benchmarked too: they need a [separate setup](ci_integration.md#pull-requests-from-forks) with a relay workflow for security reasons.
+If the project does not use hotpath yet, the agent sets up profiling first. It then picks a benchmark with a fixed workload (asking you when the choice is not obvious), adds the `hotpath-cloud` feature ([merged mode](ci_integration.md#profiling-modes) for CPU-bound benchmarks), a [regression policy](regression_policy.md), a GitHub Actions workflow, and runs the benchmark locally to verify the report. For public repositories, it asks whether to benchmark pull requests from forks, which need a [separate setup](ci_integration.md#pull-requests-from-forks).
 
 The agent does not commit, install the GitHub App or upload anything for you. Install the hotpath GitHub App from <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a> and merge the workflow: the first push to the default branch uploads the baseline, and from then on every pull request gets a performance comment.
 
@@ -84,6 +82,8 @@ Follow the [CI integration](ci_integration.md) guide to add the benchmark workfl
 ### README badge
 
 Link your repository's hotpath-cloud page from its README:
+
+[![hotpath-cloud](https://img.shields.io/endpoint?url=https://hotpath.rs/badge-cloud.json)](https://hotpath.rs/app/repos/hotpath-rs/hotpath)
 
 ```markdown
 [![hotpath-cloud](https://img.shields.io/endpoint?url=https://hotpath.rs/badge-cloud.json)](https://hotpath.rs/app/repos/OWNER/NAME)
