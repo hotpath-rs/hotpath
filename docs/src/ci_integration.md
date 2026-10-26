@@ -281,6 +281,8 @@ on:
     workflows: ["Benchmark"] # the `name:` of the benchmark workflow
     types: [completed]
 
+permissions: {} # jobs get only what they declare
+
 jobs:
   relay:
     uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@{{HOTPATH_RELEASE_TAG}}
@@ -412,7 +414,11 @@ A benchmark that already runs only under Callgrind keeps working: its report car
 
 ## Several benchmarks in one repository
 
-Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or job. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise; without either, its uploads are refused. In the fork setup, every benchmark workflow also needs a unique `name:`, and one relay workflow serves all of them. List every benchmark workflow in `workflows:` and look up the series from the name of the workflow that triggered the run. Artifacts belong to one run, so every pull request job keeps the default `hotpath-report` artifact with `report.json` in it:
+Give every benchmark its own `HOTPATH_BENCHMARK` name. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise; without either, its uploads are refused.
+
+In the same-repository setup, each benchmark can be its own workflow or a job in a shared one: every job uploads its own report.
+
+In the fork setup, each benchmark needs its own workflow with a unique `name:`. The relay receives one `workflow_run` event per workflow run and relays one report from it, so a second benchmark job in the same workflow would never be uploaded. One relay workflow serves every benchmark workflow: list them all in `workflows:` and look up the series from the name of the workflow that triggered the run. Artifacts belong to one run, so every pull request job can keep the default `hotpath-report` artifact with `report.json` in it, without collisions:
 
 ```yaml
 name: Benchmark relay
@@ -421,6 +427,8 @@ on:
   workflow_run:
     workflows: ["Benchmark", "Parser benchmark"]
     types: [completed]
+
+permissions: {}
 
 jobs:
   relay:
@@ -435,6 +443,15 @@ jobs:
 ```
 
 Keep `workflows:` and the lookup in sync: a workflow missing from `workflows:` is never relayed, and one missing from the lookup is relayed with an empty `benchmark`, which fails the upload.
+
+When the benchmark workflows differ in `artifact_name`, `report_file` or `source_root` (for example a benchmark built in a nested Cargo workspace), look those up the same way, listing only the workflows that differ and falling back to the default for the rest:
+
+```yaml
+      artifact_name: ${{ fromJSON('{"Parser benchmark":"parser-report"}')[github.event.workflow_run.name] || 'hotpath-report' }}
+      source_root: ${{ fromJSON('{"Parser benchmark":"parser"}')[github.event.workflow_run.name] || '' }}
+```
+
+List each benchmark workflow in exactly one relay: a workflow named in two relays' `workflows:` is uploaded twice.
 
 ## Troubleshooting
 
