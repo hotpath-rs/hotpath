@@ -7,7 +7,10 @@ use std::time::Duration;
 use crate::batch::{EventProducer, EventQueueRegistry};
 use crate::instant::Instant;
 
-static MEASUREMENT_QUEUES: EventQueueRegistry<Measurement> = EventQueueRegistry::new();
+pub(crate) static MEASUREMENT_QUEUES: EventQueueRegistry<Measurement> = EventQueueRegistry::new();
+
+pub(crate) static LOST_MEASUREMENTS: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 thread_local! {
     static MEASUREMENT_PRODUCER: EventProducer<Measurement> = MEASUREMENT_QUEUES.register();
@@ -17,10 +20,29 @@ fn add_measurement(m: Measurement) {
     if !MEASUREMENT_QUEUES.is_active() {
         return;
     }
-    let _ = MEASUREMENT_PRODUCER.try_with(|producer| producer.push(m));
+    if MEASUREMENT_PRODUCER
+        .try_with(|producer| producer.push(m))
+        .is_err()
+    {
+        LOST_MEASUREMENTS.store(true, std::sync::atomic::Ordering::Release);
+    }
 }
 
+pub(crate) static MEASUREMENT_GENERATION: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
 pub(crate) fn set_measurements_active(active: bool) {
+    if active
+        && MEASUREMENT_GENERATION
+            .fetch_update(
+                std::sync::atomic::Ordering::AcqRel,
+                std::sync::atomic::Ordering::Acquire,
+                |n| n.checked_add(1),
+            )
+            .is_err()
+    {
+        LOST_MEASUREMENTS.store(true, std::sync::atomic::Ordering::Release);
+    }
     MEASUREMENT_QUEUES.set_active(active);
 }
 

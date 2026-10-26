@@ -61,6 +61,9 @@ pub struct EventQueue<M> {
     /// Set by the producer's TLS drop so the consumer can drain the remainder
     /// and release the queue.
     closed: AtomicBool,
+    published: AtomicUsize,
+    drained: AtomicUsize,
+    valid: AtomicBool,
 }
 
 // SAFETY: the auto impls are lost to the raw chunk pointers. Sending or
@@ -82,6 +85,7 @@ impl<M> EventQueue<M> {
         hotpath_meta::measure(impl_type = "EventQueue")
     )]
     fn drain_into(&self, out: &mut Vec<M>, max_chunks: usize) -> bool {
+        let before = out.len();
         let mut chunk_ptr = self.head.load(Ordering::Relaxed);
         let mut consumed = self.consumed.load(Ordering::Relaxed);
         let mut chunks_walked = 0;
@@ -125,6 +129,14 @@ impl<M> EventQueue<M> {
         }
         self.head.store(chunk_ptr, Ordering::Relaxed);
         self.consumed.store(consumed, Ordering::Relaxed);
+        match self
+            .drained
+            .load(Ordering::Relaxed)
+            .checked_add(out.len() - before)
+        {
+            Some(total) => self.drained.store(total, Ordering::Release),
+            None => self.valid.store(false, Ordering::Release),
+        }
         reached_tail
     }
 }
@@ -194,6 +206,11 @@ impl<M> EventProducer<M> {
         } else {
             self.len.set(i + 1);
         }
+        // Single producer: this is a completion watermark, not a global RMW.
+        match self.queue.published.load(Ordering::Relaxed).checked_add(1) {
+            Some(total) => self.queue.published.store(total, Ordering::Release),
+            None => self.queue.valid.store(false, Ordering::Release),
+        }
     }
 }
 
@@ -207,6 +224,7 @@ impl<M> Drop for EventProducer<M> {
 /// producers whether a worker is consuming.
 pub struct EventQueueRegistry<M> {
     active: AtomicBool,
+    valid: AtomicBool,
     queues: Mutex<Vec<Arc<EventQueue<M>>>>,
 }
 
@@ -220,6 +238,7 @@ impl<M: Send> EventQueueRegistry<M> {
     pub const fn new() -> Self {
         Self {
             active: AtomicBool::new(false),
+            valid: AtomicBool::new(true),
             queues: Mutex::new(Vec::new()),
         }
     }
@@ -246,15 +265,47 @@ impl<M: Send> EventQueueRegistry<M> {
             head: AtomicPtr::new(first),
             consumed: AtomicUsize::new(0),
             closed: AtomicBool::new(false),
+            published: AtomicUsize::new(0),
+            drained: AtomicUsize::new(0),
+            valid: AtomicBool::new(true),
         });
         if let Ok(mut queues) = self.queues.lock() {
             queues.push(Arc::clone(&queue));
+        } else {
+            self.valid.store(false, Ordering::Release);
         }
         EventProducer {
             queue,
             tail: Cell::new(first),
             len: Cell::new(0),
         }
+    }
+
+    /// Snapshot completed pushes on all currently registered queues. A producer
+    /// created after this snapshot is outside the prefix. Join producers first
+    /// when the caller needs the entire workload rather than a finite prefix.
+    pub fn published_prefix(&self) -> Result<PublishedPrefix<M>, ()> {
+        if !self.valid.load(Ordering::Acquire) {
+            return Err(());
+        }
+        let queues = self.queues.lock().map_err(|_| ())?;
+        let mut targets = Vec::with_capacity(queues.len());
+        for queue in queues.iter() {
+            if !queue.valid.load(Ordering::Acquire) {
+                return Err(());
+            }
+            targets.push((Arc::clone(queue), queue.published.load(Ordering::Acquire)));
+        }
+        Ok(PublishedPrefix { targets })
+    }
+
+    pub fn transport_valid(&self) -> bool {
+        self.valid.load(Ordering::Acquire)
+            && self
+                .queues
+                .lock()
+                .map(|queues| queues.iter().all(|q| q.valid.load(Ordering::Acquire)))
+                .unwrap_or(false)
     }
 
     /// Drains every registered queue into `out` and releases queues whose
@@ -289,11 +340,48 @@ impl<M: Send> EventQueueRegistry<M> {
                 // below sees every event.
                 let closed = queue.closed.load(Ordering::Acquire);
                 let reached_tail = queue.drain_into(out, max_chunks);
+                if !queue.valid.load(Ordering::Acquire) {
+                    self.valid.store(false, Ordering::Release);
+                }
                 // A closed queue is released only once fully drained; a
                 // cap-truncated drain keeps it for the next sweep so its tail
                 // events are not freed unprocessed by `EventQueue::drop`.
                 !(closed && reached_tail)
             });
         }
+    }
+}
+
+/// Opaque per-queue prefix. A consumer must check only AFTER processing the
+/// entire drained batch into its aggregation state, not merely dequeuing it.
+pub struct PublishedPrefix<M> {
+    targets: Vec<(Arc<EventQueue<M>>, usize)>,
+}
+impl<M> std::fmt::Debug for PublishedPrefix<M> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PublishedPrefix")
+            .field("queues", &self.targets.len())
+            .finish()
+    }
+}
+impl<M> PublishedPrefix<M> {
+    pub fn is_processed(&self) -> Result<bool, ()> {
+        for (queue, target) in &self.targets {
+            if !queue.valid.load(Ordering::Acquire) {
+                return Err(());
+            }
+            if queue.drained.load(Ordering::Acquire) < *target {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+    pub fn queue_count(&self) -> usize {
+        self.targets.len()
+    }
+    pub fn event_count(&self) -> Option<usize> {
+        self.targets
+            .iter()
+            .try_fold(0usize, |n, (_, target)| n.checked_add(*target))
     }
 }
