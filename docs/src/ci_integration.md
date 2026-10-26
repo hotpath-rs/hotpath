@@ -418,7 +418,7 @@ Give every benchmark its own `HOTPATH_BENCHMARK` name. Each series has its own b
 
 In the same-repository setup, each benchmark can be its own workflow or a job in a shared one: every job uploads its own report.
 
-In the fork setup, each benchmark needs its own workflow with a unique `name:`. The relay receives one `workflow_run` event per workflow run and relays one report from it, so a second benchmark job in the same workflow would never be uploaded. One relay workflow serves every benchmark workflow: list them all in `workflows:` and look up the series from the name of the workflow that triggered the run. Artifacts belong to one run, so every pull request job can keep the default `hotpath-report` artifact with `report.json` in it, without collisions:
+In the fork setup, each benchmark needs its own workflow with a unique `name:`. The relay receives one `workflow_run` event per workflow run and relays one report from it, so a second benchmark job in the same workflow would never be uploaded (the matrix setup below is the exception). One relay workflow serves every benchmark workflow: list them all in `workflows:` and look up the series from the name of the workflow that triggered the run. Artifacts belong to one run, so every pull request job can keep the default `hotpath-report` artifact with `report.json` in it, without collisions:
 
 ```yaml
 name: Benchmark relay

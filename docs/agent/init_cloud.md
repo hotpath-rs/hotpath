@@ -183,7 +183,7 @@ Create `.github/workflows/hotpath-benchmark.yml` (or the unique name above) from
 - the `cargo build` line and the binary paths of both jobs (for native mode, both `cargo run` lines): the command that builds and runs the benchmark (`-p <crate>` in a workspace, `--bin` or `--example` as appropriate). Keep `--release`. Drop `hotpath-alloc` from `--features` only if the crate has no such feature.
 - Add any setup the benchmark needs (system packages, a database service) to both jobs, before the benchmark, copied from the repository's existing CI.
 
-Every benchmark in the forks setup gets its own workflow: the relay uploads one report per workflow run, so never add a benchmark as a second job of an existing benchmark workflow.
+Every benchmark in the forks setup gets its own workflow: the relay uploads one report per workflow run, so never add a benchmark as a second job of an existing benchmark workflow. The exception is a repository that already relays several scenarios of one workflow with a matrix: add the new scenario to that workflow and to the relay's matrix instead.
 
 Never set `HOTPATH_UPLOAD` or `id-token: write` in the `report` job: it runs untrusted code. Merged mode does not change its permissions: the `report` job keeps `contents: read` alone and the checkout of the pull request's head commit.
 
