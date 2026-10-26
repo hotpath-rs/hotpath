@@ -5,6 +5,8 @@ on:
     workflows: ["Cloud random benchmark", "Cloud drain benchmark", "Cloud meta benchmark"]
     types: [completed]
 
+permissions: {}
+
 # Uploads the `hotpath-report` artifact of each benchmark's pull request run.
 # The series is looked up from the workflow name, so keep the lookup in sync
 # with `workflows:`. `@main` tests the relay on the default branch.
