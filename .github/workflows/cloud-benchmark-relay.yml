@@ -5,17 +5,9 @@ on:
     workflows: ["Cloud random benchmark", "Cloud drain benchmark", "Cloud meta benchmark"]
     types: [completed]
 
-# Uploads the report every pull request run of a benchmark workflow stores as
-# the `hotpath-report` artifact (`report.json`, the relay defaults): fork PRs
-# get no OIDC token. Artifacts are per run, so the shared name never collides.
-# The series comes from the triggering workflow's name, so a renamed or added
-# benchmark workflow must be updated both in `workflows:` and in the lookup;
-# an unknown one fails the upload with an empty `benchmark`.
-#
-# This repo is the first consumer of its own relay: `hotpath-relay.yml` is the
-# reusable workflow adopters call. Referenced by full path rather than `./` so
-# this call resolves exactly the way an adopter's does, and `@main` so the relay
-# under test is the one on the default branch.
+# Uploads the `hotpath-report` artifact of each benchmark's pull request run.
+# The series is looked up from the workflow name, so keep the lookup in sync
+# with `workflows:`. `@main` tests the relay on the default branch.
 jobs:
   relay:
     uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@main

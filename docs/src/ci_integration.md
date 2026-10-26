@@ -412,7 +412,29 @@ A benchmark that already runs only under Callgrind keeps working: its report car
 
 ## Several benchmarks in one repository
 
-Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or job. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise; without either, its uploads are refused. In the fork setup, every benchmark workflow also needs a unique `name:`, its own artifact name and its own relay workflow that names it in `workflows:`.
+Give every benchmark its own `HOTPATH_BENCHMARK` name and its own workflow or job. Each series has its own baseline and its own comment on the pull request. A series is judged under `hotpath/<benchmark>-policy.toml` when that file exists, and under the shared `hotpath/policy.toml` otherwise; without either, its uploads are refused. In the fork setup, every benchmark workflow also needs a unique `name:`, and one relay workflow serves all of them. List every benchmark workflow in `workflows:` and look up the series from the name of the workflow that triggered the run. Artifacts belong to one run, so every pull request job keeps the default `hotpath-report` artifact with `report.json` in it:
+
+```yaml
+name: Benchmark relay
+
+on:
+  workflow_run:
+    workflows: ["Benchmark", "Parser benchmark"]
+    types: [completed]
+
+jobs:
+  relay:
+    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@{{HOTPATH_RELEASE_TAG}}
+    permissions:
+      actions: read
+      id-token: write
+      pull-requests: read
+    with:
+      # benchmark workflow `name:` -> its `HOTPATH_BENCHMARK`
+      benchmark: ${{ fromJSON('{"Benchmark":"my_benchmark","Parser benchmark":"parser"}')[github.event.workflow_run.name] }}
+```
+
+Keep `workflows:` and the lookup in sync: a workflow missing from `workflows:` is never relayed, and one missing from the lookup is relayed with an empty `benchmark`, which fails the upload.
 
 ## Troubleshooting
 
