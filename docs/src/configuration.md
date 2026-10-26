@@ -113,7 +113,7 @@ Requires the `hotpath-prometheus` feature, see [Prometheus & Grafana](prometheus
 
 | Variable | Description |
 |----------|-------------|
-| `HOTPATH_DRAIN_INTERVAL` | Interval in milliseconds between background worker sweeps of the per-thread event queues. Decrease for high-traffic apps to bound queue memory growth between sweeps, at the cost of more worker wakeups. (default: `50`) |
+| `HOTPATH_DRAIN_INTERVAL_MS` | Interval in milliseconds between background worker sweeps of the per-thread event queues. Decrease for high-traffic apps to bound queue memory growth between sweeps, at the cost of more worker wakeups. (default: `50`) |
 | `HOTPATH_THREADS_INTERVAL_MS` | Thread monitoring sample interval in milliseconds. (default: `250`) |
 | `HOTPATH_TOKIO_RUNTIME_INTERVAL_MS` | Tokio runtime metrics sampling interval in milliseconds. (default: `1000`) |
 | `HOTPATH_LOGS_LIMIT` | Maximum number of log entries to keep per channel, stream, or function. (default: `50`) |
