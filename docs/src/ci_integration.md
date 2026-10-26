@@ -455,7 +455,12 @@ List each benchmark workflow in exactly one relay: a workflow named in two relay
 
 hotpath's own repository runs this setup: three benchmark workflows, [`cloud-random-benchmark.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-random-benchmark.yml) (native mode) and [`cloud-drain-benchmark.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-drain-benchmark.yml) and [`cloud-meta-benchmark.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-meta-benchmark.yml) (merged mode), relayed by one [`cloud-benchmark-relay.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/cloud-benchmark-relay.yml). The drain and meta benchmarks profile hotpath itself, so their variables are prefixed `HOTPATH_META_` instead of `HOTPATH_`.
 
-An alternative for several scenarios of one program is a single benchmark workflow that writes one report file per scenario into one artifact, relayed by a matrix over the scenarios with `benchmark: ${{ matrix.scenario }}` and `report_file: ${{ matrix.scenario }}.json`. It needs no workflow-name lookup, but the relay only runs after the whole benchmark run succeeds, so one failing scenario holds back the verdicts of all of them. [MapLibre Martin](https://github.com/maplibre/martin) runs this setup: [`hotpath-benchmark.yml`](https://github.com/maplibre/martin/blob/main/.github/workflows/hotpath-benchmark.yml) and [`hotpath-relay.yml`](https://github.com/maplibre/martin/blob/main/.github/workflows/hotpath-relay.yml).
+An alternative for several scenarios of one program is a single benchmark workflow that writes one report file per scenario into one artifact, relayed by a matrix over the scenarios with `benchmark: ${{ matrix.scenario }}` and `report_file: ${{ matrix.scenario }}.json`. [MapLibre Martin](https://github.com/maplibre/martin) runs this setup: [`hotpath-benchmark.yml`](https://github.com/maplibre/martin/blob/main/.github/workflows/hotpath-benchmark.yml) and [`hotpath-relay.yml`](https://github.com/maplibre/martin/blob/main/.github/workflows/hotpath-relay.yml).
+
+| | One workflow per benchmark | One workflow, matrix relay |
+|---|---|---|
+| Pros | each benchmark gets its verdict on its own; benchmarks can differ in mode, runner or timeout | one workflow and one build; no workflow-name lookup to keep in sync |
+| Cons | a workflow file per benchmark; workflow names listed twice in the relay | the relay runs only after the whole run succeeds, so one failing scenario holds back every verdict; every scenario shares one job's setup |
 
 ## Troubleshooting
 
