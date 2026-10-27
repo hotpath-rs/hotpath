@@ -2,7 +2,7 @@ name: Cloud benchmark relay
 
 on:
   workflow_run:
-    workflows: ["Cloud random benchmark", "Cloud drain benchmark", "Cloud meta benchmark"]
+    workflows: ["Cloud random benchmark", "Cloud drain benchmark", "Cloud meta benchmark", "Cloud drain criterion benchmark"]
     types: [completed]
 
 permissions: {}
@@ -12,10 +12,15 @@ permissions: {}
 # with `workflows:`. `@main` tests the relay on the default branch.
 jobs:
   relay:
+    # The drain criterion benchmark uploads same-repository pull requests in
+    # process and writes an artifact only for forks.
+    if: >-
+      github.event.workflow_run.name != 'Cloud drain criterion benchmark' ||
+      github.event.workflow_run.head_repository.full_name != github.repository
     uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@main
     permissions:
       actions: read
       id-token: write
       pull-requests: read
     with:
-      benchmark: ${{ fromJSON('{"Cloud random benchmark":"random","Cloud drain benchmark":"drain","Cloud meta benchmark":"meta"}')[github.event.workflow_run.name] }}
+      benchmark: ${{ fromJSON('{"Cloud random benchmark":"random","Cloud drain benchmark":"drain","Cloud meta benchmark":"meta","Cloud drain criterion benchmark":"drain-criterion"}')[github.event.workflow_run.name] }}

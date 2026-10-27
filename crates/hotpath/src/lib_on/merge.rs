@@ -20,6 +20,7 @@ use std::sync::LazyLock;
 
 use crate::json::cloud_api::MAX_REPORT_BYTES;
 use crate::json::{JsonReport, JsonRun};
+use crate::shared::{CRITERION_BENCHMARK_KEY, CRITERION_ITERATIONS_KEY};
 
 /// `HOTPATH_MERGE_REPORT`: path of the native run's JSON report. Blank or
 /// unset requests no merge; relative paths resolve against the cwd.
@@ -290,9 +291,9 @@ pub(crate) fn merge(
     Ok(native)
 }
 
-/// Every field that places a run: build, checkout, benchmark, policy and CI
-/// run. Absent on both sides is equal (a local run has no CI fields); absent
-/// on one side is a mismatch.
+/// Every field that places a run: build, checkout, benchmark, policy, CI run
+/// and Criterion workload. Absent on both sides is equal (a local run has no
+/// CI fields); absent on one side is a mismatch.
 fn check_identity(native: &JsonReport, own: &JsonReport) -> Result<(), MergeError> {
     let (n, o) = (&native.meta, &own.meta);
     let s = |v: &str| Some(v.to_string());
@@ -300,8 +301,9 @@ fn check_identity(native: &JsonReport, own: &JsonReport) -> Result<(), MergeErro
     let ci = |m: &crate::json::JsonMeta| m.ci.clone();
     let pr = |m: &crate::json::JsonMeta| m.ci.as_ref().and_then(|c| c.pull_request.clone());
     let (ng, og, nc, oc, np, op) = (git(n), git(o), ci(n), ci(o), pr(n), pr(o));
+    let user = |r: &JsonReport, key: &str| r.user_metadata.as_ref()?.get(key).cloned();
 
-    let fields: [(&'static str, Option<String>, Option<String>); 20] = [
+    let fields: [(&'static str, Option<String>, Option<String>); 22] = [
         ("benchmark", n.benchmark.clone(), o.benchmark.clone()),
         ("rustc", s(&n.rustc), s(&o.rustc)),
         ("os", s(&n.os), s(&o.os)),
@@ -385,6 +387,16 @@ fn check_identity(native: &JsonReport, own: &JsonReport) -> Result<(), MergeErro
             "policy",
             n.policy.as_ref().map(|p| p.source.clone()),
             o.policy.as_ref().map(|p| p.source.clone()),
+        ),
+        (
+            "Criterion benchmark",
+            user(native, CRITERION_BENCHMARK_KEY),
+            user(own, CRITERION_BENCHMARK_KEY),
+        ),
+        (
+            "Criterion iteration count",
+            user(native, CRITERION_ITERATIONS_KEY),
+            user(own, CRITERION_ITERATIONS_KEY),
         ),
     ];
     for (field, native, own) in fields {
@@ -581,6 +593,57 @@ mod tests {
         let mut native = native();
         native.meta.ci.as_mut().unwrap().actor = Some("other".into());
         assert!(merge(native, own(), IcountRun::Counted).is_ok());
+    }
+
+    #[test]
+    fn criterion_workload_must_match() {
+        fn with(mut r: JsonReport, pairs: &[(&str, &str)]) -> JsonReport {
+            let mut metadata = std::collections::BTreeMap::from([("runner".into(), "ci".into())]);
+            metadata.extend(pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())));
+            r.user_metadata = Some(metadata);
+            r
+        }
+        const ID: &str = "criterion_benchmark";
+        const N: &str = "criterion_iterations";
+        let a = [(ID, "codec/decode/1024"), (N, "1000")];
+
+        let merged = merge(with(native(), &a), with(own(), &a), IcountRun::Counted);
+        assert!(merged.is_ok(), "same benchmark and count merge");
+
+        let cases = [
+            (
+                [(ID, "codec/decode/1024"), (N, "500")],
+                "Criterion iteration count",
+            ),
+            (
+                [(ID, "codec/decode/16"), (N, "1000")],
+                "Criterion benchmark",
+            ),
+        ];
+        for (other, expected) in cases {
+            match err(with(native(), &a), with(own(), &other)) {
+                MergeError::Mismatch { field, .. } => assert_eq!(field, expected),
+                other => panic!("{expected}: {other}"),
+            }
+        }
+
+        // Criterion on one side only, either way round.
+        for (n, o) in [(&a[..], &[][..]), (&[][..], &a[..])] {
+            match err(with(native(), n), with(own(), o)) {
+                MergeError::Mismatch { field, native, own } => {
+                    assert_eq!(field, "Criterion benchmark");
+                    assert_ne!(native.is_some(), own.is_some());
+                }
+                other => panic!("{other}"),
+            }
+        }
+
+        // Neither is a Criterion run: unchanged, other metadata is not compared.
+        let mut plain = with(own(), &[]);
+        let metadata = plain.user_metadata.as_mut().unwrap();
+        metadata.insert("runner".into(), "local".into());
+        assert!(merge(with(native(), &[]), plain, IcountRun::Counted).is_ok());
+        assert!(merge(native(), own(), IcountRun::Counted).is_ok());
     }
 
     #[test]

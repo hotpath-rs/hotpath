@@ -139,6 +139,13 @@ cargo run -p test-streams --example benchmark_stream --features hotpath --releas
 
 Every subsystem (functions, channels, streams, futures, rw_locks, mutexes, sql) records events into per-thread lock-free chunked SPSC queues (the `hotpath-drain` crate, `crates/hotpath-drain/src/lib.rs`): the hot path is a plain slot store plus one `Release` publish, with no mutex or RMW atomic. Each subsystem's background worker is the single consumer and sweeps all queues every 50ms and once more at shutdown, so anything recorded on any thread - even one still parked at exit - appears in the report.
 
+The `drain` and `drain-criterion` hotpath-cloud benchmarks run one lockstep scenario (`crates/hotpath-drain/examples/support/lockstep.rs`) with `hotpath-meta` profiling the queue: once through the `throughput` example, five times through the Criterion benchmark in `crates/test-drain-criterion`:
+
+```bash
+cargo run -p hotpath-drain --example throughput --release --features hotpath-alloc-meta
+HOTPATH_META_CRITERION_ITERATIONS=5 cargo bench -p test-drain-criterion --bench drain --features hotpath-alloc-meta -- --test --exact drain/lockstep
+```
+
 ### Samply traces 
 
 Analyze [Samply](https://github.com/mstange/samply) traces by running the instrumented benchmarks:

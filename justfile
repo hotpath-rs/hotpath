@@ -22,6 +22,7 @@ test_all:
     cargo test --features hotpath --test metrics_auth -- --nocapture --test-threads=1
     cargo test --features hotpath --test functions_alloc -- --nocapture --test-threads=1
     cargo test --features hotpath --test functions_alloc_meta -- --nocapture --test-threads=1
+    cargo test --features hotpath --test criterion -- --nocapture --test-threads=1
     cargo test --features hotpath --test functions_cpu -- --nocapture --test-threads=1
     cargo test --features hotpath --test streams -- --nocapture --test-threads=1
     cargo test --features hotpath --test channels_crossbeam -- --nocapture --test-threads=1

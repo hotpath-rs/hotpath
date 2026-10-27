@@ -1,0 +1,46 @@
+# Policy for the `drain-criterion` benchmark: the `drain` scenario run five
+# times through Criterion. Budgets are the `drain` ones times five.
+
+# A broken budget or an allocation regression fails the pull request's check run.
+pr_check = "fail"
+
+[functions]
+min_percent_total = 0.5
+
+[[functions.budgets]]
+match = "hotpath_meta::criterion::routine"
+calls = { min = 5, max = 5 }
+
+# The producer hot path allocates a fresh chunk each time one fills: 24 B per
+# push and 115.6 MB over the five runs. Any growth past that is a breach.
+[[functions.budgets]]
+match = "hotpath_drain::EventProducer::push"
+alloc = { avg = "25 B", total = "120 MB" }
+calls = { min = 5000000, max = 5000000 }
+
+[functions.alloc]
+judged = true
+# Deterministic, so any regression past the bar is real.
+fail_check = true
+min_percent_change = 2
+metrics = ["avg", "total"]
+min_calls = 0
+
+# Producer/consumer interleaving moves the hot paths' instruction counts by up
+# to ~1.5% between runs of one commit, so the bar sits above that and does not
+# fail the check.
+[functions.icount]
+judged = true
+min_percent_change = 3
+metrics = ["avg", "total"]
+min_calls = 0
+
+# Native timing on a shared runner is too noisy to judge; listed so it shows as
+# context next to the counts.
+[functions.timing]
+judged = false
+min_percent_change = 50
+metrics = ["avg", "total"]
+min_calls = 1
+
+# No `[threads]` section: each run spawns new named threads.

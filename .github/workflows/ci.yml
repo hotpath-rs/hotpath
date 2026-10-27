@@ -405,3 +405,6 @@ jobs:
       - name: Run functions_icount tests
         run: |
           cargo test --features hotpath --test functions_icount -- --nocapture --test-threads=1
+      - name: Run criterion tests
+        run: |
+          cargo test --features hotpath --test criterion -- --nocapture --test-threads=1

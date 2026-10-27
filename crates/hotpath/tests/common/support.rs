@@ -2,6 +2,7 @@
 //! `#[path = "common/support.rs"] mod common;` and uses only a subset.
 #![allow(dead_code)]
 
+pub(crate) mod callgrind;
 pub(crate) mod example;
 pub(crate) mod prometheus;
 pub(crate) mod service;

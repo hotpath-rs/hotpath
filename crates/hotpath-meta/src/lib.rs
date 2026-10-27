@@ -29,6 +29,10 @@ compile_error!("the `hotpath-prometheus-meta` feature requires the `hotpath-meta
 #[cfg(all(feature = "hotpath-cloud-meta", not(feature = "hotpath-meta")))]
 compile_error!("the `hotpath-cloud-meta` feature requires the `hotpath-meta` feature");
 
+// Lets in-crate code use `#[hotpath_meta::measure]`, whose expansion names
+// `hotpath_meta::` paths.
+extern crate self as hotpath_meta;
+
 #[cfg(feature = "hotpath-meta")]
 #[doc(inline)]
 pub use lib_on::*;
@@ -86,6 +90,9 @@ pub(crate) mod tid;
 pub use lib_off::*;
 #[cfg(not(feature = "hotpath-meta"))]
 mod lib_off;
+
+#[cfg(feature = "criterion-0-8")]
+pub mod criterion;
 
 /// Mirror of `std` paths so instrumented types can be used as drop-in
 /// replacements by prefixing imports with `hotpath_meta::wrap::` (e.g.
