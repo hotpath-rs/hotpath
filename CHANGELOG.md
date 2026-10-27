@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.30.0] - 2026-10-27
+
+### 🚀 Features
+
+- Happy ferris
+
+- Add opt-in ordered allocation drain receipts
+
+- Criterion adapter for fixed-iteration hotpath reports
+
+
+### 🚜 Refactor
+
+- Cleanup hotpath-ordered-drain impl
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Merged mode as the default Cloud integration
+
+- Benchmark fork PRs and improve cloud docs
+
+- Bump zstd to fix audit
+
+- Adjust config ENV name
+
+- Release 0.30.0
+
+
 ## [0.29.2] - 2026-10-25
 
 ### 🚀 Features
