@@ -719,20 +719,6 @@ impl HotpathGuard {
                     }
 
                     while let Ok(query_request) = query_rx.try_recv() {
-                        // A capped sweep can leave already published events
-                        // queued; keep sweeping until everything published by
-                        // now is aggregated. Terminates because the snapshot
-                        // is fixed and every sweep makes progress on each queue.
-                        #[cfg(feature = "hotpath-ordered-drain")]
-                        {
-                            let published = crate::functions::alloc::state::published_measurements();
-                            while !published.is_processed() {
-                                sweep_measurements(&mut swept);
-                                for measurement in swept.drain(..) {
-                                    process_measurement(&mut local_stats, &mut name_to_id, measurement);
-                                }
-                            }
-                        }
                         {
                             let config = FunctionStatsConfig {
                                     total_elapsed: worker_start_time.elapsed(),
@@ -747,6 +733,16 @@ impl HotpathGuard {
                                     FunctionsQuery::Alloc(response_tx) => {
                                         cfg_if::cfg_if! {
                                             if #[cfg(feature = "hotpath-alloc")] {
+                                                // Dropping `response_tx` unanswered fails the caller.
+                                                #[cfg(feature = "hotpath-ordered-drain")]
+                                                if !crate::functions::alloc::state::drain_published(
+                                                    std::time::Duration::from_millis(crate::metrics_server::RECV_TIMEOUT_MS),
+                                                    &mut swept,
+                                                    |m| process_measurement(&mut local_stats, &mut name_to_id, m),
+                                                    || !shutdown_rx.is_empty(),
+                                                ) {
+                                                    continue;
+                                                }
                                                 let formatted = build_functions_list_alloc(
                                                     &local_stats, &config, current_elapsed_ns,
                                                 );
@@ -805,6 +801,16 @@ impl HotpathGuard {
                                     FunctionsQuery::AllocRaw(response_tx) => {
                                         cfg_if::cfg_if! {
                                             if #[cfg(feature = "hotpath-alloc")] {
+                                                // Dropping `response_tx` unanswered fails the caller.
+                                                #[cfg(feature = "hotpath-ordered-drain")]
+                                                if !crate::functions::alloc::state::drain_published(
+                                                    std::time::Duration::from_millis(crate::prometheus_server::RECV_TIMEOUT_MS),
+                                                    &mut swept,
+                                                    |m| process_measurement(&mut local_stats, &mut name_to_id, m),
+                                                    || !shutdown_rx.is_empty(),
+                                                ) {
+                                                    continue;
+                                                }
                                                 let exclude_wrapper = *crate::functions::EXCLUDE_WRAPPER;
                                                 let schema = crate::prometheus_server::NATIVE_SCHEMA;
                                                 let mut raw: Vec<crate::functions::RawFunctionAlloc> = local_stats

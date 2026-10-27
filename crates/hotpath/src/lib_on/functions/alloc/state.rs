@@ -13,14 +13,27 @@ thread_local! {
     static MEASUREMENT_PRODUCER: EventProducer<Measurement> = MEASUREMENT_QUEUES.register();
 }
 
+/// Set when an event could not be enqueued (its thread's producer was already
+/// torn down); allocation queries fail for the rest of the session.
+#[cfg(feature = "hotpath-ordered-drain")]
+static LOST_MEASUREMENTS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 fn add_measurement(m: Measurement) {
     if !MEASUREMENT_QUEUES.is_active() {
         return;
     }
-    let _ = MEASUREMENT_PRODUCER.try_with(|producer| producer.push(m));
+    let _result = MEASUREMENT_PRODUCER.try_with(|producer| producer.push(m));
+    #[cfg(feature = "hotpath-ordered-drain")]
+    if _result.is_err() {
+        LOST_MEASUREMENTS.store(true, std::sync::atomic::Ordering::Release);
+    }
 }
 
 pub(crate) fn set_measurements_active(active: bool) {
+    #[cfg(feature = "hotpath-ordered-drain")]
+    if active {
+        LOST_MEASUREMENTS.store(false, std::sync::atomic::Ordering::Release);
+    }
     MEASUREMENT_QUEUES.set_active(active);
 }
 
@@ -32,9 +45,35 @@ pub(crate) fn drain_all_measurements(out: &mut Vec<Measurement>) {
     MEASUREMENT_QUEUES.drain_all(out);
 }
 
+/// Sweeps until every event published before the call is processed, so an
+/// allocation query sees more than one capped sweep. `false` means the query
+/// must fail: an event was lost, the registry is poisoned, `timeout` elapsed
+/// or shutdown is pending. The snapshot is fixed, so producers that keep
+/// publishing cannot stall it.
 #[cfg(feature = "hotpath-ordered-drain")]
-pub(crate) fn published_measurements() -> crate::batch::PublishedPrefix<Measurement> {
-    MEASUREMENT_QUEUES.published_prefix()
+pub(crate) fn drain_published(
+    timeout: Duration,
+    swept: &mut Vec<Measurement>,
+    mut process: impl FnMut(Measurement),
+    shutdown_pending: impl Fn() -> bool,
+) -> bool {
+    let Some(published) = MEASUREMENT_QUEUES.published_prefix() else {
+        return false;
+    };
+    let deadline = std::time::Instant::now() + timeout;
+    while !published.is_processed() {
+        if shutdown_pending() || std::time::Instant::now() >= deadline {
+            return false;
+        }
+        sweep_measurements(swept);
+        // Unprocessed published events always yield a non-empty sweep unless
+        // the registry got poisoned, so an empty one can never catch up.
+        if swept.is_empty() {
+            return false;
+        }
+        swept.drain(..).for_each(&mut process);
+    }
+    !LOST_MEASUREMENTS.load(std::sync::atomic::Ordering::Acquire)
 }
 
 #[derive(Debug)]

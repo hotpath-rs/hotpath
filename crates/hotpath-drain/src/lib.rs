@@ -283,20 +283,17 @@ impl<M: Send> EventQueueRegistry<M> {
     }
 
     /// Snapshots how many events each registered queue has published. A queue
-    /// registered after the snapshot is outside it.
+    /// registered after the snapshot is outside it. `None` when the registry
+    /// lock is poisoned: sweeps skip it then, so no prefix could complete.
     #[cfg(feature = "hotpath-ordered-drain")]
     #[doc(hidden)]
-    pub fn published_prefix(&self) -> PublishedPrefix<M> {
-        let targets = match self.queues.lock() {
-            Ok(queues) => queues
-                .iter()
-                .map(|queue| (Arc::clone(queue), queue.published.load(Ordering::Acquire)))
-                .collect(),
-            // A poisoned registry is never swept either, so there is nothing
-            // to wait for.
-            Err(_) => Vec::new(),
-        };
-        PublishedPrefix { targets }
+    pub fn published_prefix(&self) -> Option<PublishedPrefix<M>> {
+        let queues = self.queues.lock().ok()?;
+        let targets = queues
+            .iter()
+            .map(|queue| (Arc::clone(queue), queue.published.load(Ordering::Acquire)))
+            .collect();
+        Some(PublishedPrefix { targets })
     }
 
     /// Drains every registered queue into `out` and releases queues whose

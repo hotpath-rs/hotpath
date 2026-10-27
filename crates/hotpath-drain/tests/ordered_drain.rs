@@ -34,7 +34,7 @@ fn prefix_waits_for_capped_sweep_and_survives_queue_release() {
     });
 
     published_rx.recv().unwrap();
-    let prefix = REGISTRY.published_prefix();
+    let prefix = REGISTRY.published_prefix().unwrap();
     // Outside the snapshot: registered and published after it was taken.
     PRODUCER.with(|p| p.push(EVENTS));
     exit_tx.send(()).unwrap();
