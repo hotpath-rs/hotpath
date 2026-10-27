@@ -395,7 +395,8 @@ pub mod tests {
         // A leaf measured function is exact.
         assert_eq!(total(&first, WORK), total(&second, WORK));
         // The routine also counts hotpath's queueing of its nested calls'
-        // events, whose chunk allocations vary with the background drain.
+        // events and shares the allocator with hotpath's background threads,
+        // so it varies slightly with their timing.
         let (a, b) = (total(&first, ROUTINE), total(&second, ROUTINE));
         let drift = a.abs_diff(b) as f64 / a as f64;
         assert!(drift < 1e-3, "routine instructions {a} vs {b}");
