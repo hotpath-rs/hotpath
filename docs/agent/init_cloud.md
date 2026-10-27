@@ -38,6 +38,7 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 | https://hotpath.rs/callgrind | the `hotpath-callgrind` feature: merged reports ("Timing and instruction counts in one report"), what is counted, reproducibility limits, comparing runs, build requirements |
 | https://hotpath.rs/regression_policy | the policy file: sections, keys, validation, the pull request comment and check |
 | https://hotpath.rs/performance_budgets | absolute limits in the same policy file |
+| https://hotpath.rs/criterion | Criterion benchmarks as hotpath benchmarks: setup, fixed iterations, one benchmark per process, native and Callgrind runs |
 | https://hotpath.rs/cloud | what hotpath-cloud is |
 
 ## Steps
@@ -56,7 +57,8 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 
 The benchmark is a program instrumented with hotpath that runs a **fixed workload**: the same work on every run, so two runs of one commit report the same allocations. It runs to completion and exits normally, so the hotpath guard is dropped and the report is written.
 
-- Prefer an existing example, binary or integration test that exercises the code the user cares about. Ask the user which one when it is not obvious.
+- Prefer an existing Criterion benchmark: it already drives the hot code with fixed inputs. One Criterion benchmark id (for example `codec/decode`) is one hotpath benchmark, run with a fixed `HOTPATH_CRITERION_ITERATIONS` that finishes in a few seconds natively. A benchmark file that does not import from `hotpath::criterion` yet must be converted first, as step 5 "Convert Criterion benchmarks" of https://hotpath.rs/agent/setup describes; one that uses an API https://hotpath.rs/criterion lists as unsupported cannot be used. Ask the user which id when it is not obvious.
+- Otherwise prefer an existing example, binary or integration test that exercises the code the user cares about. Ask the user which one when it is not obvious.
 - If there is none, propose a new example (`examples/hotpath_benchmark.rs`) and write it only after the user agrees. A useful one:
   - drives the project's main work through its public API (the library's core operations, a server's main request flow, a CLI's main command), with realistic input sizes taken from existing tests, fixtures or `benches/`;
   - covers the main code paths with several distinct measured functions, so a regression points at one of them; add `#[hotpath::measure]` to the functions on those paths;
@@ -64,7 +66,7 @@ The benchmark is a program instrumented with hotpath that runs a **fixed workloa
   - finishes in a few seconds natively.
 - No randomness without a fixed seed, no network calls to services CI cannot reach, no timing-dependent loops. Enough calls per function that the numbers are stable.
 - Merged mode runs the benchmark twice in one job, so the second run must do the same work as the first: nothing the first run leaves behind (a database it fills, files it creates, a cache that changes its path) may change the second. Reset such state at the start of the program, or create it from scratch every run.
-- Pick the benchmark name, used as `HOTPATH_BENCHMARK` (and, in the forks setup, as the relay's `benchmark` input): 1 to 64 characters from `[A-Za-z0-9._-]`, for example the example's name. An invalid name skips the upload. It must not be used by any existing workflow: series are separate only by name.
+- Pick the benchmark name, used as `HOTPATH_BENCHMARK` (and, in the forks setup, as the relay's `benchmark` input): 1 to 64 characters from `[A-Za-z0-9._-]`, for example the example's name, or the Criterion id with `/` replaced by `-`. An invalid name skips the upload. It must not be used by any existing workflow: series are separate only by name.
 
 ### 3. Pick the profiling mode
 
@@ -156,6 +158,21 @@ Follow the section of the setup picked in step 1. Never overwrite an existing wo
 
 Pin the Rust toolchain to an exact version in every job that builds the benchmark, for both profiling modes and in both jobs of the forks setup: replace `dtolnay/rust-toolchain@stable` with `dtolnay/rust-toolchain@master` and `toolchain: "<x.y.z>"`, and write the same version into `toolchain=` of `HOTPATH_USER_METADATA`. Never leave `stable`, `beta`, `nightly` or a bare `x.y`: a new Rust release changes the numbers, so the first pull request after it would be judged against a baseline built with the older `rustc` and flagged for changes it did not cause. Use the version the repository's `rust-toolchain.toml` or existing CI pins, otherwise the one the docs merged workflow shows. Tell the user to bump it in a separate pull request, whose merge uploads the new baseline.
 
+For a Criterion benchmark, adapt every job that builds and runs it the same way, in both profiling modes and both setups:
+
+- Build the bench target and take the binary path from Cargo's JSON output, since its file name carries a hash:
+
+  ```bash
+  bin=$(cargo build -q --release --bench <name> --features <features> --message-format=json \
+    | jq -r 'select(.reason == "compiler-artifact" and (.target.kind | index("bench"))) | .executable')
+  test -x "$bin"
+  ```
+
+  Pass `bin` to the run steps as a step output (`echo "bin=$bin" >> "$GITHUB_OUTPUT"`). In native mode, use the same build step in place of `cargo run`.
+- Run the binary with `--bench --test --exact <id>` in every run step, natively and under Callgrind.
+- Add `HOTPATH_CRITERION_ITERATIONS` with the count from step 2 to the job-level `env`, so every run executes the same iterations.
+- Add `and .user_metadata.criterion_benchmark == "<id>"` to the `jq` check.
+
 #### Same repository
 
 Docs: https://hotpath.rs/ci_integration ("Pull requests from the same repository").
@@ -234,6 +251,8 @@ jq '{benchmark: .meta.benchmark, policy: .meta.policy.path, run: .meta.run}' "$v
 ```
 
 For merged mode, add `hotpath-callgrind` to `--features`: run natively, the same build prints the usual timing report.
+
+For a Criterion benchmark, build and run it as step 6 does in place of `cargo run` and `target/release/examples/my_benchmark`: the binary from `--message-format=json`, run with `--bench --test --exact <id>` and `HOTPATH_CRITERION_ITERATIONS` set in every run.
 
 The report must name the benchmark and the policy file step 5 picked for it (`hotpath/<benchmark>-policy.toml` when that exists, otherwise `hotpath/policy.toml`). Run the benchmark twice and compare the function allocation totals: if they differ, the workload is not fixed, so fix that before relying on the comments.
 
