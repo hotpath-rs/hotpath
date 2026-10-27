@@ -36,6 +36,7 @@ members = [
     "crates/test-cpu",
     "crates/test-callgrind",
     "crates/test-criterion",
+    "crates/test-drain-criterion",
     "crates/test-debug",
     "crates/test-cdylib",
     "crates/test-cdylib-dep",

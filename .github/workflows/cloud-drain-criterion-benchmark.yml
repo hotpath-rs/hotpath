@@ -1,0 +1,151 @@
+name: Cloud drain criterion benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The `drain` lockstep scenario as a Criterion benchmark (`test-drain-criterion`
+# `drain/lockstep`), profiled by `hotpath-meta` through its Criterion adapter:
+# HOTPATH_META_CRITERION_ITERATIONS fixes the scenario runs, so the report
+# carries `hotpath_meta::criterion::routine` (one call per run) next to the
+# queue's own hot paths, in the separate `drain-criterion` series. One build
+# runs twice: natively for timing, then under Valgrind Callgrind, which merges
+# the native report into its own (`HOTPATH_META_MERGE_REPORT`). A regression
+# fails the pull request's `hotpath / drain-criterion` check run (`pr_check` in
+# `hotpath/drain-criterion-policy.toml`), not the job.
+#
+# Pushes and same-repository pull requests upload in process with the job's
+# OIDC token. Fork pull requests get no `id-token: write`, so they write the
+# merged report to an artifact and `cloud-benchmark-relay.yml` uploads it.
+jobs:
+  upload:
+    name: cloud drain criterion benchmark (upload)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    # Instruction counts depend on the Valgrind build, and reports only compare
+    # within one (`tool`), so the image and the package are pinned: an upgrade
+    # is a deliberate bump, not a silent gap in verdicts.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    # Shared by both runs, so their reports describe one benchmark and one
+    # workload (the merge compares the Criterion id and iteration count).
+    env:
+      HOTPATH_META_BENCHMARK: drain-criterion
+      HOTPATH_META_OUTPUT_FORMAT: json
+      HOTPATH_META_CRITERION_ITERATIONS: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A pull request's head commit, not the default merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Record rustc version
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - uses: Swatinem/rust-cache@v2
+      - name: Install valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind=1:3.26.0-0ubuntu1
+          valgrind --version
+      - name: Build drain criterion benchmark
+        id: build
+        run: |
+          bin=$(cargo build -q --release -p test-drain-criterion --bench drain \
+            --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta \
+            --message-format=json \
+            | jq -r 'select(.reason == "compiler-artifact" and (.target.kind | index("bench"))) | .executable')
+          test -x "$bin"
+          echo "bin=$bin" >> "$GITHUB_OUTPUT"
+      # Run from the workspace root (git info, policy lookup). No upload: this
+      # report is merged into the Callgrind run's.
+      - name: Run drain criterion benchmark natively
+        env:
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.26.0
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
+        run: ${{ steps.build.outputs.bin }} --bench --test --exact drain/lockstep
+      # The uploader reports its own outcome: one `::notice::` / `::warning::`
+      # / `::error::` annotation plus a step summary block. The response file
+      # exists only after an accepted upload, so `test -s` also fails a
+      # skipped one; the `jq` check fails a report that is not a merged one.
+      - name: Run drain criterion benchmark under Callgrind and upload the merged report
+        env:
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.26.0
+          HOTPATH_META_UPLOAD: fail-on-error
+          HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
+          HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
+          HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
+        run: |
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_META_CALLGRIND_OUT_FILE" \
+            ${{ steps.build.outputs.bin }} --bench --test --exact drain/lockstep
+          test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .user_metadata.criterion_benchmark == "drain/lockstep"' \
+            "$HOTPATH_META_OUTPUT_PATH" > /dev/null
+
+  report:
+    name: cloud drain criterion benchmark (fork pull request)
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+    # Pinned like the upload job.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      HOTPATH_META_BENCHMARK: drain-criterion
+      HOTPATH_META_OUTPUT_FORMAT: json
+      HOTPATH_META_CRITERION_ITERATIONS: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull request's head commit, not the default merge commit.
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Record rustc version
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - uses: Swatinem/rust-cache@v2
+      - name: Install valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind=1:3.26.0-0ubuntu1
+          valgrind --version
+      - name: Build drain criterion benchmark
+        id: build
+        run: |
+          bin=$(cargo build -q --release -p test-drain-criterion --bench drain \
+            --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta \
+            --message-format=json \
+            | jq -r 'select(.reason == "compiler-artifact" and (.target.kind | index("bench"))) | .executable')
+          test -x "$bin"
+          echo "bin=$bin" >> "$GITHUB_OUTPUT"
+      - name: Run drain criterion benchmark natively
+        env:
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.26.0
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
+        run: ${{ steps.build.outputs.bin }} --bench --test --exact drain/lockstep
+      # A failed merge fails the job before the artifact upload, so the relay
+      # never posts a report that is not merged.
+      - name: Run drain criterion benchmark under Callgrind and write the merged report
+        env:
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.26.0
+          HOTPATH_META_OUTPUT_PATH: report.json
+          HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
+          HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
+        run: |
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_META_CALLGRIND_OUT_FILE" \
+            ${{ steps.build.outputs.bin }} --bench --test --exact drain/lockstep
+          test -s report.json
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .user_metadata.criterion_benchmark == "drain/lockstep"' \
+            "$HOTPATH_META_OUTPUT_PATH" > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hotpath-report
+          path: report.json
+          retention-days: 1
+          if-no-files-found: error

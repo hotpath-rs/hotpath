@@ -1,0 +1,21 @@
+[package]
+name = "test-drain-criterion"
+version = "0.0.0"
+publish = false
+edition = "2021"
+description = "Criterion benchmark of the hotpath-drain lockstep scenario, profiled by hotpath-meta through its Criterion adapter."
+
+[dependencies]
+hotpath-drain = { workspace = true }
+hotpath-meta = { workspace = true, features = ["criterion-0-8"] }
+criterion = { version = "0.8", default-features = false }
+
+[features]
+hotpath-meta = ["hotpath-drain/hotpath-meta", "hotpath-meta/hotpath-meta"]
+hotpath-alloc-meta = ["hotpath-meta", "hotpath-drain/hotpath-alloc-meta", "hotpath-meta/hotpath-alloc-meta"]
+hotpath-cloud-meta = ["hotpath-meta", "hotpath-drain/hotpath-cloud-meta", "hotpath-meta/hotpath-cloud-meta"]
+hotpath-callgrind-meta = ["hotpath-meta", "hotpath-drain/hotpath-callgrind-meta", "hotpath-meta/hotpath-callgrind-meta"]
+
+[[bench]]
+name = "drain"
+harness = false

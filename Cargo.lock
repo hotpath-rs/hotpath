@@ -1864,6 +1864,7 @@ dependencies = [
  "axum",
  "cfg-if",
  "clap",
+ "criterion",
  "crossbeam-channel",
  "crossterm 0.29.0",
  "eyre",
@@ -4792,6 +4793,15 @@ dependencies = [
  "hotpath",
  "libsqlite3-sys",
  "pq-sys",
+]
+
+[[package]]
+name = "test-drain-criterion"
+version = "0.0.0"
+dependencies = [
+ "criterion",
+ "hotpath-drain",
+ "hotpath-meta",
 ]
 
 [[package]]
