@@ -1,5 +1,6 @@
 //! Minimal Criterion benchmark using `hotpath::criterion`: the only change
-//! from a plain Criterion benchmark is the `use hotpath::criterion` import.
+//! from a plain Criterion benchmark is importing `Criterion`, `BenchmarkId`
+//! and the macros from `hotpath::criterion`.
 //!
 //! Run with:
 //!   cargo bench -p test-criterion --bench codec
@@ -7,8 +8,8 @@
 
 use std::hint::black_box;
 
-use criterion::{BatchSize, BenchmarkId};
-use hotpath::criterion::{criterion_group, criterion_main, Criterion};
+use criterion::BatchSize;
+use hotpath::criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 #[hotpath::measure]
 fn encode(values: &[u32]) -> Vec<u8> {

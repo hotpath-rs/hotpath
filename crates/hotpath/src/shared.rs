@@ -1,5 +1,12 @@
 use std::str::FromStr;
 
+/// `user_metadata` keys the Criterion adapter records: the full benchmark
+/// id and the fixed iteration count. A native/Callgrind merge compares both.
+#[cfg(any(feature = "hotpath", feature = "criterion-0-8"))]
+pub(crate) const CRITERION_BENCHMARK_KEY: &str = "criterion_benchmark";
+#[cfg(any(feature = "hotpath", feature = "criterion-0-8"))]
+pub(crate) const CRITERION_ITERATIONS_KEY: &str = "criterion_iterations";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Section {
     FunctionsTiming,

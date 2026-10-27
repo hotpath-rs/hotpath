@@ -6,14 +6,14 @@
 //! attributed.
 //!
 //! Run with:
-//!   HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched
+//!   HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched_per_iteration
 
 use std::hint::black_box;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-use criterion::{BatchSize, BenchmarkId};
-use hotpath::criterion::{criterion_group, criterion_main, Criterion};
+use criterion::BatchSize;
+use hotpath::criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 /// Allocated by `work`, the instrumented library function.
 const WORK_BYTES: usize = 512;
@@ -99,6 +99,10 @@ fn bench_top_level(c: &mut Criterion) {
         b.iter(|| run(1));
         print_counts();
     });
+    c.bench_with_input(BenchmarkId::new("top_input", 9), &9u64, |b, &seed| {
+        b.iter(|| run(seed));
+        print_counts();
+    });
 }
 
 fn bench_work(c: &mut Criterion) {
@@ -109,6 +113,22 @@ fn bench_work(c: &mut Criterion) {
     });
     group.bench_function("iter_batched", |b| {
         b.iter_batched(Input::setup, |input| run(input.seed), BatchSize::SmallInput);
+        print_counts();
+    });
+    group.bench_function("iter_batched_per_iteration", |b| {
+        b.iter_batched(
+            Input::setup,
+            |input| run(input.seed),
+            BatchSize::PerIteration,
+        );
+        print_counts();
+    });
+    group.bench_function("iter_batched_ref_per_iteration", |b| {
+        b.iter_batched_ref(
+            Input::setup,
+            |input: &mut Input| run(input.seed),
+            BatchSize::PerIteration,
+        );
         print_counts();
     });
     group.bench_function("iter_batched_ref", |b| {
@@ -140,6 +160,10 @@ fn bench_inputs(c: &mut Criterion) {
             print_counts();
         });
     }
+    group.bench_function(BenchmarkId::from_parameter("seven"), |b| {
+        b.iter(|| run(7));
+        print_counts();
+    });
     group.finish();
 }
 

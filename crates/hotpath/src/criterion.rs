@@ -4,15 +4,16 @@
 //! Swap the Criterion imports for these wrappers:
 //!
 //! ```ignore
-//! use criterion::BenchmarkId;
-//! use hotpath::criterion::{criterion_group, criterion_main, Criterion};
+//! use hotpath::criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 //! ```
 //!
 //! Without `HOTPATH_CRITERION_ITERATIONS` every wrapper forwards to Criterion
 //! unchanged. With it set to N, the first benchmark routine entered starts a
 //! [`HotpathGuard`](crate::HotpathGuard), runs the routine exactly N times
 //! (each call measured as `hotpath::criterion::routine`) inside a single
-//! Criterion iteration and drops the guard, which writes the report. That
+//! Criterion iteration and drops the guard, which writes the report with the
+//! benchmark's full id and N in `user_metadata`, so a native/Callgrind merge
+//! refuses runs of different benchmarks or counts. That
 //! needs Criterion's test mode (`--test`, which `cargo test --benches` and
 //! `cargo run` imply) and a filter selecting one benchmark, e.g.
 //! `cargo bench --bench codec -- --test --exact "group/id"`: entering a second
@@ -22,7 +23,7 @@
 //! Supported: [`Criterion::bench_function`], [`Criterion::bench_with_input`],
 //! [`Criterion::benchmark_group`] and the group's counterparts, and
 //! [`Bencher::iter`], [`Bencher::iter_batched`], [`Bencher::iter_batched_ref`],
-//! [`Bencher::iter_custom`]. Anything else (`to_async`, `iter_with_setup`,
+//! [`Bencher::iter_custom`], with Criterion's batching. Anything else (`to_async`, `iter_with_setup`,
 //! `iter_with_large_drop`, Criterion's own config builders on the wrapper) is
 //! deliberately missing, so it fails to compile instead of silently running a
 //! different number of iterations. The `config =` expression of
@@ -36,7 +37,9 @@ use std::sync::LazyLock;
 use std::time::Duration;
 
 use ::criterion::measurement::{Measurement, WallTime};
-use ::criterion::{BatchSize, BenchmarkId, PlotConfiguration, SamplingMode, Throughput};
+use ::criterion::{BatchSize, PlotConfiguration, SamplingMode, Throughput};
+
+use crate::shared::{CRITERION_BENCHMARK_KEY, CRITERION_ITERATIONS_KEY};
 
 #[doc(hidden)]
 pub use ::criterion as __criterion;
@@ -70,8 +73,9 @@ struct Session {
 }
 
 impl Session {
-    /// `None` without `HOTPATH_CRITERION_ITERATIONS`.
-    fn start() -> Option<Session> {
+    /// `None` without `HOTPATH_CRITERION_ITERATIONS`. `id` is the benchmark's
+    /// full Criterion id.
+    fn start(id: &str) -> Option<Session> {
         let iterations = (*ITERATIONS)?;
         assert!(
             !SESSION_STARTED.swap(true, Ordering::Relaxed),
@@ -79,8 +83,10 @@ impl Session {
              one started: run Criterion in test mode with a filter matching one benchmark, \
              e.g. `cargo bench --bench <name> -- --test --exact <group/id>`"
         );
-        let metadata =
-            HashMap::from([("criterion_iterations".to_string(), iterations.to_string())]);
+        let metadata = HashMap::from([
+            (CRITERION_BENCHMARK_KEY.to_string(), id.to_string()),
+            (CRITERION_ITERATIONS_KEY.to_string(), iterations.to_string()),
+        ]);
         let guard = crate::HotpathGuardBuilder::new(BENCH_LABEL)
             .user_metadata(metadata)
             .build();
@@ -88,6 +94,29 @@ impl Session {
             iterations,
             _guard: guard,
         })
+    }
+}
+
+/// Inputs per batch for `size`, Criterion's private `BatchSize::iters_per_batch`.
+fn batch_size(size: BatchSize, iters: u64) -> u64 {
+    let batch = match size {
+        BatchSize::SmallInput => iters.div_ceil(10),
+        BatchSize::LargeInput => iters.div_ceil(1000),
+        BatchSize::PerIteration => 1,
+        BatchSize::NumBatches(batches) => iters.div_ceil(batches),
+        BatchSize::NumIterations(size) => size,
+        _ => panic!("{size:?} is not a valid BatchSize"),
+    };
+    assert!(batch != 0, "Batch size must not be zero.");
+    batch
+}
+
+/// Criterion's full id of a benchmark (what `--exact` matches).
+fn full_id(group: &str, function: Option<&str>, parameter: Option<&str>) -> String {
+    match (function, parameter) {
+        (Some(function), Some(parameter)) => format!("{group}/{function}/{parameter}"),
+        (Some(name), None) | (None, Some(name)) => format!("{group}/{name}"),
+        (None, None) => group.to_string(),
     }
 }
 
@@ -123,8 +152,10 @@ impl<M: Measurement> From<::criterion::Criterion<M>> for Criterion<M> {
 impl<M: Measurement + 'static> Criterion<M> {
     /// See [`criterion::Criterion::benchmark_group`].
     pub fn benchmark_group<S: Into<String>>(&mut self, group_name: S) -> BenchmarkGroup<'_, M> {
+        let name = group_name.into();
         BenchmarkGroup {
-            inner: self.inner.benchmark_group(group_name),
+            inner: self.inner.benchmark_group(name.clone()),
+            name,
         }
     }
 
@@ -134,62 +165,104 @@ impl<M: Measurement + 'static> Criterion<M> {
         F: FnMut(&mut Bencher<'_, '_, M>),
     {
         self.inner
-            .bench_function(id, |b| f(&mut Bencher { inner: b }));
+            .bench_function(id, |b| f(&mut Bencher { inner: b, id }));
         self
     }
 
-    /// See [`criterion::Criterion::bench_with_input`].
+    /// See [`criterion::Criterion::bench_with_input`]. `id` needs a function
+    /// name, which becomes the group.
     pub fn bench_with_input<F, I>(&mut self, id: BenchmarkId, input: &I, mut f: F) -> &mut Self
     where
         F: FnMut(&mut Bencher<'_, '_, M>, &I),
     {
+        let group = id.function.clone().unwrap_or_default();
+        let full = full_id(&group, None, id.parameter.as_deref());
         self.inner
-            .bench_with_input(id, input, |b, i| f(&mut Bencher { inner: b }, i));
+            .bench_with_input(id.into_criterion(), input, |b, i| {
+                f(
+                    &mut Bencher {
+                        inner: b,
+                        id: &full,
+                    },
+                    i,
+                )
+            });
         self
     }
 }
 
-/// A benchmark id inside a group: a function name or a [`BenchmarkId`].
-/// Criterion's own conversion trait is not nameable outside Criterion, so
-/// this one forwards each kind to it as is.
-pub trait IntoBenchmarkId {
-    #[doc(hidden)]
-    fn into_id(self) -> GroupId;
+/// [`criterion::BenchmarkId`] that keeps its parts readable, so a report can
+/// name the benchmark it measured. Criterion's own has private fields.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BenchmarkId {
+    function: Option<String>,
+    parameter: Option<String>,
 }
 
-#[doc(hidden)]
-pub enum GroupId {
-    Name(String),
-    Id(BenchmarkId),
+impl BenchmarkId {
+    /// See [`criterion::BenchmarkId::new`].
+    pub fn new<S: Into<String>, P: std::fmt::Display>(function_name: S, parameter: P) -> Self {
+        Self {
+            function: Some(function_name.into()),
+            parameter: Some(parameter.to_string()),
+        }
+    }
+
+    /// See [`criterion::BenchmarkId::from_parameter`].
+    pub fn from_parameter<P: std::fmt::Display>(parameter: P) -> Self {
+        Self {
+            function: None,
+            parameter: Some(parameter.to_string()),
+        }
+    }
+
+    fn into_criterion(self) -> ::criterion::BenchmarkId {
+        match (self.function, self.parameter) {
+            (Some(function), Some(parameter)) => ::criterion::BenchmarkId::new(function, parameter),
+            (None, Some(parameter)) => ::criterion::BenchmarkId::from_parameter(parameter),
+            (function, None) => unreachable!("BenchmarkId {function:?} without a parameter"),
+        }
+    }
+}
+
+/// A benchmark id inside a group: a function name or a [`BenchmarkId`].
+/// Criterion's own conversion trait is not nameable outside Criterion.
+pub trait IntoBenchmarkId {
+    #[doc(hidden)]
+    fn into_id(self) -> BenchmarkId;
 }
 
 impl IntoBenchmarkId for BenchmarkId {
-    fn into_id(self) -> GroupId {
-        GroupId::Id(self)
+    fn into_id(self) -> BenchmarkId {
+        self
     }
 }
 
 impl IntoBenchmarkId for &str {
-    fn into_id(self) -> GroupId {
-        GroupId::Name(self.to_string())
+    fn into_id(self) -> BenchmarkId {
+        self.to_string().into_id()
     }
 }
 
 impl IntoBenchmarkId for String {
-    fn into_id(self) -> GroupId {
-        GroupId::Name(self)
+    fn into_id(self) -> BenchmarkId {
+        BenchmarkId {
+            function: Some(self),
+            parameter: None,
+        }
     }
 }
 
 impl IntoBenchmarkId for &String {
-    fn into_id(self) -> GroupId {
-        GroupId::Name(self.clone())
+    fn into_id(self) -> BenchmarkId {
+        self.clone().into_id()
     }
 }
 
 /// [`criterion::BenchmarkGroup`] whose benchmarks honor `HOTPATH_CRITERION_ITERATIONS`.
 pub struct BenchmarkGroup<'a, M: Measurement = WallTime> {
     inner: ::criterion::BenchmarkGroup<'a, M>,
+    name: String,
 }
 
 impl<M: Measurement> BenchmarkGroup<'_, M> {
@@ -258,12 +331,7 @@ impl<M: Measurement> BenchmarkGroup<'_, M> {
     where
         F: FnMut(&mut Bencher<'_, '_, M>),
     {
-        let f = |b: &mut ::criterion::Bencher<'_, M>| f(&mut Bencher { inner: b });
-        match id.into_id() {
-            GroupId::Name(name) => self.inner.bench_function(name, f),
-            GroupId::Id(id) => self.inner.bench_function(id, f),
-        };
-        self
+        self.bench_with_input(id, &(), |b, _| f(b))
     }
 
     /// See [`criterion::BenchmarkGroup::bench_with_input`].
@@ -277,10 +345,23 @@ impl<M: Measurement> BenchmarkGroup<'_, M> {
         F: FnMut(&mut Bencher<'_, '_, M>, &I),
         I: ?Sized,
     {
-        let f = |b: &mut ::criterion::Bencher<'_, M>, i: &I| f(&mut Bencher { inner: b }, i);
-        match id.into_id() {
-            GroupId::Name(name) => self.inner.bench_with_input(name, input, f),
-            GroupId::Id(id) => self.inner.bench_with_input(id, input, f),
+        let id = id.into_id();
+        let full = full_id(&self.name, id.function.as_deref(), id.parameter.as_deref());
+        let f = |b: &mut ::criterion::Bencher<'_, M>, i: &I| {
+            f(
+                &mut Bencher {
+                    inner: b,
+                    id: &full,
+                },
+                i,
+            )
+        };
+        match id {
+            BenchmarkId {
+                function: Some(function),
+                parameter: None,
+            } => self.inner.bench_with_input(function, input, f),
+            id => self.inner.bench_with_input(id.into_criterion(), input, f),
         };
         self
     }
@@ -295,6 +376,8 @@ impl<M: Measurement> BenchmarkGroup<'_, M> {
 /// `HOTPATH_CRITERION_ITERATIONS` times when it is set.
 pub struct Bencher<'a, 'b, M: Measurement = WallTime> {
     inner: &'b mut ::criterion::Bencher<'a, M>,
+    /// The benchmark's full Criterion id.
+    id: &'b str,
 }
 
 impl<M: Measurement> Bencher<'_, '_, M> {
@@ -304,7 +387,7 @@ impl<M: Measurement> Bencher<'_, '_, M> {
     where
         R: FnMut() -> O,
     {
-        let Some(session) = Session::start() else {
+        let Some(session) = Session::start(self.id) else {
             return self.inner.iter(routine);
         };
         self.inner.iter(|| {
@@ -316,44 +399,80 @@ impl<M: Measurement> Bencher<'_, '_, M> {
         });
     }
 
-    /// See [`criterion::Bencher::iter_batched`]. In fixed-iteration mode
-    /// every iteration runs `setup` right before `routine`, like
-    /// [`BatchSize::PerIteration`], whatever `size` says: inputs are created,
-    /// and outputs dropped, outside the measured call.
+    /// See [`criterion::Bencher::iter_batched`]. Batches like Criterion: each
+    /// batch runs every `setup` first, then the routines, then drops the
+    /// outputs, all but the routines outside the measured call; the last
+    /// batch holds what is left of the N iterations.
     pub fn iter_batched<I, O, S, R>(&mut self, mut setup: S, mut routine: R, size: BatchSize)
     where
         S: FnMut() -> I,
         R: FnMut(I) -> O,
     {
-        let Some(session) = Session::start() else {
+        let Some(session) = Session::start(self.id) else {
             return self.inner.iter_batched(setup, routine, size);
         };
+        let iterations = session.iterations;
+        let batch = batch_size(size, iterations);
         self.inner.iter(|| {
-            for _ in 0..session.iterations {
-                let input = black_box(setup());
-                let output = crate::criterion::routine(|| routine(input));
-                drop(black_box(output));
+            if batch == 1 {
+                for _ in 0..iterations {
+                    let input = black_box(setup());
+                    let output = crate::criterion::routine(|| routine(input));
+                    drop(black_box(output));
+                }
+                return;
+            }
+            let mut done = 0;
+            while done < iterations {
+                let len = batch.min(iterations - done);
+                let inputs = black_box((0..len).map(|_| setup()).collect::<Vec<_>>());
+                let mut outputs = Vec::with_capacity(len as usize);
+                outputs.extend(
+                    inputs
+                        .into_iter()
+                        .map(|input| crate::criterion::routine(|| routine(input))),
+                );
+                black_box(outputs);
+                done += len;
             }
         });
     }
 
     /// See [`criterion::Bencher::iter_batched_ref`]. Batching as in
-    /// [`Bencher::iter_batched`]; outputs, then inputs, are dropped outside the
-    /// measured call.
+    /// [`Bencher::iter_batched`]; each batch drops its outputs, then its
+    /// inputs, outside the measured call.
     pub fn iter_batched_ref<I, O, S, R>(&mut self, mut setup: S, mut routine: R, size: BatchSize)
     where
         S: FnMut() -> I,
         R: FnMut(&mut I) -> O,
     {
-        let Some(session) = Session::start() else {
+        let Some(session) = Session::start(self.id) else {
             return self.inner.iter_batched_ref(setup, routine, size);
         };
+        let iterations = session.iterations;
+        let batch = batch_size(size, iterations);
         self.inner.iter(|| {
-            for _ in 0..session.iterations {
-                let mut input = black_box(setup());
-                let output = crate::criterion::routine(|| routine(&mut input));
-                drop(black_box(output));
-                drop(black_box(input));
+            if batch == 1 {
+                for _ in 0..iterations {
+                    let mut input = black_box(setup());
+                    let output = crate::criterion::routine(|| routine(&mut input));
+                    drop(black_box(output));
+                    drop(black_box(input));
+                }
+                return;
+            }
+            let mut done = 0;
+            while done < iterations {
+                let len = batch.min(iterations - done);
+                let mut inputs = black_box((0..len).map(|_| setup()).collect::<Vec<_>>());
+                let mut outputs = Vec::with_capacity(len as usize);
+                outputs.extend(
+                    inputs
+                        .iter_mut()
+                        .map(|input| crate::criterion::routine(|| routine(input))),
+                );
+                black_box(outputs);
+                done += len;
             }
         });
     }
@@ -365,7 +484,7 @@ impl<M: Measurement> Bencher<'_, '_, M> {
     where
         R: FnMut(u64) -> M::Value,
     {
-        let Some(session) = Session::start() else {
+        let Some(session) = Session::start(self.id) else {
             return self.inner.iter_custom(routine);
         };
         self.inner.iter_custom(|_| routine(session.iterations));

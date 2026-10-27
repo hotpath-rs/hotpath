@@ -91,23 +91,41 @@ pub mod tests {
         )
     }
 
-    // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched
+    // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched_per_iteration
     #[test]
     fn test_fixed_iterations_run_each_routine_exactly_n_times() {
         let n = ITERATIONS;
         // (benchmark, setups, routine bytes per call, bench row bytes per
-        // iteration). The routine allocates 64 B and `work` 512 B; setup
-        // 1024 B; an output drop 32 B and an input drop 16 B. `iter` drops
-        // its output inside the routine, as Criterion does; the batched
-        // APIs create inputs and drop what is left outside it.
+        // iteration, whether the bench row holds exactly those). The routine
+        // allocates 64 B and `work` 512 B; setup 1024 B; an output drop 32 B
+        // and an input drop 16 B. `iter` drops its output inside the routine,
+        // as Criterion does; the batched APIs create inputs and drop what is
+        // left outside it. `SmallInput` batches 100 inputs, whose Vecs also
+        // count towards the bench row; `LargeInput` at N=1000 is one per batch.
         let cases = [
-            ("top_level", 0, 64 + 32, 0),
-            ("work/iter", 0, 64 + 32, 0),
-            ("inputs/work/3", 0, 64 + 32, 0),
-            ("work/iter_batched", n, 64 + 16, 1024 + 32),
-            ("work/iter_batched_ref", n, 64, 1024 + 32 + 16),
+            ("top_level", 0, 64 + 32, 0, true),
+            ("top_input/9", 0, 64 + 32, 0, true),
+            ("work/iter", 0, 64 + 32, 0, true),
+            ("inputs/work/3", 0, 64 + 32, 0, true),
+            ("inputs/seven", 0, 64 + 32, 0, true),
+            (
+                "work/iter_batched_per_iteration",
+                n,
+                64 + 16,
+                1024 + 32,
+                true,
+            ),
+            ("work/iter_batched", n, 64 + 16, 1024 + 32, false),
+            (
+                "work/iter_batched_ref_per_iteration",
+                n,
+                64,
+                1024 + 32 + 16,
+                true,
+            ),
+            ("work/iter_batched_ref", n, 64, 1024 + 32 + 16, true),
         ];
-        for (benchmark, setups, routine_bytes, bench_bytes) in cases {
+        for (benchmark, setups, routine_bytes, bench_bytes, exact) in cases {
             let (counts, report) = fixed_run(benchmark);
             assert_eq!(
                 counts,
@@ -119,13 +137,15 @@ pub mod tests {
                 },
                 "{benchmark}"
             );
+            let metadata = report.user_metadata.as_ref().expect("user metadata");
             assert_eq!(
-                report
-                    .user_metadata
-                    .as_ref()
-                    .and_then(|m| m.get("criterion_iterations"))
-                    .map(String::as_str),
+                metadata.get("criterion_iterations").map(String::as_str),
                 Some("1000")
+            );
+            // The id Criterion's `--exact` filter accepted.
+            assert_eq!(
+                metadata.get("criterion_benchmark").map(String::as_str),
+                Some(benchmark)
             );
 
             let timing = report.functions_timing.as_ref().expect("timing section");
@@ -143,11 +163,19 @@ pub mod tests {
                 routine_bytes,
                 "{benchmark}: setup and drops outside the routine must not be attributed to it"
             );
-            assert_eq!(
-                bytes(&entry(alloc, BENCH).total),
-                bench_bytes * n,
-                "{benchmark}: setup and drops outside the routine belong to the bench row"
-            );
+            let bench_total = bytes(&entry(alloc, BENCH).total);
+            let expected = bench_bytes * n;
+            if exact {
+                assert_eq!(
+                    bench_total, expected,
+                    "{benchmark}: setup and drops outside the routine belong to the bench row"
+                );
+            } else {
+                assert!(
+                    bench_total > expected,
+                    "{benchmark}: bench row {bench_total} B, expected over {expected} B"
+                );
+            }
         }
     }
 
@@ -268,6 +296,47 @@ pub mod tests {
         assert_eq!(entry(&timing, ROUTINE).calls, ITERATIONS);
     }
 
+    /// The trace a batched benchmark printed.
+    fn trace(benchmark: &str) -> String {
+        let output = Example::new("test-criterion", "batching")
+            .env("HOTPATH_CRITERION_ITERATIONS", "25")
+            .args(&["--exact", benchmark])
+            .output();
+        assert_success(&output);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        stderr
+            .lines()
+            .find_map(|l| l.strip_prefix("trace: "))
+            .unwrap_or_else(|| panic!("no trace in stderr:\n{stderr}"))
+            .to_string()
+    }
+
+    /// `pattern(k)` for each batch of 25 iterations in batches of `size`.
+    fn batches(size: usize, pattern: impl Fn(usize) -> String) -> String {
+        (0..25)
+            .step_by(size)
+            .map(|done| pattern(size.min(25 - done)))
+            .collect()
+    }
+
+    // HOTPATH_CRITERION_ITERATIONS=25 cargo run -p test-criterion --example batching --features hotpath -- --exact batched/value/10
+    #[test]
+    fn test_batches_follow_criterion() {
+        let r = |c: &str, k: usize| c.repeat(k);
+        // A consumed input drops inside its routine; outputs drop after the
+        // batch, then (by reference) the inputs.
+        assert_eq!(
+            trace("batched/value/10"),
+            batches(10, |k| r("S", k) + &r("RI", k) + &r("O", k))
+        );
+        assert_eq!(
+            trace("batched/ref/10"),
+            batches(10, |k| r("S", k) + &r("R", k) + &r("O", k) + &r("I", k))
+        );
+        assert_eq!(trace("batched/value/1"), r("SRIO", 25));
+        assert_eq!(trace("batched/ref/1"), r("SROI", 25));
+    }
+
     const MERGE_FEATURES: &str = "hotpath,hotpath-alloc,hotpath-callgrind,hotpath-cloud";
 
     /// One fixed-iteration benchmark of the release fixture writing JSON to
@@ -318,12 +387,18 @@ pub mod tests {
         let dir = RunDir::new();
         let first = icount("work/iter_batched", &dir);
         let second = icount("work/iter_batched", &dir);
-        for name in [ROUTINE, WORK] {
-            let (a, b) = (entry(&first, name), entry(&second, name));
-            assert_eq!(a.calls, ITERATIONS, "{name}");
-            assert!(a.total.parse::<u64>().unwrap() > 0, "{name}");
-            assert_eq!(a.total, b.total, "{name} instructions differ between runs");
-        }
+        let total = |list: &JsonFunctionsList, name: &str| -> u64 {
+            let e = entry(list, name);
+            assert_eq!(e.calls, ITERATIONS, "{name}");
+            e.total.parse().unwrap()
+        };
+        // A leaf measured function is exact.
+        assert_eq!(total(&first, WORK), total(&second, WORK));
+        // The routine also counts hotpath's queueing of its nested calls'
+        // events, whose chunk allocations vary with the background drain.
+        let (a, b) = (total(&first, ROUTINE), total(&second, ROUTINE));
+        let drift = a.abs_diff(b) as f64 / a as f64;
+        assert!(drift < 1e-3, "routine instructions {a} vs {b}");
     }
 
     // HOTPATH_CRITERION_ITERATIONS=1000 HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=native.json cargo run --release -p test-criterion --example fixture --features hotpath,hotpath-alloc,hotpath-callgrind,hotpath-cloud -- --exact work/iter_batched
