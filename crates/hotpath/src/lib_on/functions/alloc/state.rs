@@ -7,11 +7,7 @@ use std::time::Duration;
 use crate::batch::{EventProducer, EventQueueRegistry};
 use crate::instant::Instant;
 
-pub(crate) static MEASUREMENT_QUEUES: EventQueueRegistry<Measurement> = EventQueueRegistry::new();
-
-#[cfg(feature = "hotpath-ordered-drain")]
-pub(crate) static LOST_MEASUREMENTS: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
+static MEASUREMENT_QUEUES: EventQueueRegistry<Measurement> = EventQueueRegistry::new();
 
 thread_local! {
     static MEASUREMENT_PRODUCER: EventProducer<Measurement> = MEASUREMENT_QUEUES.register();
@@ -21,41 +17,10 @@ fn add_measurement(m: Measurement) {
     if !MEASUREMENT_QUEUES.is_active() {
         return;
     }
-    let result = MEASUREMENT_PRODUCER.try_with(|producer| producer.push(m));
-    #[cfg(feature = "hotpath-ordered-drain")]
-    if result.is_err() {
-        LOST_MEASUREMENTS.store(true, std::sync::atomic::Ordering::Release);
-    }
-    #[cfg(not(feature = "hotpath-ordered-drain"))]
-    let _ = result;
+    let _ = MEASUREMENT_PRODUCER.try_with(|producer| producer.push(m));
 }
 
-#[cfg(feature = "hotpath-ordered-drain")]
-pub(crate) static MEASUREMENT_GENERATION: std::sync::atomic::AtomicUsize =
-    std::sync::atomic::AtomicUsize::new(0);
-
 pub(crate) fn set_measurements_active(active: bool) {
-    #[cfg(feature = "hotpath-ordered-drain")]
-    if active {
-        // compare_exchange_weak preserves compatibility with toolchains that
-        // predate AtomicUsize::try_update, without deprecated fetch_update.
-        let mut generation = MEASUREMENT_GENERATION.load(std::sync::atomic::Ordering::Acquire);
-        loop {
-            let Some(next) = generation.checked_add(1) else {
-                LOST_MEASUREMENTS.store(true, std::sync::atomic::Ordering::Release);
-                break;
-            };
-            match MEASUREMENT_GENERATION.compare_exchange_weak(
-                generation,
-                next,
-                std::sync::atomic::Ordering::AcqRel,
-                std::sync::atomic::Ordering::Acquire,
-            ) {
-                Ok(_) => break,
-                Err(actual) => generation = actual,
-            }
-        }
-    }
     MEASUREMENT_QUEUES.set_active(active);
 }
 
@@ -65,6 +30,11 @@ pub(crate) fn sweep_measurements(out: &mut Vec<Measurement>) {
 
 pub(crate) fn drain_all_measurements(out: &mut Vec<Measurement>) {
     MEASUREMENT_QUEUES.drain_all(out);
+}
+
+#[cfg(feature = "hotpath-ordered-drain")]
+pub(crate) fn published_measurements() -> crate::batch::PublishedPrefix<Measurement> {
+    MEASUREMENT_QUEUES.published_prefix()
 }
 
 #[derive(Debug)]

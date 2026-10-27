@@ -443,24 +443,10 @@ fn collect_functions_alloc(families: &mut Vec<Family>) -> Option<()> {
     let Some(functions) = alloc else {
         return Some(());
     };
-    append_functions_alloc(families, &functions);
-    Some(())
-}
-
-#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-ordered-drain"))]
-pub(crate) fn render_alloc_prefix(functions: Vec<crate::functions::RawFunctionAlloc>) -> String {
-    let mut families = Vec::new();
-    append_functions_alloc(&mut families, &functions);
-    families::to_text(&families)
-}
-
-fn append_functions_alloc(
-    families: &mut Vec<Family>,
-    functions: &[crate::functions::RawFunctionAlloc],
-) {
     if functions.is_empty() {
-        return;
+        return Some(());
     }
+
     let labels = |f: &crate::functions::RawFunctionAlloc| vec![("function", f.name.to_string())];
 
     families.push(Family {
@@ -552,6 +538,8 @@ fn append_functions_alloc(
             samples: allocs_samples,
         });
     }
+
+    Some(())
 }
 
 #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure(log = true))]

@@ -41,9 +41,10 @@ hotpath-cloud-meta = ["hotpath-meta", "hotpath-meta/hotpath-cloud-meta"]
 hotpath-callgrind-meta = ["hotpath-meta", "hotpath-meta/hotpath-callgrind-meta", "hotpath-drain?/hotpath-callgrind-meta"]
 hotpath-mcp-meta = ["hotpath-meta", "hotpath-meta/hotpath-mcp-meta", "hotpath-meta/axum-0-8"]
 hotpath-prometheus-meta = ["hotpath-meta", "hotpath-meta/hotpath-prometheus-meta"]
-# Pair with hotpath-alloc and hotpath-prometheus for ordered allocation receipts.
-# Ordinary profiling keeps its original event path.
-hotpath-ordered-drain = ["hotpath-drain?/ordered-drain"]
+# Functions worker answers queries only after processing every allocation event
+# published before the query, not just one capped sweep. The drain counters it
+# enables apply to every subsystem's queues, not only allocations.
+hotpath-ordered-drain = ["hotpath-alloc", "hotpath-drain/hotpath-ordered-drain"]
 hotpath-alloc = ["hotpath", "hotpath-macros/hotpath-alloc"]
 hotpath-cloud = ["hotpath", "dep:ureq", "ureq/rustls", "ureq/json", "dep:flate2"]
 cloud = ["json", "dep:eyre", "dep:clap", "dep:ureq", "ureq/json", "ureq/rustls", "serde_json/preserve_order"]
