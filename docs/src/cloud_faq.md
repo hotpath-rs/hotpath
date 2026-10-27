@@ -9,6 +9,10 @@ The hotpath GitHub App has **no access to your code**. It requests only two perm
 
 The only data hotpath-cloud receives from your CI is the benchmark reports that your workflow uploads. See [CI integration](ci_integration.md#setup) for details.
 
+## Which hotpath version does hotpath-cloud need?
+
+`hotpath` `0.30.0` or newer. Upgrade the dependency before setting up the [CI integration](ci_integration.md).
+
 ## Can I use hotpath-rs without hotpath-cloud?
 
 Yes. The core `hotpath-rs` library remains open source, and hotpath-cloud is an optional integration built on top of it. Everything the profiler does locally works without an account.

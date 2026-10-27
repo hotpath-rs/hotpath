@@ -61,7 +61,7 @@ Every uploaded report is persisted. The dashboard compares each report against i
 
 ## Getting Started
 
-`hotpath-cloud` supports `hotpath` version `0.29` or newer.
+`hotpath-cloud` requires `hotpath` version `0.30.0` or newer.
 
 Both setups below use the hotpath GitHub App. It asks for minimal permissions: **no access to your source code**, only pull request write access to post comments, and checks to optionally report the status of each benchmark. The only data it gets from your CI is the benchmark reports your workflow uploads.
 
