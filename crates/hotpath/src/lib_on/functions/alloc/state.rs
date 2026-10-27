@@ -7,54 +7,32 @@ use std::time::Duration;
 use crate::batch::{EventProducer, EventQueueRegistry};
 use crate::instant::Instant;
 
-pub(crate) static MEASUREMENT_QUEUES: EventQueueRegistry<Measurement> = EventQueueRegistry::new();
-
-#[cfg(feature = "hotpath-ordered-drain")]
-pub(crate) static LOST_MEASUREMENTS: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
+static MEASUREMENT_QUEUES: EventQueueRegistry<Measurement> = EventQueueRegistry::new();
 
 thread_local! {
     static MEASUREMENT_PRODUCER: EventProducer<Measurement> = MEASUREMENT_QUEUES.register();
 }
 
+/// Set when an event could not be enqueued (its thread's producer was already
+/// torn down); allocation queries fail for the rest of the session.
+#[cfg(feature = "hotpath-ordered-drain")]
+static LOST_MEASUREMENTS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 fn add_measurement(m: Measurement) {
     if !MEASUREMENT_QUEUES.is_active() {
         return;
     }
-    let result = MEASUREMENT_PRODUCER.try_with(|producer| producer.push(m));
+    let _result = MEASUREMENT_PRODUCER.try_with(|producer| producer.push(m));
     #[cfg(feature = "hotpath-ordered-drain")]
-    if result.is_err() {
+    if _result.is_err() {
         LOST_MEASUREMENTS.store(true, std::sync::atomic::Ordering::Release);
     }
-    #[cfg(not(feature = "hotpath-ordered-drain"))]
-    let _ = result;
 }
-
-#[cfg(feature = "hotpath-ordered-drain")]
-pub(crate) static MEASUREMENT_GENERATION: std::sync::atomic::AtomicUsize =
-    std::sync::atomic::AtomicUsize::new(0);
 
 pub(crate) fn set_measurements_active(active: bool) {
     #[cfg(feature = "hotpath-ordered-drain")]
     if active {
-        // compare_exchange_weak preserves compatibility with toolchains that
-        // predate AtomicUsize::try_update, without deprecated fetch_update.
-        let mut generation = MEASUREMENT_GENERATION.load(std::sync::atomic::Ordering::Acquire);
-        loop {
-            let Some(next) = generation.checked_add(1) else {
-                LOST_MEASUREMENTS.store(true, std::sync::atomic::Ordering::Release);
-                break;
-            };
-            match MEASUREMENT_GENERATION.compare_exchange_weak(
-                generation,
-                next,
-                std::sync::atomic::Ordering::AcqRel,
-                std::sync::atomic::Ordering::Acquire,
-            ) {
-                Ok(_) => break,
-                Err(actual) => generation = actual,
-            }
-        }
+        LOST_MEASUREMENTS.store(false, std::sync::atomic::Ordering::Release);
     }
     MEASUREMENT_QUEUES.set_active(active);
 }
@@ -65,6 +43,37 @@ pub(crate) fn sweep_measurements(out: &mut Vec<Measurement>) {
 
 pub(crate) fn drain_all_measurements(out: &mut Vec<Measurement>) {
     MEASUREMENT_QUEUES.drain_all(out);
+}
+
+/// Sweeps until every event published before the call is processed, so an
+/// allocation query sees more than one capped sweep. `false` means the query
+/// must fail: an event was lost, the registry is poisoned, `timeout` elapsed
+/// or shutdown is pending. The snapshot is fixed, so producers that keep
+/// publishing cannot stall it.
+#[cfg(feature = "hotpath-ordered-drain")]
+pub(crate) fn drain_published(
+    timeout: Duration,
+    swept: &mut Vec<Measurement>,
+    mut process: impl FnMut(Measurement),
+    shutdown_pending: impl Fn() -> bool,
+) -> bool {
+    let Some(published) = MEASUREMENT_QUEUES.published_prefix() else {
+        return false;
+    };
+    let deadline = std::time::Instant::now() + timeout;
+    while !published.is_processed() {
+        if shutdown_pending() || std::time::Instant::now() >= deadline {
+            return false;
+        }
+        sweep_measurements(swept);
+        // Unprocessed published events always yield a non-empty sweep unless
+        // the registry got poisoned, so an empty one can never catch up.
+        if swept.is_empty() {
+            return false;
+        }
+        swept.drain(..).for_each(&mut process);
+    }
+    !LOST_MEASUREMENTS.load(std::sync::atomic::Ordering::Acquire)
 }
 
 #[derive(Debug)]
