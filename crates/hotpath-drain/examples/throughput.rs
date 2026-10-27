@@ -1,7 +1,5 @@
 //! Sample use of hotpath-drain: one run of the lockstep scenario in
-//! `support/lockstep.rs`, where several producer threads push one million
-//! events in total into a shared registry while a single consumer thread
-//! sweeps the queues, then drains what is left at shutdown.
+//! `support/lockstep.rs`.
 //!
 //! Run with:
 //!   cargo run -p hotpath-drain --example throughput --release

@@ -1,6 +1,4 @@
-//! Minimal Criterion benchmark using `hotpath::criterion`: the only change
-//! from a plain Criterion benchmark is importing `Criterion`, `BenchmarkId`
-//! and the macros from `hotpath::criterion`.
+//! Minimal Criterion benchmark using `hotpath::criterion`.
 //!
 //! Run with:
 //!   cargo bench -p test-criterion --bench codec

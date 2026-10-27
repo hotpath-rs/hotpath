@@ -16,7 +16,6 @@ pub mod tests {
     const BENCH: &str = "hotpath::criterion::bench";
     const WORK: &str = "fixture::work";
 
-    /// The fixture's own counters, printed to stderr after each benchmark.
     #[derive(Debug, PartialEq)]
     struct Counts {
         routine_calls: u64,
@@ -25,7 +24,6 @@ pub mod tests {
         output_drops: u64,
     }
 
-    /// Counts printed by the last benchmark that finished.
     #[track_caller]
     fn counts(output: &Output) -> Counts {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -74,8 +72,7 @@ pub mod tests {
         hotpath::parse_bytes(value).unwrap_or_else(|| panic!("not bytes: {value:?}"))
     }
 
-    /// One fixed-iteration run: (counts, report). `hotpath-cloud` renders
-    /// JSON values at exact precision.
+    /// `hotpath-cloud` renders JSON values at exact precision.
     #[track_caller]
     fn fixed_run(benchmark: &str) -> (Counts, JsonReport) {
         let output = fixed("hotpath,hotpath-alloc,hotpath-cloud", benchmark)
@@ -96,12 +93,7 @@ pub mod tests {
     fn test_fixed_iterations_run_each_routine_exactly_n_times() {
         let n = ITERATIONS;
         // (benchmark, setups, routine bytes per call, bench row bytes per
-        // iteration, whether the bench row holds exactly those). The routine
-        // allocates 64 B and `work` 512 B; setup 1024 B; an output drop 32 B
-        // and an input drop 16 B. `iter` drops its output inside the routine,
-        // as Criterion does; the batched APIs create inputs and drop what is
-        // left outside it. `SmallInput` batches 100 inputs, whose Vecs also
-        // count towards the bench row; `LargeInput` at N=1000 is one per batch.
+        // iteration, whether the bench row holds exactly those).
         let cases = [
             ("top_level", 0, 64 + 32, 0, true),
             ("top_input/9", 0, 64 + 32, 0, true),
@@ -142,7 +134,6 @@ pub mod tests {
                 metadata.get("criterion_iterations").map(String::as_str),
                 Some("1000")
             );
-            // The id Criterion's `--exact` filter accepted.
             assert_eq!(
                 metadata.get("criterion_benchmark").map(String::as_str),
                 Some(benchmark)
@@ -296,7 +287,6 @@ pub mod tests {
         assert_eq!(entry(&timing, ROUTINE).calls, ITERATIONS);
     }
 
-    /// The trace a batched benchmark printed.
     fn trace(benchmark: &str) -> String {
         let output = Example::new("test-criterion", "batching")
             .env("HOTPATH_CRITERION_ITERATIONS", "25")
@@ -311,7 +301,6 @@ pub mod tests {
             .to_string()
     }
 
-    /// `pattern(k)` for each batch of 25 iterations in batches of `size`.
     fn batches(size: usize, pattern: impl Fn(usize) -> String) -> String {
         (0..25)
             .step_by(size)
@@ -323,8 +312,6 @@ pub mod tests {
     #[test]
     fn test_batches_follow_criterion() {
         let r = |c: &str, k: usize| c.repeat(k);
-        // A consumed input drops inside its routine; outputs drop after the
-        // batch, then (by reference) the inputs.
         assert_eq!(
             trace("batched/value/10"),
             batches(10, |k| r("S", k) + &r("RI", k) + &r("O", k))
@@ -339,8 +326,6 @@ pub mod tests {
 
     const MERGE_FEATURES: &str = "hotpath,hotpath-alloc,hotpath-callgrind,hotpath-cloud";
 
-    /// One fixed-iteration benchmark of the release fixture writing JSON to
-    /// `out`, natively or under Callgrind with its dumps in `dir`.
     fn merge_run(benchmark: &str, out: &str, callgrind: Option<&RunDir>) -> Example {
         let example = fixed(MERGE_FEATURES, benchmark)
             .release()
@@ -366,7 +351,6 @@ pub mod tests {
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
     }
 
-    /// Instruction count totals of one Callgrind run of `benchmark`.
     fn icount(benchmark: &str, dir: &RunDir) -> JsonFunctionsList {
         let out = dir.path(&format!(
             "icount-{}.json",
@@ -394,9 +378,7 @@ pub mod tests {
         };
         // A leaf measured function is exact.
         assert_eq!(total(&first, WORK), total(&second, WORK));
-        // The routine also counts hotpath's queueing of its nested calls'
-        // events and shares the allocator with hotpath's background threads,
-        // so it varies slightly with their timing.
+        // The routine also counts hotpath's own queueing, so it drifts slightly.
         let (a, b) = (total(&first, ROUTINE), total(&second, ROUTINE));
         let drift = a.abs_diff(b) as f64 / a as f64;
         assert!(drift < 1e-3, "routine instructions {a} vs {b}");

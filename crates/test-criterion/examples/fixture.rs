@@ -1,9 +1,6 @@
 //! Criterion benchmarks run through `hotpath::criterion`, one per Bencher
-//! API. Each benchmark counts its routine calls, setups and drops on its
-//! own and prints them to stderr once it finishes, so tests can check the
-//! iteration count independently of the report. Allocation sizes are
-//! distinct per site, so a report's exclusive bytes show where each one was
-//! attributed.
+//! API. Each prints its own routine, setup and drop counts to stderr, and
+//! every allocation site uses a distinct size.
 //!
 //! Run with:
 //!   HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched_per_iteration
@@ -15,15 +12,10 @@ use std::time::{Duration, Instant};
 use criterion::BatchSize;
 use hotpath::criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
-/// Allocated by `work`, the instrumented library function.
 const WORK_BYTES: usize = 512;
-/// Allocated by the benchmark routine itself.
 const ROUTINE_BYTES: usize = 64;
-/// Allocated by each `setup`.
 const SETUP_BYTES: usize = 1024;
-/// Allocated while an `Output` drops.
 const OUTPUT_DROP_BYTES: usize = 32;
-/// Allocated while an `Input` drops.
 const INPUT_DROP_BYTES: usize = 16;
 
 static ROUTINE_CALLS: AtomicU64 = AtomicU64::new(0);
@@ -75,7 +67,6 @@ impl Drop for Output {
     }
 }
 
-/// The measured routine body shared by every benchmark.
 fn run(seed: u64) -> Output {
     ROUTINE_CALLS.fetch_add(1, Ordering::Relaxed);
     Output {

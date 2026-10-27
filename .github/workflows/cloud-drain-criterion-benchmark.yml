@@ -5,15 +5,11 @@ on:
     branches: [main]
   pull_request:
 
-# The `drain` lockstep scenario as a Criterion benchmark (`test-drain-criterion`
-# `drain/lockstep`), profiled by `hotpath-meta` through its Criterion adapter:
-# HOTPATH_META_CRITERION_ITERATIONS fixes the scenario runs, so the report
-# carries `hotpath_meta::criterion::routine` (one call per run) next to the
-# queue's own hot paths, in the separate `drain-criterion` series. One build
-# runs twice: natively for timing, then under Valgrind Callgrind, which merges
-# the native report into its own (`HOTPATH_META_MERGE_REPORT`). A regression
-# fails the pull request's `hotpath / drain-criterion` check run (`pr_check` in
-# `hotpath/drain-criterion-policy.toml`), not the job.
+# The `drain` lockstep scenario as a Criterion benchmark (`test-drain-criterion`),
+# profiled by `hotpath-meta` with a fixed iteration count. One build runs twice:
+# natively for timing, then under Valgrind Callgrind, which merges the native
+# report into its own. A regression fails the `hotpath / drain-criterion` check
+# run, not the job.
 #
 # Pushes and same-repository pull requests upload in process with the job's
 # OIDC token. Fork pull requests get no `id-token: write`, so they write the
@@ -30,8 +26,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    # Shared by both runs, so their reports describe one benchmark and one
-    # workload (the merge compares the Criterion id and iteration count).
+    # Shared by both runs, so their reports describe one benchmark.
     env:
       HOTPATH_META_BENCHMARK: drain-criterion
       HOTPATH_META_OUTPUT_FORMAT: json
@@ -39,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # A pull request's head commit, not the default merge commit.
+          # The pull request's head commit, not the default merge commit.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Record rustc version

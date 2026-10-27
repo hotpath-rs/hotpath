@@ -1,34 +1,17 @@
-//! Criterion adapter (`criterion-0-8`): reuses existing Criterion benchmarks
-//! to produce one deterministic hotpath report per benchmark.
-//!
-//! Swap the Criterion imports for these wrappers:
+//! Criterion adapter (`criterion-0-8`): one hotpath report per existing
+//! Criterion benchmark.
 //!
 //! ```ignore
 //! use hotpath::criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 //! ```
 //!
-//! Without `HOTPATH_CRITERION_ITERATIONS` every wrapper forwards to Criterion
-//! unchanged. With it set to N, the first benchmark routine entered starts a
-//! [`HotpathGuard`](crate::HotpathGuard), runs the routine exactly N times
-//! (each call measured as `hotpath::criterion::routine`) inside a single
-//! Criterion iteration and drops the guard, which writes the report with the
-//! benchmark's full id and N in `user_metadata`, so a native/Callgrind merge
-//! refuses runs of different benchmarks or counts. That
-//! needs Criterion's test mode (`--test`, which `cargo test --benches` and
-//! `cargo run` imply) and a filter selecting one benchmark, e.g.
-//! `cargo bench --bench codec -- --test --exact "group/id"`: entering a second
-//! routine in the same process panics, since that means either Criterion's
-//! measurement loop is running or the filter matched several benchmarks.
+//! Without `HOTPATH_CRITERION_ITERATIONS` every wrapper forwards to Criterion.
+//! With it set to N, the selected routine runs exactly N times inside a single
+//! Criterion iteration. Needs Criterion's test mode and a filter matching one
+//! benchmark, e.g. `cargo bench --bench codec -- --test --exact "group/id"`.
 //!
-//! Supported: [`Criterion::bench_function`], [`Criterion::bench_with_input`],
-//! [`Criterion::benchmark_group`] and the group's counterparts, and
-//! [`Bencher::iter`], [`Bencher::iter_batched`], [`Bencher::iter_batched_ref`],
-//! [`Bencher::iter_custom`], with Criterion's batching. Anything else (`to_async`, `iter_with_setup`,
-//! `iter_with_large_drop`, Criterion's own config builders on the wrapper) is
-//! deliberately missing, so it fails to compile instead of silently running a
-//! different number of iterations. The `config =` expression of
-//! [`criterion_group!`](crate::criterion_group) is a plain
-//! `criterion::Criterion`.
+//! Unwrapped Criterion APIs (`to_async`, `iter_with_setup`, ...) fail to
+//! compile instead of running a different number of iterations.
 
 use std::collections::HashMap;
 use std::hint::black_box;
@@ -44,12 +27,9 @@ use crate::shared::{CRITERION_BENCHMARK_KEY, CRITERION_ITERATIONS_KEY};
 #[doc(hidden)]
 pub use ::criterion as __criterion;
 
-/// Label of the report's wrapper row, covering everything between the start
-/// of the routine loop and its end (setup and drops included).
 const BENCH_LABEL: &str = "hotpath::criterion::bench";
 
-/// `HOTPATH_CRITERION_ITERATIONS`: routine executions per benchmark. Blank or
-/// unset leaves Criterion's own loop alone.
+/// `HOTPATH_CRITERION_ITERATIONS`: routine executions per benchmark.
 static ITERATIONS: LazyLock<Option<u64>> = LazyLock::new(|| {
     let raw = std::env::var_os("HOTPATH_CRITERION_ITERATIONS").filter(|v| !v.is_empty())?;
     let parsed = raw
@@ -61,20 +41,15 @@ static ITERATIONS: LazyLock<Option<u64>> = LazyLock::new(|| {
     }))
 });
 
-/// Set once the fixed-iteration session ran; hotpath supports one guard per
-/// process, so it never resets.
+/// Never resets: hotpath supports one guard per process.
 static SESSION_STARTED: AtomicBool = AtomicBool::new(false);
 
-/// The fixed-iteration session of this process: its iteration count and the
-/// guard whose drop writes the report.
 struct Session {
     iterations: u64,
     _guard: crate::HotpathGuard,
 }
 
 impl Session {
-    /// `None` without `HOTPATH_CRITERION_ITERATIONS`. `id` is the benchmark's
-    /// full Criterion id.
     fn start(id: &str) -> Option<Session> {
         let iterations = (*ITERATIONS)?;
         assert!(
@@ -97,7 +72,7 @@ impl Session {
     }
 }
 
-/// Inputs per batch for `size`, Criterion's private `BatchSize::iters_per_batch`.
+/// Criterion's private `BatchSize::iters_per_batch`.
 fn batch_size(size: BatchSize, iters: u64) -> u64 {
     let batch = match size {
         BatchSize::SmallInput => iters.div_ceil(10),
@@ -111,7 +86,7 @@ fn batch_size(size: BatchSize, iters: u64) -> u64 {
     batch
 }
 
-/// Criterion's full id of a benchmark (what `--exact` matches).
+/// The id `--exact` matches.
 fn full_id(group: &str, function: Option<&str>, parameter: Option<&str>) -> String {
     match (function, parameter) {
         (Some(function), Some(parameter)) => format!("{group}/{function}/{parameter}"),
@@ -120,7 +95,6 @@ fn full_id(group: &str, function: Option<&str>, parameter: Option<&str>) -> Stri
     }
 }
 
-/// One benchmark routine execution, the report's per-iteration row.
 #[hotpath::measure]
 fn routine<O>(f: impl FnOnce() -> O) -> O {
     f()
@@ -169,8 +143,7 @@ impl<M: Measurement + 'static> Criterion<M> {
         self
     }
 
-    /// See [`criterion::Criterion::bench_with_input`]. `id` needs a function
-    /// name, which becomes the group.
+    /// See [`criterion::Criterion::bench_with_input`].
     pub fn bench_with_input<F, I>(&mut self, id: BenchmarkId, input: &I, mut f: F) -> &mut Self
     where
         F: FnMut(&mut Bencher<'_, '_, M>, &I),
@@ -191,8 +164,8 @@ impl<M: Measurement + 'static> Criterion<M> {
     }
 }
 
-/// [`criterion::BenchmarkId`] that keeps its parts readable, so a report can
-/// name the benchmark it measured. Criterion's own has private fields.
+/// [`criterion::BenchmarkId`] with readable parts, so the report can name the
+/// benchmark.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct BenchmarkId {
     function: Option<String>,
@@ -226,7 +199,6 @@ impl BenchmarkId {
 }
 
 /// A benchmark id inside a group: a function name or a [`BenchmarkId`].
-/// Criterion's own conversion trait is not nameable outside Criterion.
 pub trait IntoBenchmarkId {
     #[doc(hidden)]
     fn into_id(self) -> BenchmarkId;
@@ -376,13 +348,11 @@ impl<M: Measurement> BenchmarkGroup<'_, M> {
 /// `HOTPATH_CRITERION_ITERATIONS` times when it is set.
 pub struct Bencher<'a, 'b, M: Measurement = WallTime> {
     inner: &'b mut ::criterion::Bencher<'a, M>,
-    /// The benchmark's full Criterion id.
     id: &'b str,
 }
 
 impl<M: Measurement> Bencher<'_, '_, M> {
-    /// See [`criterion::Bencher::iter`]. Like Criterion, each output is
-    /// dropped inside the measured call.
+    /// See [`criterion::Bencher::iter`].
     pub fn iter<O, R>(&mut self, mut routine: R)
     where
         R: FnMut() -> O,
@@ -399,10 +369,7 @@ impl<M: Measurement> Bencher<'_, '_, M> {
         });
     }
 
-    /// See [`criterion::Bencher::iter_batched`]. Batches like Criterion: each
-    /// batch runs every `setup` first, then the routines, then drops the
-    /// outputs, all but the routines outside the measured call; the last
-    /// batch holds what is left of the N iterations.
+    /// See [`criterion::Bencher::iter_batched`]. Batches like Criterion.
     pub fn iter_batched<I, O, S, R>(&mut self, mut setup: S, mut routine: R, size: BatchSize)
     where
         S: FnMut() -> I,
@@ -438,9 +405,7 @@ impl<M: Measurement> Bencher<'_, '_, M> {
         });
     }
 
-    /// See [`criterion::Bencher::iter_batched_ref`]. Batching as in
-    /// [`Bencher::iter_batched`]; each batch drops its outputs, then its
-    /// inputs, outside the measured call.
+    /// See [`criterion::Bencher::iter_batched_ref`]. Batches like Criterion.
     pub fn iter_batched_ref<I, O, S, R>(&mut self, mut setup: S, mut routine: R, size: BatchSize)
     where
         S: FnMut() -> I,
@@ -477,9 +442,8 @@ impl<M: Measurement> Bencher<'_, '_, M> {
         });
     }
 
-    /// See [`criterion::Bencher::iter_custom`]. In fixed-iteration mode
-    /// `routine` is called once with the iteration count and runs its own
-    /// loop, so the report has no per-iteration row.
+    /// See [`criterion::Bencher::iter_custom`]. The report has no
+    /// per-iteration row.
     pub fn iter_custom<R>(&mut self, mut routine: R)
     where
         R: FnMut(u64) -> M::Value,
@@ -491,8 +455,7 @@ impl<M: Measurement> Bencher<'_, '_, M> {
     }
 }
 
-/// [`criterion::criterion_group!`] passing [`Criterion`] to the targets. The
-/// `config` expression is a `criterion::Criterion`.
+/// [`criterion::criterion_group!`] passing [`Criterion`] to the targets.
 #[macro_export]
 macro_rules! criterion_group {
     (name = $name:ident; config = $config:expr; targets = $( $target:path ),+ $(,)*) => {
@@ -515,14 +478,10 @@ macro_rules! criterion_group {
 }
 
 /// [`criterion::criterion_main!`] that also installs
-/// [`CountingAllocator`](crate::CountingAllocator) as the global allocator,
-/// like `#[hotpath::main]`, and exits with status 1 when
-/// `HOTPATH_CRITERION_ITERATIONS` is set but no benchmark ran.
+/// [`CountingAllocator`](crate::CountingAllocator) as the global allocator.
 ///
-/// `allocator = Path;` before the groups wraps a custom unit-struct
-/// allocator instead (replacing the benchmark's own `#[global_allocator]`);
-/// `allocator = none;` installs nothing, for a benchmarked crate that already
-/// declares `CountingAllocator` or `#[hotpath::main]` itself.
+/// `allocator = Path;` wraps a custom unit-struct allocator instead;
+/// `allocator = none;` installs nothing.
 #[macro_export]
 macro_rules! criterion_main {
     (allocator = none; $( $group:path ),+ $(,)* ) => {

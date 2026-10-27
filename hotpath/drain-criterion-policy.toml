@@ -1,6 +1,5 @@
-# Policy for the `drain-criterion` benchmark: the `drain` lockstep scenario run
-# HOTPATH_META_CRITERION_ITERATIONS=5 times as a Criterion benchmark, a native
-# run merged into a Callgrind run. Budgets are the `drain` ones times five.
+# Policy for the `drain-criterion` benchmark: the `drain` scenario run five
+# times through Criterion. Budgets are the `drain` ones times five.
 
 # A broken budget or an allocation regression fails the pull request's check run.
 pr_check = "fail"
@@ -8,7 +7,6 @@ pr_check = "fail"
 [functions]
 min_percent_total = 0.5
 
-# One call per scenario run.
 [[functions.budgets]]
 match = "hotpath_meta::criterion::routine"
 calls = { min = 5, max = 5 }
@@ -22,7 +20,7 @@ calls = { min = 5000000, max = 5000000 }
 
 [functions.alloc]
 judged = true
-# Lockstep rounds make it deterministic, so any regression past the bar is real.
+# Deterministic, so any regression past the bar is real.
 fail_check = true
 min_percent_change = 2
 metrics = ["avg", "total"]
@@ -45,5 +43,4 @@ min_percent_change = 50
 metrics = ["avg", "total"]
 min_calls = 1
 
-# No `[threads]` section: every run spawns new `consumer` and `producer-N`
-# threads, so each name appears five times.
+# No `[threads]` section: each run spawns new named threads.

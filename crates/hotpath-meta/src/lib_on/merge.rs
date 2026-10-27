@@ -292,9 +292,8 @@ pub(crate) fn merge(
 }
 
 /// Every field that places a run: build, checkout, benchmark, policy, CI run
-/// and the Criterion workload (benchmark id and iteration count). Absent on
-/// both sides is equal (a local run has no CI fields, a non-Criterion one no
-/// Criterion fields); absent on one side is a mismatch.
+/// and Criterion workload. Absent on both sides is equal (a local run has no
+/// CI fields); absent on one side is a mismatch.
 fn check_identity(native: &JsonReport, own: &JsonReport) -> Result<(), MergeError> {
     let (n, o) = (&native.meta, &own.meta);
     let s = |v: &str| Some(v.to_string());
@@ -598,7 +597,6 @@ mod tests {
 
     #[test]
     fn criterion_workload_must_match() {
-        /// `r` with `pairs` and an unrelated entry as its user metadata.
         fn with(mut r: JsonReport, pairs: &[(&str, &str)]) -> JsonReport {
             let mut metadata = std::collections::BTreeMap::from([("runner".into(), "ci".into())]);
             metadata.extend(pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())));

@@ -1,9 +1,5 @@
 //! The `drain-criterion` hotpath-cloud benchmark: the hotpath-drain lockstep
-//! scenario (`hotpath-drain/examples/support/lockstep.rs`, also run by the
-//! `drain` series' `throughput` example) as a Criterion benchmark, profiled
-//! by `hotpath-meta` through its Criterion adapter. With
-//! `HOTPATH_META_CRITERION_ITERATIONS=N` the report holds N scenario runs as
-//! `hotpath_meta::criterion::routine` calls next to the queue's own hot paths.
+//! scenario as a Criterion benchmark, profiled by `hotpath-meta`.
 //!
 //! Run with:
 //!   cargo bench -p test-drain-criterion --bench drain

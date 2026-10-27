@@ -1,13 +1,11 @@
-//! The drain benchmark scenario, shared by the `throughput` example and the
-//! `test-drain-criterion` Criterion benchmark: several producer threads push
-//! one million events in total into a shared registry while a single
-//! consumer thread sweeps the queues, then drains what is left at shutdown.
+//! Drain benchmark scenario shared by the `throughput` example and
+//! `test-drain-criterion`: several producer threads push one million events
+//! in total into a shared registry while a single consumer thread sweeps the
+//! queues, then drains what is left at shutdown.
 //!
 //! Producers and consumer run in lockstep rounds, so sweep counts and
 //! allocations are fixed by the constants below rather than by scheduling.
 //! Changing the constants breaks comparability with previously uploaded reports.
-//! The measured functions keep their `throughput::` labels wherever this file
-//! is included, so the `drain` series keeps its row names.
 
 use std::sync::{Arc, Barrier};
 use std::thread;
@@ -119,8 +117,8 @@ fn consumer_loop(lockstep: Arc<Lockstep>, producers_exited: Arc<Barrier>) -> u64
     consumed
 }
 
-/// Runs the whole scenario once on fresh threads and returns how long it
-/// took. Panics if any event is lost, so every run checks delivery.
+/// Runs the scenario once and returns how long it took. Panics if any event
+/// is lost.
 pub fn run() -> Duration {
     REGISTRY.set_active(true);
     let start = Instant::now();
