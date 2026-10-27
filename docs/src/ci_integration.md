@@ -8,6 +8,8 @@ What counts as a regression is customizable with a [regression policy](regressio
 
 Log in at <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a> and install the [hotpath-rs GitHub App](https://github.com/apps/hotpath-rs) on the repository from the dashboard. The app has no access to your code, only write access to pull requests to post comments, and to checks to report the result of each benchmark.
 
+hotpath-cloud requires `hotpath` `0.30.0` or newer.
+
 Add the `hotpath-cloud` feature next to the profiling features you use:
 
 ```toml
@@ -353,7 +355,6 @@ The push job takes the variables of the [same-repository setup](#environment-var
 
 Merged mode needs:
 
-- `hotpath` `0.29.2` or newer;
 - an x86_64 Linux runner;
 - a CPU-bound workload: its time goes into computation, not into network, disk, sleeps, timers or a database service, and it is not dominated by many threads racing each other (Valgrind serializes threads, so their interleaving moves the counts);
 - the code to judge in functions with `#[hotpath::measure]` (or `measure_all`): `measure_block!` blocks are not counted;

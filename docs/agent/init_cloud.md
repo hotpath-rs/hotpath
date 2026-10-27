@@ -26,6 +26,7 @@ Before each step, fetch the pages it names and follow them instead of relying on
 
 The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the crate version is the tag without its `v`). Check the installed version in `Cargo.lock`:
 
+- hotpath-cloud requires `hotpath` `0.30.0` or newer, in both profiling modes. An older version lacks functionality the task needs: upgrade it as below before configuring anything. If the upgrade fails, stop and tell the user that hotpath-cloud needs `hotpath` `0.30.0` or newer.
 - If it supports what the task needs, keep it; do not upgrade. A hotpath cargo feature that is not enabled on the dependency yet (`tokio`, an integration) only needs enabling, not an upgrade.
 - If it lacks functionality the task needs (compare the docs with https://github.com/hotpath-rs/hotpath/blob/main/CHANGELOG.md), upgrade to the latest release without asking. Save the `Cargo.toml` files and `Cargo.lock` first. Raise the `hotpath` requirement (each crate's `Cargo.toml`, or `[workspace.dependencies]`) where it does not allow `"{{HOTPATH_VERSION}}"`, keeping its features, and run `cargo update -p hotpath`; change no other dependency. Build with and without the project's hotpath features (`cargo check`, and `cargo check --features` with the feature names the project defines) and fix breakage using the changelog.
 - Tell the user about every upgrade: the old and new version, why it was needed and any code you changed for it.
@@ -37,6 +38,7 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 | https://hotpath.rs/callgrind | the `hotpath-callgrind` feature: merged reports ("Timing and instruction counts in one report"), what is counted, reproducibility limits, comparing runs, build requirements |
 | https://hotpath.rs/regression_policy | the policy file: sections, keys, validation, the pull request comment and check |
 | https://hotpath.rs/performance_budgets | absolute limits in the same policy file |
+| https://hotpath.rs/criterion | Criterion benchmarks as hotpath benchmarks: setup, fixed iterations, one benchmark per process, native and Callgrind runs |
 | https://hotpath.rs/cloud | what hotpath-cloud is |
 
 ## Steps
@@ -55,7 +57,8 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 
 The benchmark is a program instrumented with hotpath that runs a **fixed workload**: the same work on every run, so two runs of one commit report the same allocations. It runs to completion and exits normally, so the hotpath guard is dropped and the report is written.
 
-- Prefer an existing example, binary or integration test that exercises the code the user cares about. Ask the user which one when it is not obvious.
+- Prefer an existing Criterion benchmark: it already drives the hot code with fixed inputs. One Criterion benchmark id (for example `codec/decode`) is one hotpath benchmark, run with a fixed `HOTPATH_CRITERION_ITERATIONS` that finishes in a few seconds natively. A benchmark file that does not import from `hotpath::criterion` yet must be converted first, as step 5 "Convert Criterion benchmarks" of https://hotpath.rs/agent/setup describes; one that uses an API https://hotpath.rs/criterion lists as unsupported cannot be used. Ask the user which id when it is not obvious.
+- Otherwise prefer an existing example, binary or integration test that exercises the code the user cares about. Ask the user which one when it is not obvious.
 - If there is none, propose a new example (`examples/hotpath_benchmark.rs`) and write it only after the user agrees. A useful one:
   - drives the project's main work through its public API (the library's core operations, a server's main request flow, a CLI's main command), with realistic input sizes taken from existing tests, fixtures or `benches/`;
   - covers the main code paths with several distinct measured functions, so a regression points at one of them; add `#[hotpath::measure]` to the functions on those paths;
@@ -63,7 +66,7 @@ The benchmark is a program instrumented with hotpath that runs a **fixed workloa
   - finishes in a few seconds natively.
 - No randomness without a fixed seed, no network calls to services CI cannot reach, no timing-dependent loops. Enough calls per function that the numbers are stable.
 - Merged mode runs the benchmark twice in one job, so the second run must do the same work as the first: nothing the first run leaves behind (a database it fills, files it creates, a cache that changes its path) may change the second. Reset such state at the start of the program, or create it from scratch every run.
-- Pick the benchmark name, used as `HOTPATH_BENCHMARK` (and, in the forks setup, as the relay's `benchmark` input): 1 to 64 characters from `[A-Za-z0-9._-]`, for example the example's name. An invalid name skips the upload. It must not be used by any existing workflow: series are separate only by name.
+- Pick the benchmark name, used as `HOTPATH_BENCHMARK` (and, in the forks setup, as the relay's `benchmark` input): 1 to 64 characters from `[A-Za-z0-9._-]`, for example the example's name, or the Criterion id with `/` replaced by `-`. An invalid name skips the upload. It must not be used by any existing workflow: series are separate only by name.
 
 ### 3. Pick the profiling mode
 
@@ -71,7 +74,6 @@ Docs: https://hotpath.rs/ci_integration ("Profiling modes"), https://hotpath.rs/
 
 Use **merged** when all of these hold, otherwise **native**:
 
-- The `hotpath` version in `Cargo.lock` is `0.29.2` or newer (it can merge reports). If it is older, upgrade it as the version rules under "Documentation" describe before configuring merged mode; an outdated version alone is never a reason for native mode. If the upgrade fails, use native mode and tell the user that merged mode needs `hotpath` `0.29.2` or newer.
 - The benchmark can run on the docs workflow's x86_64 Linux runner: it does not need macOS, Windows or an ARM runner.
 - The workload is CPU-bound and deterministic: its time goes into computation, not into network, disk, sleeps, timers or a database service, and it is not dominated by many threads racing each other (Valgrind serializes threads, so their interleaving moves the counts).
 - The code it should judge is in functions with `#[hotpath::measure]` (or `measure_all`); `measure_block!` blocks are not counted.
@@ -85,7 +87,7 @@ Never pick Callgrind only for a new benchmark. Merged mode is preferred, not req
 
 Docs: https://hotpath.rs/ci_integration ("Setup", and "Profiling modes").
 
-Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchmark crate's `Cargo.toml`, next to the existing hotpath features, unless it is already there. For merged mode add the `hotpath-callgrind` passthrough as well, and keep `hotpath-alloc`. Keep the project's `hotpath` version, upgraded only as the version rules under "Documentation" require (for merged mode, step 3). Never add them to `default`. In the forks setup, the pull request job needs them too, although it does not upload.
+Add the `hotpath-cloud` feature passthrough from the docs snippet to the benchmark crate's `Cargo.toml`, next to the existing hotpath features, unless it is already there. For merged mode add the `hotpath-callgrind` passthrough as well, and keep `hotpath-alloc`. Keep the project's `hotpath` version, upgraded only as the version rules under "Documentation" require (at least `0.30.0`). Never add them to `default`. In the forks setup, the pull request job needs them too, although it does not upload.
 
 ### 5. Add the policy file
 
@@ -156,6 +158,21 @@ Follow the section of the setup picked in step 1. Never overwrite an existing wo
 
 Pin the Rust toolchain to an exact version in every job that builds the benchmark, for both profiling modes and in both jobs of the forks setup: replace `dtolnay/rust-toolchain@stable` with `dtolnay/rust-toolchain@master` and `toolchain: "<x.y.z>"`, and write the same version into `toolchain=` of `HOTPATH_USER_METADATA`. Never leave `stable`, `beta`, `nightly` or a bare `x.y`: a new Rust release changes the numbers, so the first pull request after it would be judged against a baseline built with the older `rustc` and flagged for changes it did not cause. Use the version the repository's `rust-toolchain.toml` or existing CI pins, otherwise the one the docs merged workflow shows. Tell the user to bump it in a separate pull request, whose merge uploads the new baseline.
 
+For a Criterion benchmark, adapt every job that builds and runs it the same way, in both profiling modes and both setups:
+
+- Build the bench target and take the binary path from Cargo's JSON output, since its file name carries a hash:
+
+  ```bash
+  bin=$(cargo build -q --release --bench <name> --features <features> --message-format=json \
+    | jq -r 'select(.reason == "compiler-artifact" and (.target.kind | index("bench"))) | .executable')
+  test -x "$bin"
+  ```
+
+  Pass `bin` to the run steps as a step output (`echo "bin=$bin" >> "$GITHUB_OUTPUT"`). In native mode, use the same build step in place of `cargo run`.
+- Run the binary with `--bench --test --exact <id>` in every run step, natively and under Callgrind.
+- Add `HOTPATH_CRITERION_ITERATIONS` with the count from step 2 to the job-level `env`, so every run executes the same iterations.
+- In merged mode, add `and .user_metadata.criterion_benchmark == "<id>"` to the `jq` check. The native workflow has no such check; do not add one.
+
 #### Same repository
 
 Docs: https://hotpath.rs/ci_integration ("Pull requests from the same repository").
@@ -202,7 +219,7 @@ Never change an existing benchmark's artifact name, report file or source root, 
 - Every `workflows:` entry is exactly the `name:` of a benchmark workflow, and with several benchmarks each has an entry in the `benchmark` lookup naming its `HOTPATH_BENCHMARK`.
 - For every listed workflow, `benchmark`, `artifact_name`, `report_file` and `source_root` resolve to what its `report` job writes and where it builds.
 - A relay you create has `permissions: {}` at the top and grants only the three permissions of the docs workflow to its job.
-- The relay is always pinned by the full commit SHA of a release tag, with the tag in a comment, never by the bare tag and never `@main`: the relay job holds `id-token: write`, and a tag can be moved. The tag must match the release the benchmark builds with: read the `hotpath` version from `Cargo.lock` after any upgrade and use `v<version>` (for example `v0.29.2`). Never assume it is the latest release or the tag the docs workflow shows. Resolve the commit with `git ls-remote https://github.com/hotpath-rs/hotpath 'refs/tags/v<version>*'` (if a `^{}` line is listed, take its SHA, the commit an annotated tag points to) and replace the docs' `@{{HOTPATH_RELEASE_TAG}}` with it:
+- The relay is always pinned by the full commit SHA of a release tag, with the tag in a comment, never by the bare tag and never `@main`: the relay job holds `id-token: write`, and a tag can be moved. The tag must match the release the benchmark builds with: read the `hotpath` version from `Cargo.lock` after any upgrade and use `v<version>` (for example `v0.30.0`). Never assume it is the latest release or the tag the docs workflow shows. Resolve the commit with `git ls-remote https://github.com/hotpath-rs/hotpath 'refs/tags/v<version>*'` (if a `^{}` line is listed, take its SHA, the commit an annotated tag points to) and replace the docs' `@{{HOTPATH_RELEASE_TAG}}` with it:
 
   ```yaml
       uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@<40-character commit sha> # v<version>
@@ -234,6 +251,8 @@ jq '{benchmark: .meta.benchmark, policy: .meta.policy.path, run: .meta.run}' "$v
 ```
 
 For merged mode, add `hotpath-callgrind` to `--features`: run natively, the same build prints the usual timing report.
+
+For a Criterion benchmark, build and run it as step 6 does in place of `cargo run` and `target/release/examples/my_benchmark`: the binary from `--message-format=json`, run with `--bench --test --exact <id>` and `HOTPATH_CRITERION_ITERATIONS` set in every run.
 
 The report must name the benchmark and the policy file step 5 picked for it (`hotpath/<benchmark>-policy.toml` when that exists, otherwise `hotpath/policy.toml`). Run the benchmark twice and compare the function allocation totals: if they differ, the workload is not fixed, so fix that before relying on the comments.
 

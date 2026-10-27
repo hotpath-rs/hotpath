@@ -29,10 +29,11 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 
 - Check `git status` and leave unrelated uncommitted changes alone.
 - Find the crate(s) to profile. In a workspace, add hotpath to the binary crate(s) whose code paths matter (and to library crates only when you instrument them), and pass `-p <crate>` to every cargo command.
-- Find the entry point: `main` of a binary, or, without a `main` you control (library, tests, benchmarks), the place for a `HotpathGuardBuilder` guard.
+- Find the entry point: `main` of a binary, or, without a `main` you control (library, tests, non-Criterion benchmarks), the place for a `HotpathGuardBuilder` guard.
+- Find Criterion benchmarks: a `criterion` dev-dependency (note its version) and `criterion_group!`/`criterion_main!` in `benches/`, for step 5. Note any that already import from `hotpath::criterion`.
 - Check what is already set up: a `hotpath` dependency, hotpath features, `#[hotpath::main]` or a guard, instrumented functions, wrapped primitives. Keep all of it and add only what is missing; running this procedure twice must not duplicate anything.
 - Detect what the code uses that hotpath can instrument: the async runtime, channels, streams, futures, `Mutex`/`RwLock`, SQL (sqlx, SeaORM, Diesel, Toasty), HTTP clients (reqwest, ureq; note the major version), an axum router, byte-level I/O (files, sockets, compression codecs), a custom `#[global_allocator]`.
-- Look for a workload that runs to completion (an example, a CLI invocation with fixed inputs, an integration test) for step 5.
+- Look for a workload that runs to completion (a Criterion benchmark, an example, a CLI invocation with fixed inputs, an integration test) for step 6.
 
 ### 2. Add the dependency and features
 
@@ -53,6 +54,7 @@ Enable on the dependency only the extra hotpath features (`tokio`, a channel, lo
 Docs: https://hotpath.rs/functions, https://hotpath.rs/profiling_modes.
 
 - Put `#[hotpath::main]` on `main`, with defaults. With tokio, `#[tokio::main]` comes first (above it).
+- Criterion benchmarks converted in step 5 need neither: their `criterion_main!` creates the guard and installs the tracking allocator. A library whose only workload is such benchmarks needs nothing in this step.
 - Where that is not possible, create a guard with `HotpathGuardBuilder` and set up allocation tracking as the docs describe.
 - With an existing custom global allocator, follow "Custom inner allocator". Never leave two `#[global_allocator]` statics active under `hotpath-alloc`.
 
@@ -75,7 +77,31 @@ Docs: https://hotpath.rs/functions, plus the page of each integration you add:
 - Wrapper macros return `hotpath::wrap::` types (no-op wrappers with the feature off). If a wrapper would force changes across many function boundaries or the crate's public API, skip it and tell the user instead of rewriting signatures.
 - Coverage can grow later; do not instrument everything now.
 
-### 5. Verify
+### 5. Convert Criterion benchmarks
+
+Skip this if step 1 found no Criterion benchmarks, or all of them already import from `hotpath::criterion`.
+
+Docs: https://hotpath.rs/criterion.
+
+Existing Criterion benchmarks are usually the best workload a project has: they already drive its hot code with fixed inputs. hotpath's Criterion adapter makes each of them produce a fixed-iteration hotpath report (function timing, allocations, and later Callgrind instruction counts for hotpath-cloud), while `cargo bench` keeps behaving exactly as before. Convert the benchmark files that exercise the code the user cares about (ask which when it is not obvious), not every file; offer to convert the remaining compatible ones separately:
+
+- The adapter supports only the Criterion version the docs list. With another `criterion` version, do not change it yourself: tell the user the adapter needs the supported version and convert only if they agree to the upgrade.
+- Enable the adapter's cargo feature on the `hotpath` dependency of the crate that owns the benchmarks, and add the `hotpath` and `hotpath-alloc` passthroughs (step 2) if that crate lacks them. Leave `hotpath-callgrind` and `hotpath-cloud` to the hotpath-cloud setup.
+- When the benchmarks live in a different package than the instrumented code (a separate benchmarks crate in a workspace), each of the benchmark crate's hotpath features must also enable the same feature of every instrumented workspace dependency, for example `hotpath = ["hotpath/hotpath", "my-library/hotpath"]` and `hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc", "my-library/hotpath-alloc"]`. Otherwise the run reports only the adapter's own rows.
+- In each benchmark file you convert, switch the imports exactly as the docs say, including the `config = ...` form of `criterion_group!` and the `allocator = ...` argument of `criterion_main!` when the benchmark or the benchmarked crate already has a global allocator. Change only the imports and what the docs require; never change what a benchmark measures.
+- Leave a benchmark file that uses an API the docs list as unsupported on plain Criterion, and tell the user which file and API; do not rewrite the benchmark to avoid it.
+- Put `#[hotpath::measure]` on the library functions the benchmarks call, if step 4 did not already, so the report breaks the routine down.
+
+Verify every converted benchmark builds with the features off and on (`cargo bench --no-run`, and the same with `--features hotpath`), list the benchmark ids (`cargo bench --bench <name> -- --list`, without `HOTPATH_CRITERION_ITERATIONS`), then run one as the docs show:
+
+```bash
+HOTPATH_CRITERION_ITERATIONS=1000 \
+  cargo bench --bench <name> --features hotpath -- --test --exact <id>
+```
+
+Pick the iteration count so the run takes seconds, not minutes. The report must list at least one instrumented library function next to the `hotpath::criterion::` rows; if it lists only those, the features are not forwarded to the instrumented crate. This run can be the workload of step 6.
+
+### 6. Verify
 
 Both builds must compile (add `-p <crate>` in a workspace):
 
@@ -86,9 +112,9 @@ cargo check --features hotpath    # feature on
 
 Then run the workload from step 1 with `--features hotpath`; the report prints when the program exits normally. Do not start a long-running server or anything that needs missing infrastructure just to get a report: skip the run and say so (a server can be watched live in the TUI, see https://hotpath.rs/profiling_modes). If a build or run fails, fix it or report the error; never present a failed step as done.
 
-### 6. Report and offer next steps
+### 7. Report and offer next steps
 
-State which of these you reached: both builds compile, instrumentation is in place, a report was produced (show its key lines). Then explain what you instrumented, which features you added, the exact command to profile (`--features hotpath`, or `hotpath-alloc` for allocations), what you left out, and one concrete next step. hotpath can stay a regular, non-optional dependency.
+State which of these you reached: both builds compile, instrumentation is in place, a report was produced (show its key lines). Then explain what you instrumented, which features you added, the exact command to profile (`--features hotpath`, or `hotpath-alloc` for allocations), which Criterion benchmarks you converted (with the command to profile one) or left on plain Criterion and why, what you left out, and one concrete next step. hotpath can stay a regular, non-optional dependency.
 
 Also explain in 1-3 sentences how to watch the running program in the optional live TUI, following "Live TUI dashboard" in https://hotpath.rs/profiling_modes: give its install and launch commands, then the project's own profiling command (with `-p`, `--bin` or `--example`) to run in a second terminal. Say that static reports work without it, and do not install or launch the TUI unless the user asks.
 
@@ -116,6 +142,7 @@ Never run it yourself unless the user asks.
 - Keep existing instrumentation and unrelated changes intact; the setup must be idempotent.
 - Verify with the feature both off and on.
 - Do not silently rewrite public APIs.
+- Converting a Criterion benchmark changes its imports, never what it measures; plain `cargo bench` must behave as before.
 - Do not create `hotpath/policy.toml` or CI workflows; they belong to the hotpath-cloud setup.
 - When the docs and your memory disagree, the docs win.
 - Do not commit or push unless the user asks.
