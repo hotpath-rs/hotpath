@@ -9,6 +9,7 @@ use crate::instant::Instant;
 
 pub(crate) static MEASUREMENT_QUEUES: EventQueueRegistry<Measurement> = EventQueueRegistry::new();
 
+#[cfg(feature = "hotpath-ordered-drain")]
 pub(crate) static LOST_MEASUREMENTS: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
@@ -20,28 +21,40 @@ fn add_measurement(m: Measurement) {
     if !MEASUREMENT_QUEUES.is_active() {
         return;
     }
-    if MEASUREMENT_PRODUCER
-        .try_with(|producer| producer.push(m))
-        .is_err()
-    {
+    let result = MEASUREMENT_PRODUCER.try_with(|producer| producer.push(m));
+    #[cfg(feature = "hotpath-ordered-drain")]
+    if result.is_err() {
         LOST_MEASUREMENTS.store(true, std::sync::atomic::Ordering::Release);
     }
+    #[cfg(not(feature = "hotpath-ordered-drain"))]
+    let _ = result;
 }
 
+#[cfg(feature = "hotpath-ordered-drain")]
 pub(crate) static MEASUREMENT_GENERATION: std::sync::atomic::AtomicUsize =
     std::sync::atomic::AtomicUsize::new(0);
 
 pub(crate) fn set_measurements_active(active: bool) {
-    if active
-        && MEASUREMENT_GENERATION
-            .fetch_update(
+    #[cfg(feature = "hotpath-ordered-drain")]
+    if active {
+        // compare_exchange_weak preserves compatibility with toolchains that
+        // predate AtomicUsize::try_update, without deprecated fetch_update.
+        let mut generation = MEASUREMENT_GENERATION.load(std::sync::atomic::Ordering::Acquire);
+        loop {
+            let Some(next) = generation.checked_add(1) else {
+                LOST_MEASUREMENTS.store(true, std::sync::atomic::Ordering::Release);
+                break;
+            };
+            match MEASUREMENT_GENERATION.compare_exchange_weak(
+                generation,
+                next,
                 std::sync::atomic::Ordering::AcqRel,
                 std::sync::atomic::Ordering::Acquire,
-                |n| n.checked_add(1),
-            )
-            .is_err()
-    {
-        LOST_MEASUREMENTS.store(true, std::sync::atomic::Ordering::Release);
+            ) {
+                Ok(_) => break,
+                Err(actual) => generation = actual,
+            }
+        }
     }
     MEASUREMENT_QUEUES.set_active(active);
 }

@@ -527,7 +527,11 @@ pub(crate) struct RawFunctionAlloc {
 /// Query request sent from TUI HTTP server to profiler worker thread
 #[derive(Debug)]
 pub(crate) enum FunctionsQuery {
-    #[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+    #[cfg(all(
+        feature = "hotpath-alloc",
+        feature = "hotpath-prometheus",
+        feature = "hotpath-ordered-drain"
+    ))]
     DrainAlloc {
         prefix: crate::batch::PublishedPrefix<Measurement>,
         generation: usize,
@@ -535,7 +539,11 @@ pub(crate) enum FunctionsQuery {
         deadline: std::time::Instant,
         response_tx: Sender<Result<DrainAck, DrainError>>,
     },
-    #[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+    #[cfg(all(
+        feature = "hotpath-alloc",
+        feature = "hotpath-prometheus",
+        feature = "hotpath-ordered-drain"
+    ))]
     PrototypePause {
         entered: Sender<()>,
         release: crossbeam_channel::Receiver<()>,
@@ -648,7 +656,11 @@ pub(crate) fn get_function_logs_alloc(function_id: u32) -> Option<Option<Functio
 }
 
 // External prototype only. Not proposed as a production API.
-#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+#[cfg(all(
+    feature = "hotpath-alloc",
+    feature = "hotpath-prometheus",
+    feature = "hotpath-ordered-drain"
+))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DrainError {
     NoProfiler,
@@ -659,7 +671,11 @@ pub enum DrainError {
     InexactCounter,
     UnknownAllocations,
 }
-#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+#[cfg(all(
+    feature = "hotpath-alloc",
+    feature = "hotpath-prometheus",
+    feature = "hotpath-ordered-drain"
+))]
 #[derive(Debug)]
 pub struct DrainAck {
     pub bytes: u64,
@@ -672,17 +688,29 @@ pub struct DrainAck {
     /// Always false: this API does not stop or join producers.
     pub quiescent: bool,
 }
-#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+#[cfg(all(
+    feature = "hotpath-alloc",
+    feature = "hotpath-prometheus",
+    feature = "hotpath-ordered-drain"
+))]
 pub fn drain_alloc_prefix(label: &'static str, timeout: Duration) -> Result<DrainAck, DrainError> {
     begin_alloc_prefix(label, timeout)?.wait()
 }
-#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+#[cfg(all(
+    feature = "hotpath-alloc",
+    feature = "hotpath-prometheus",
+    feature = "hotpath-ordered-drain"
+))]
 pub struct DrainTicket {
     generation: usize,
     rx: crossbeam_channel::Receiver<Result<DrainAck, DrainError>>,
     deadline: std::time::Instant,
 }
-#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+#[cfg(all(
+    feature = "hotpath-alloc",
+    feature = "hotpath-prometheus",
+    feature = "hotpath-ordered-drain"
+))]
 pub fn begin_alloc_prefix(
     label: &'static str,
     timeout: Duration,
@@ -717,7 +745,11 @@ pub fn begin_alloc_prefix(
         generation,
     })
 }
-#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+#[cfg(all(
+    feature = "hotpath-alloc",
+    feature = "hotpath-prometheus",
+    feature = "hotpath-ordered-drain"
+))]
 impl DrainTicket {
     pub fn wait(self) -> Result<DrainAck, DrainError> {
         use alloc::state::{LOST_MEASUREMENTS, MEASUREMENT_QUEUES};
@@ -740,12 +772,20 @@ impl DrainTicket {
         result
     }
 }
-#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+#[cfg(all(
+    feature = "hotpath-alloc",
+    feature = "hotpath-prometheus",
+    feature = "hotpath-ordered-drain"
+))]
 pub fn prototype_transport_active() -> bool {
     alloc::state::MEASUREMENT_QUEUES.is_active()
 }
 /// Deterministic test hook: block the real aggregation worker, not a fake one.
-#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+#[cfg(all(
+    feature = "hotpath-alloc",
+    feature = "hotpath-prometheus",
+    feature = "hotpath-ordered-drain"
+))]
 pub fn prototype_pause_worker(entered: Sender<()>, release: crossbeam_channel::Receiver<()>) {
     FUNCTIONS_QUERY_TX
         .get()
@@ -755,7 +795,11 @@ pub fn prototype_pause_worker(entered: Sender<()>, release: crossbeam_channel::R
 }
 /// Exercise the existing send path during real TLS teardown (no fabricated
 /// allocation totals: zero-byte/zero-allocation event only).
-#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+#[cfg(all(
+    feature = "hotpath-alloc",
+    feature = "hotpath-prometheus",
+    feature = "hotpath-ordered-drain"
+))]
 pub fn prototype_teardown_event() {
     alloc::state::send_alloc_measurement("teardown", Some(0), Some(0), None, 0, false, None);
 }

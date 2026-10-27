@@ -61,8 +61,11 @@ pub struct EventQueue<M> {
     /// Set by the producer's TLS drop so the consumer can drain the remainder
     /// and release the queue.
     closed: AtomicBool,
+    #[cfg(feature = "ordered-drain")]
     published: AtomicUsize,
+    #[cfg(feature = "ordered-drain")]
     drained: AtomicUsize,
+    #[cfg(feature = "ordered-drain")]
     valid: AtomicBool,
 }
 
@@ -85,6 +88,7 @@ impl<M> EventQueue<M> {
         hotpath_meta::measure(impl_type = "EventQueue")
     )]
     fn drain_into(&self, out: &mut Vec<M>, max_chunks: usize) -> bool {
+        #[cfg(feature = "ordered-drain")]
         let before = out.len();
         let mut chunk_ptr = self.head.load(Ordering::Relaxed);
         let mut consumed = self.consumed.load(Ordering::Relaxed);
@@ -129,6 +133,7 @@ impl<M> EventQueue<M> {
         }
         self.head.store(chunk_ptr, Ordering::Relaxed);
         self.consumed.store(consumed, Ordering::Relaxed);
+        #[cfg(feature = "ordered-drain")]
         match self
             .drained
             .load(Ordering::Relaxed)
@@ -207,6 +212,7 @@ impl<M> EventProducer<M> {
             self.len.set(i + 1);
         }
         // Single producer: this is a completion watermark, not a global RMW.
+        #[cfg(feature = "ordered-drain")]
         match self.queue.published.load(Ordering::Relaxed).checked_add(1) {
             Some(total) => self.queue.published.store(total, Ordering::Release),
             None => self.queue.valid.store(false, Ordering::Release),
@@ -224,6 +230,7 @@ impl<M> Drop for EventProducer<M> {
 /// producers whether a worker is consuming.
 pub struct EventQueueRegistry<M> {
     active: AtomicBool,
+    #[cfg(feature = "ordered-drain")]
     valid: AtomicBool,
     queues: Mutex<Vec<Arc<EventQueue<M>>>>,
 }
@@ -238,6 +245,7 @@ impl<M: Send> EventQueueRegistry<M> {
     pub const fn new() -> Self {
         Self {
             active: AtomicBool::new(false),
+            #[cfg(feature = "ordered-drain")]
             valid: AtomicBool::new(true),
             queues: Mutex::new(Vec::new()),
         }
@@ -265,13 +273,17 @@ impl<M: Send> EventQueueRegistry<M> {
             head: AtomicPtr::new(first),
             consumed: AtomicUsize::new(0),
             closed: AtomicBool::new(false),
+            #[cfg(feature = "ordered-drain")]
             published: AtomicUsize::new(0),
+            #[cfg(feature = "ordered-drain")]
             drained: AtomicUsize::new(0),
+            #[cfg(feature = "ordered-drain")]
             valid: AtomicBool::new(true),
         });
         if let Ok(mut queues) = self.queues.lock() {
             queues.push(Arc::clone(&queue));
         } else {
+            #[cfg(feature = "ordered-drain")]
             self.valid.store(false, Ordering::Release);
         }
         EventProducer {
@@ -284,6 +296,7 @@ impl<M: Send> EventQueueRegistry<M> {
     /// Snapshot completed pushes on all currently registered queues. A producer
     /// created after this snapshot is outside the prefix. Join producers first
     /// when the caller needs the entire workload rather than a finite prefix.
+    #[cfg(feature = "ordered-drain")]
     pub fn published_prefix(&self) -> Result<PublishedPrefix<M>, PrefixError> {
         if !self.valid.load(Ordering::Acquire) {
             return Err(PrefixError);
@@ -299,6 +312,7 @@ impl<M: Send> EventQueueRegistry<M> {
         Ok(PublishedPrefix { targets })
     }
 
+    #[cfg(feature = "ordered-drain")]
     pub fn transport_valid(&self) -> bool {
         self.valid.load(Ordering::Acquire)
             && self
@@ -340,6 +354,7 @@ impl<M: Send> EventQueueRegistry<M> {
                 // below sees every event.
                 let closed = queue.closed.load(Ordering::Acquire);
                 let reached_tail = queue.drain_into(out, max_chunks);
+                #[cfg(feature = "ordered-drain")]
                 if !queue.valid.load(Ordering::Acquire) {
                     self.valid.store(false, Ordering::Release);
                 }
@@ -353,22 +368,27 @@ impl<M: Send> EventQueueRegistry<M> {
 }
 
 /// The event transport cannot provide a reliable prefix.
+#[cfg(feature = "ordered-drain")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PrefixError;
 
+#[cfg(feature = "ordered-drain")]
 impl std::fmt::Display for PrefixError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("event prefix is unavailable or invalid")
     }
 }
 
+#[cfg(feature = "ordered-drain")]
 impl std::error::Error for PrefixError {}
 
 /// Opaque per-queue prefix. A consumer must check only AFTER processing the
 /// entire drained batch into its aggregation state, not merely dequeuing it.
+#[cfg(feature = "ordered-drain")]
 pub struct PublishedPrefix<M> {
     targets: Vec<(Arc<EventQueue<M>>, usize)>,
 }
+#[cfg(feature = "ordered-drain")]
 impl<M> std::fmt::Debug for PublishedPrefix<M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PublishedPrefix")
@@ -376,6 +396,7 @@ impl<M> std::fmt::Debug for PublishedPrefix<M> {
             .finish()
     }
 }
+#[cfg(feature = "ordered-drain")]
 impl<M> PublishedPrefix<M> {
     pub fn is_processed(&self) -> Result<bool, PrefixError> {
         for (queue, target) in &self.targets {

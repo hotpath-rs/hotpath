@@ -730,12 +730,12 @@ impl HotpathGuard {
                                 let current_elapsed_ns = config.total_elapsed.as_nanos() as u64;
 
                                 match query_request {
-                                    #[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+                                    #[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus", feature = "hotpath-ordered-drain"))]
                                     FunctionsQuery::PrototypePause { entered, release } => {
                                         let _ = entered.send(());
                                         let _ = release.recv_timeout(std::time::Duration::from_secs(10));
                                     }
-                                    #[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus"))]
+                                    #[cfg(all(feature = "hotpath-alloc", feature = "hotpath-prometheus", feature = "hotpath-ordered-drain"))]
                                     FunctionsQuery::DrainAlloc { prefix, generation, label, deadline, response_tx } => {
                                         use crate::functions::{DrainAck, DrainError};
                                         use crate::functions::alloc::state::{MEASUREMENT_QUEUES, LOST_MEASUREMENTS};

@@ -447,6 +447,7 @@ fn collect_functions_alloc(families: &mut Vec<Family>) -> Option<()> {
     Some(())
 }
 
+#[cfg(all(feature = "hotpath-alloc", feature = "hotpath-ordered-drain"))]
 pub(crate) fn render_alloc_prefix(functions: Vec<crate::functions::RawFunctionAlloc>) -> String {
     let mut families = Vec::new();
     append_functions_alloc(&mut families, &functions);
