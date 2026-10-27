@@ -14,7 +14,7 @@ Web connections to the application servers are encrypted via SSL, which means th
 
 The website uses cookies. They are used only to keep you logged in and to remember your display preferences.
 
-We use Simple Analytics and Ahrefs Web Analytics to collect anonymized website visits data on the documentation and blog pages. They do not use cookies and do not store any personally identifiable information.
+We use Ahrefs Web Analytics to collect anonymized website visits data on the documentation and blog pages. It does not use cookies and does not store any personally identifiable information.
 
 The service is hosted on Amazon Web Services in the United States (us-east-1), behind Cloudflare.
 
