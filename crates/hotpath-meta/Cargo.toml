@@ -47,6 +47,7 @@ dev-meta = ["dep:time", "time/formatting", "time/local-offset"]
 hotpath-mcp-meta = ["hotpath-meta", "dep:rmcp", "dep:tokio", "tokio/rt", "tokio/net", "dep:axum", "axum/http1", "axum/tokio", "dep:tokio-util", "dep:schemars"]
 hotpath-prometheus-meta = ["hotpath-meta", "dep:prost"]
 "axum-0-8" = ["dep:axum", "axum/matched-path", "dep:tower-layer", "dep:tower-service", "dep:pin-project-lite"]
+"criterion-0-8" = ["dep:criterion"]
 
 [dependencies]
 arc-swap = { version = "1.7", optional = true }
@@ -79,6 +80,7 @@ time = { version = "0.3.37", features = ["macros"], optional = true }
 rmcp = { version = "1.4", features = ["server", "transport-streamable-http-server", "transport-streamable-http-server-session"], optional = true }
 schemars = { version = "1", optional = true }
 axum = { version = "0.8", default-features = false, optional = true }
+criterion = { version = "0.8", default-features = false, optional = true }
 tower-layer = { version = "0.3", optional = true }
 tower-service = { version = "0.3", optional = true }
 tokio-util = { version = "0.7", optional = true }
