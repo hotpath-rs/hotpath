@@ -11,6 +11,8 @@ categories = ["concurrency", "data-structures"]
 keywords = ["lock-free", "spsc", "queue", "thread-local", "profiling"]
 
 [features]
+# Ordered prefix receipts add per-event watermarks only when explicitly enabled.
+ordered-drain = []
 # Self-profiling: instruments the drain with hotpath-meta. Not for external use.
 hotpath-meta = ["dep:hotpath-meta", "hotpath-meta/hotpath-meta"]
 hotpath-alloc-meta = ["hotpath-meta", "hotpath-meta/hotpath-alloc-meta"]
