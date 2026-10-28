@@ -108,14 +108,15 @@ pub(crate) fn any_relative_file() -> Option<&'static str> {
 }
 
 /// `file!()` is workspace-root-relative for workspace members and absolute
-/// for registry dependencies. Relative paths pass through; absolute paths
+/// for registry dependencies. Relative paths get their dot segments resolved
+/// (`resolve_dot_segments`); absolute paths
 /// under a cargo registry checkout are rewritten to
 /// `<external>/<crate>-<version>/<path>` (keeps docs.rs linking possible and
 /// strips `$HOME`); other absolute paths pass through - the server refuses to
 /// link them.
 fn normalize_file_path(file: &str) -> String {
     if !is_absolute_path(file) {
-        return file.to_string();
+        return resolve_dot_segments(file);
     }
     for marker in ["/registry/src/", "\\registry\\src\\"] {
         if let Some(pos) = file.find(marker) {
@@ -130,6 +131,25 @@ fn normalize_file_path(file: &str) -> String {
         }
     }
     file.to_string()
+}
+
+/// `file!()` keeps `.` and `..` verbatim for a module loaded through
+/// `#[path = "../.."]`, and the server refuses to link such a path. Resolves
+/// them lexically, joining with `/`; string work only, the filesystem is never
+/// touched. A `..` climbing above the workspace root has nothing to cancel and
+/// is kept, so that path stays unlinked rather than pointing at a wrong file.
+fn resolve_dot_segments(file: &str) -> String {
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in file.split(['/', '\\']) {
+        match segment {
+            "" | "." => {}
+            ".." if segments.last().is_some_and(|last| *last != "..") => {
+                segments.pop();
+            }
+            _ => segments.push(segment),
+        }
+    }
+    segments.join("/")
 }
 
 /// String-based check instead of `Path::is_absolute`, which is
@@ -151,6 +171,34 @@ mod tests {
             normalize_file_path("crates/hotpath/src/lib.rs"),
             "crates/hotpath/src/lib.rs"
         );
+    }
+
+    #[test]
+    fn relative_dot_segments_resolve_within_the_workspace() {
+        assert_eq!(
+            normalize_file_path(
+                "crates/test-drain-criterion/benches/../../hotpath-drain/examples/support/lockstep.rs"
+            ),
+            "crates/hotpath-drain/examples/support/lockstep.rs"
+        );
+        assert_eq!(
+            normalize_file_path("crates\\app\\benches\\..\\src\\.\\lib.rs"),
+            "crates/app/src/lib.rs"
+        );
+        assert_eq!(normalize_file_path("./src//main.rs"), "src/main.rs");
+    }
+
+    #[test]
+    fn dot_segments_above_the_workspace_root_are_kept() {
+        assert_eq!(
+            normalize_file_path("../sibling/src/lib.rs"),
+            "../sibling/src/lib.rs"
+        );
+        assert_eq!(
+            normalize_file_path("crates/app/../../../sibling/src/lib.rs"),
+            "../sibling/src/lib.rs"
+        );
+        assert_eq!(normalize_file_path("../../a.rs"), "../../a.rs");
     }
 
     #[test]
