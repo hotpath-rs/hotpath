@@ -290,6 +290,7 @@ pub(crate) fn build_icount_list(
         time_elapsed: precision.duration(config.total_elapsed.as_nanos() as u64),
         total_elapsed_ns: current_elapsed_ns,
         total_allocated: None,
+        total_icount: Some(report.total_ir),
         description: "Inclusive instructions executed per function (Callgrind Ir).".to_string(),
         caller_name: config.caller_name.to_string(),
         percentiles: Vec::new(),
@@ -325,6 +326,7 @@ mod tests {
             cloud: true,
         };
         let list = build_icount_list(&report, &calls, &config, 0);
+        assert_eq!(list.total_icount, Some(500_000_000));
         let cells: Vec<_> = list
             .data
             .iter()
@@ -347,7 +349,8 @@ mod tests {
             "429,926,497",
             "33.05",
             "33,047,735",
-            "1000000",
+            "1,000,000",
+            "Total: 500,000,000",
         ] {
             assert!(table.contains(shown), "{shown} missing from:\n{table}");
         }

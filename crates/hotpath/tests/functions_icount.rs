@@ -81,6 +81,17 @@ pub mod tests {
             "{:?}",
             list.tool
         );
+        // The run total covers every measured body, so it bounds each
+        // inclusive count.
+        let total_icount = list.total_icount.expect("total_icount");
+        for entry in &list.data {
+            let total: u64 = entry.total.parse().unwrap();
+            assert!(
+                total <= total_icount,
+                "{}: {total} > {total_icount}",
+                entry.name
+            );
+        }
 
         // Every measured body runs one `spin(N)` per call, except recursive
         // (4 levels, each level's inclusive cost counted: 4+3+2+1) and
