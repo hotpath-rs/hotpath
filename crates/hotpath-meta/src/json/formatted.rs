@@ -106,6 +106,10 @@ pub struct JsonFunctionsList {
     pub total_elapsed_ns: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_allocated: Option<String>,
+    /// Instructions executed over the whole Callgrind run, the base of
+    /// `percent_total` in the `icount` section.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total_icount: Option<u64>,
     pub description: String,
     pub caller_name: String,
     pub percentiles: Vec<f64>,

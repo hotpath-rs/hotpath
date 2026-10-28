@@ -430,6 +430,7 @@ mod tests {
             time_elapsed: "1.00 s".to_string(),
             total_elapsed_ns: 1_000_000_000,
             total_allocated: None,
+            total_icount: None,
             description: String::new(),
             caller_name: "main".to_string(),
             percentiles: Vec::new(),

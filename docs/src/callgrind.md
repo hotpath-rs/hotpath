@@ -43,7 +43,7 @@ Total: 39,730,412
 +------------------------------+-------+-----------+------------+---------+
 ```
 
-`Total` is every instruction the run executed, the base of `% Total`. In the JSON report it is the `functions_icount` section, with that total as `total_icount`; select it with `HOTPATH_REPORT=functions-icount` and judge it in a [policy file](./regression_policy.md) under `[functions.icount]`.
+In the JSON report it is the `functions_icount` section; select it with `HOTPATH_REPORT=functions-icount` and judge it in a [policy file](./regression_policy.md) under `[functions.icount]`.
 
 The same build run natively prints the usual timing report, so one binary serves both runs. Under Valgrind durations are not measured at all (every time sampling rate is forced to `0.0`), so even an explicit `HOTPATH_REPORT=functions-timing` contains no timings. To get timing and instruction counts in one report, merge a native run's report into the Callgrind run's, as described [below](#timing-and-instruction-counts-in-one-report).
 

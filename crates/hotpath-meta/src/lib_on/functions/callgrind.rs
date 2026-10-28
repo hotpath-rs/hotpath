@@ -287,6 +287,7 @@ pub(crate) fn build_icount_list(
         time_elapsed: precision.duration(config.total_elapsed.as_nanos() as u64),
         total_elapsed_ns: current_elapsed_ns,
         total_allocated: None,
+        total_icount: Some(report.total_ir),
         description: "Inclusive instructions executed per function (Callgrind Ir).".to_string(),
         caller_name: config.caller_name.to_string(),
         percentiles: Vec::new(),
