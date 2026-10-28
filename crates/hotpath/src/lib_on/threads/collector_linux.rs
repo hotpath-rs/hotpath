@@ -136,9 +136,22 @@ pub(crate) fn get_rss_bytes() -> Option<u64> {
     }
 }
 
-/// Max RSS of the process since it started, in bytes, as tracked by the
-/// kernel (`ru_maxrss`, which Linux reports in kilobytes).
+/// Peak RSS of the current program image in bytes, from `VmHWM` in
+/// `/proc/self/status`. Unlike `ru_maxrss`, it resets on `execve`, so the
+/// peak of a launcher that exec'd into us (e.g. `cargo run` after a build)
+/// is not included. Falls back to `ru_maxrss` when procfs is unavailable.
 pub(crate) fn get_rss_bytes_max() -> Option<u64> {
+    let vm_hwm_kb = fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|status| {
+            let line = status.lines().find(|l| l.starts_with("VmHWM:"))?;
+            line.split_whitespace().nth(1)?.parse::<u64>().ok()
+        });
+    if let Some(kb) = vm_hwm_kb {
+        return Some(kb * 1024);
+    }
+
+    // ru_maxrss is in kilobytes on Linux.
     // SAFETY: `rusage` is zero-initialized with the layout getrusage expects,
     // and its fields are read only after the call reports success.
     unsafe {
