@@ -1,0 +1,19 @@
+name: Release explainer
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write # append the watch link to the release notes
+  id-token: write # sign in with GitHub to publish
+
+jobs:
+  explain:
+    # Minor and major releases only: patch releases ship most weeks.
+    if: ${{ !github.event.release.prerelease && endsWith(github.event.release.tag_name, '.0') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: bisque-cloud/presenter@v1
+        with:
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
