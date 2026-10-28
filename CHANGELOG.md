@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.30.1] - 2026-10-28
+
+### 🚀 Features
+
+- Add total_icount to functions JSON
+
+
+### 🐛 Bug Fixes
+
+- Exclude cargo run build memory from Linux Max RSS
+
+- Location path traversal
+
+
+### ⚡ Performance
+
+- Cycle hotpath-drain buffer memory
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.30.1
+
+
 ## [0.30.0] - 2026-10-27
 
 ### 🚀 Features
