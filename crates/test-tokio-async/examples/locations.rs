@@ -6,6 +6,9 @@
 
 use std::time::Duration;
 
+#[path = "../support/path_module.rs"]
+mod path_module;
+
 #[hotpath::measure]
 fn plain_function() {
     std::thread::sleep(Duration::from_millis(1));
@@ -29,6 +32,7 @@ impl Worker {
 #[hotpath::main(format = "json-pretty")]
 async fn main() {
     plain_function();
+    path_module::path_module_function();
     labeled_function();
     Worker.run();
 

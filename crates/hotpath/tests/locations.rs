@@ -83,6 +83,21 @@ mod tests {
             assert_eq!(location.line, example_line_of("block_a"), "{name}");
         }
 
+        // A `#[path = "../support/..."]` module: `file!()` keeps the `..`
+        // segment, the report resolves it to a repository path.
+        let path_module = entry("locations::path_module::path_module_function");
+        let location = path_module.location.as_ref().expect("path module location");
+        assert_eq!(
+            location.file,
+            "crates/test-tokio-async/support/path_module.rs"
+        );
+        let fn_line = include_str!("../../test-tokio-async/support/path_module.rs")
+            .lines()
+            .position(|l| l.contains("fn path_module_function"))
+            .expect("fn in path module") as u32
+            + 1;
+        assert_eq!(location.line, fn_line);
+
         let main_entry = entry("locations::main");
         let location = main_entry.location.as_ref().expect("main location");
         assert_example_location(location, "main");
