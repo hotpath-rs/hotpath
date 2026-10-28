@@ -76,7 +76,7 @@ pub mod tests {
     }
 
     // HOTPATH_OUTPUT_FORMAT=json cargo run -p test-tokio-async --example rss_exec --features hotpath
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_max_rss_excludes_pre_exec_peak() {
         let report = Example::new("test-tokio-async", "rss_exec").json().report();

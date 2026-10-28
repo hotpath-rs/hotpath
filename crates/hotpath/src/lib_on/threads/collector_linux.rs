@@ -139,7 +139,8 @@ pub(crate) fn get_rss_bytes() -> Option<u64> {
 /// Peak RSS of the current program image in bytes, from `VmHWM` in
 /// `/proc/self/status`. Unlike `ru_maxrss`, it resets on `execve`, so the
 /// peak of a launcher that exec'd into us (e.g. `cargo run` after a build)
-/// is not included. Falls back to `ru_maxrss` when procfs is unavailable.
+/// is not included. Falls back to `ru_maxrss` when procfs is unavailable,
+/// which may include that pre-exec peak.
 pub(crate) fn get_rss_bytes_max() -> Option<u64> {
     let vm_hwm_kb = fs::read_to_string("/proc/self/status")
         .ok()

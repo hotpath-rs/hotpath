@@ -1,5 +1,5 @@
 //! Touches about 200 MB, then execs itself into a profiled run, the way
-//! `cargo run` execs into the binary it just built. The report's Max RSS
+//! `cargo run` execs into the binary it just built. On Linux the report's Max RSS
 //! must cover only the exec'd program, not the ballast before it.
 //!
 //! Run with:
