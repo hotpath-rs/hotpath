@@ -952,7 +952,7 @@ pub struct JsonThreadsList {
     /// Resident set size at the time of the snapshot.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub rss_bytes: Option<String>,
-    /// Maximum resident set size over the whole process lifetime, from the
+    /// Maximum resident set size over the whole program lifetime, from the
     /// kernel's high-water mark. Exact (`N B`) in cloud reports so the diff
     /// can parse it back without loss.
     #[serde(skip_serializing_if = "Option::is_none", default)]

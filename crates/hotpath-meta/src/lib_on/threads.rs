@@ -234,8 +234,10 @@ fn get_rss_bytes() -> Option<u64> {
     None
 }
 
-/// Max RSS over the whole process lifetime (not just since the guard was
+/// Max RSS over the whole program lifetime (not just since the guard was
 /// built), read from the kernel's high-water mark, so no sample can miss it.
+/// On Linux it excludes a launcher that exec'd into the program, such as
+/// `cargo run`, unless procfs is unavailable (see the Linux collector).
 #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
 fn get_rss_bytes_max() -> Option<u64> {
     collector::get_rss_bytes_max()

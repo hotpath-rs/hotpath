@@ -74,4 +74,20 @@ pub mod tests {
             ],
         );
     }
+
+    // HOTPATH_OUTPUT_FORMAT=json cargo run -p test-tokio-async --example rss_exec --features hotpath
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_max_rss_excludes_pre_exec_peak() {
+        let report = Example::new("test-tokio-async", "rss_exec").json().report();
+        let threads = report.threads.expect("threads section");
+        let max_rss = threads.rss_bytes_max.as_deref().expect("rss_bytes_max");
+        let max_rss = hotpath::parse_bytes(max_rss).expect("rss_bytes_max parses");
+
+        // The example touches 200 MB before exec'ing into the profiled run.
+        assert!(
+            max_rss < 100 * 1024 * 1024,
+            "Max RSS {max_rss} B includes the pre-exec ballast"
+        );
+    }
 }
