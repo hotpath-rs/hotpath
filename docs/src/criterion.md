@@ -45,6 +45,33 @@ The `config = ...` form of `criterion_group!` takes a plain `criterion::Criterio
 
 `criterion_main!` installs hotpath's tracking allocator, as `#[hotpath::main]` does. If the benchmark declares its own `#[global_allocator]`, remove it and pass the allocator instead: `criterion_main!(allocator = tikv_jemallocator::Jemalloc; benches)`. If the benchmarked library already installs one (it uses `#[hotpath::main]` or declares `hotpath::CountingAllocator`), pass `allocator = none;`.
 
+### Async benchmarks
+
+Async benchmarks keep using `b.to_async(executor)` with any Criterion `AsyncExecutor`: a Tokio `Runtime` or `Handle`, `FuturesExecutor`, `SmolExecutor` or your own implementation. Enable the executor's feature on your `criterion` dependency as before, e.g. for Tokio:
+
+```toml
+[dev-dependencies]
+criterion = { version = "0.8", features = ["async_tokio"] }
+```
+
+Only the imports change:
+
+```rust
+use hotpath::criterion::{criterion_group, criterion_main, Criterion};
+
+fn bench_fetch(c: &mut Criterion) {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    c.bench_function("fetch", |b| {
+        b.to_async(&rt).iter(|| async { fetch(&KEYS).await })
+    });
+}
+
+criterion_group!(benches, bench_fetch);
+criterion_main!(benches);
+```
+
+`iter`, `iter_batched`, `iter_batched_ref` and `iter_custom` are supported. Each method consumes the async bencher, so call one method on each `to_async(...)` result, as `b.to_async(&rt).iter(...)` does.
+
 Without `HOTPATH_CRITERION_ITERATIONS` the wrappers forward to Criterion unchanged: `cargo bench` and `cargo test --benches` behave exactly as before. Build those runs without hotpath's profiling features: with them on, measured functions and the tracking allocator still do their bookkeeping when no report is being written, which biases Criterion's own timings. Without them the wrappers and `CountingAllocator` are plain pass-throughs.
 
 ## Running one benchmark
@@ -58,7 +85,7 @@ HOTPATH_CRITERION_ITERATIONS=1000 \
 
 The routine then runs exactly 1,000 times inside a single Criterion iteration, and the report has:
 
-- `hotpath::criterion::routine`: one call per routine execution, with its timing and exclusive allocations.
+- `hotpath::criterion::routine` (`hotpath::criterion::async_routine` for async benchmarks): one call per routine execution, with its timing and exclusive allocations.
 - Every `#[hotpath::measure]` function the routine calls, e.g. the library functions under benchmark.
 - `hotpath::criterion::bench`: the whole loop, including setup and drops outside the routine.
 - `criterion_benchmark` (the full id, e.g. `codec/decode`) and `criterion_iterations` in the report's `user_metadata`. A [merge](#native-and-callgrind-runs) refuses a native report whose values differ, or that has them while the Callgrind run has not (or the other way round).
@@ -74,13 +101,15 @@ The routine then runs exactly 1,000 times inside a single Criterion iteration, a
 | `iter_batched_ref` | the routine | `setup`, dropping the output and the input |
 | `iter_custom` | no routine row: it is called once with the iteration count and loops on its own | everything |
 
+Async routines follow the same table. Each routine future is created and awaited to completion inside `async_routine` before the next one starts, so its row covers the whole future, including the work after every `.await` and the time it spends waiting, like an `async fn` with [`#[hotpath::measure]`](functions.md). Allocations are counted while the future is polled on the thread running the executor's `block_on`. Work the routine hands to other tasks (`tokio::spawn`, a multi-threaded runtime's workers, blocking pools) runs outside it and is not counted in `async_routine` or the Callgrind instruction counts, but measured functions it calls still get their own rows.
+
 `iter_batched` and `iter_batched_ref` batch the N iterations like Criterion: each batch (sized from `BatchSize` and N, the last one holding what is left) runs every `setup` first, then the routines, then drops the outputs (and, for `iter_batched_ref`, the inputs). The Vecs holding a batch's inputs and outputs count towards the `bench` row. Setup allocations never count towards the routine or the functions it calls, but a `#[hotpath::measure]` function called by `setup` itself still gets those calls in its own row.
 
-A fixed iteration count fixes how many times the routine runs, not what it does: random inputs, state that changes between iterations (caches, growing collections) and concurrency still change timings and instruction counts between runs.
+A fixed iteration count fixes how many times the routine runs, not what it does: random inputs, state that changes between iterations (caches, growing collections) and concurrency still change timings and instruction counts between runs. For async routines, task scheduling, concurrent tasks, timers and real I/O add to that: the order in which the executor polls tasks and how long a future waits can differ between runs even with the same iteration count. A current-thread runtime and in-memory I/O keep async runs most repeatable.
 
 ### Unsupported
 
-`to_async`, `iter_with_setup`, `iter_with_large_drop`, `iter_with_large_setup`, Criterion's own `BenchmarkId` and Criterion's configuration methods on the `Criterion` wrapper are not provided, so they fail to compile rather than silently running a different number of iterations or writing an unnamed report. Criterion's `Profiler` hooks are not used.
+`iter_with_setup`, `iter_with_large_drop`, `iter_with_large_setup` (sync and async), Criterion's own `BenchmarkId` and Criterion's configuration methods on the `Criterion` wrapper are not provided, so they fail to compile rather than silently running a different number of iterations or writing an unnamed report. Criterion's `Profiler` hooks are not used.
 
 ## Native and Callgrind runs
 

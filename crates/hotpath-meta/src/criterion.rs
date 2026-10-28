@@ -10,15 +10,20 @@
 //! Criterion iteration. Needs Criterion's test mode and a filter matching one
 //! benchmark, e.g. `cargo bench --bench codec -- --test --exact "group/id"`.
 //!
-//! Unwrapped Criterion APIs (`to_async`, `iter_with_setup`, ...) fail to
-//! compile instead of running a different number of iterations.
+//! `Bencher::to_async` takes any Criterion `AsyncExecutor`; each routine
+//! future is awaited to completion before the next one starts.
+//!
+//! Unwrapped Criterion APIs (`iter_with_setup`, ...) fail to compile instead
+//! of running a different number of iterations.
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::hint::black_box;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::LazyLock;
 use std::time::Duration;
 
+use ::criterion::async_executor::AsyncExecutor;
 use ::criterion::measurement::{Measurement, WallTime};
 use ::criterion::{BatchSize, PlotConfiguration, SamplingMode, Throughput};
 
@@ -98,6 +103,13 @@ fn full_id(group: &str, function: Option<&str>, parameter: Option<&str>) -> Stri
 #[hotpath_meta::measure]
 fn routine<O>(f: impl FnOnce() -> O) -> O {
     f()
+}
+
+/// [`routine`] for a routine future: callers pass an `async` block that also
+/// creates the future, so its whole execution, `.await`s included, is measured.
+#[hotpath_meta::measure]
+async fn async_routine<F: Future>(f: F) -> F::Output {
+    f.await
 }
 
 #[doc(hidden)]
@@ -351,7 +363,16 @@ pub struct Bencher<'a, 'b, M: Measurement = WallTime> {
     id: &'b str,
 }
 
-impl<M: Measurement> Bencher<'_, '_, M> {
+impl<'a, M: Measurement> Bencher<'a, '_, M> {
+    /// See [`criterion::Bencher::to_async`].
+    pub fn to_async<A: AsyncExecutor>(&mut self, runner: A) -> AsyncBencher<'a, '_, A, M> {
+        AsyncBencher {
+            inner: self.inner,
+            runner,
+            id: self.id,
+        }
+    }
+
     /// See [`criterion::Bencher::iter`].
     pub fn iter<O, R>(&mut self, mut routine: R)
     where
@@ -452,6 +473,150 @@ impl<M: Measurement> Bencher<'_, '_, M> {
             return self.inner.iter_custom(routine);
         };
         self.inner.iter_custom(|_| routine(session.iterations));
+    }
+}
+
+/// [`criterion::AsyncBencher`] that runs a routine future exactly
+/// `HOTPATH_META_CRITERION_ITERATIONS` times when it is set, awaiting each one
+/// before the next starts.
+///
+/// Its methods take `self`: forwarding to Criterion moves the executor into
+/// [`criterion::Bencher::to_async`], and `AsyncExecutor` is not implemented
+/// for references to every executor.
+pub struct AsyncBencher<'a, 'b, A, M: Measurement = WallTime> {
+    inner: &'b mut ::criterion::Bencher<'a, M>,
+    runner: A,
+    id: &'b str,
+}
+
+impl<A: AsyncExecutor, M: Measurement> AsyncBencher<'_, '_, A, M> {
+    /// See [`criterion::AsyncBencher::iter`].
+    pub fn iter<O, R, F>(self, mut routine: R)
+    where
+        R: FnMut() -> F,
+        F: Future<Output = O>,
+    {
+        let Some(session) = Session::start(self.id) else {
+            return self.inner.to_async(self.runner).iter(routine);
+        };
+        let runner = &self.runner;
+        self.inner.iter(|| {
+            runner.block_on(async {
+                for _ in 0..session.iterations {
+                    crate::criterion::async_routine(async {
+                        black_box(routine().await);
+                    })
+                    .await;
+                }
+            })
+        });
+    }
+
+    /// See [`criterion::AsyncBencher::iter_batched`]. Batches like Criterion.
+    pub fn iter_batched<I, O, S, R, F>(self, mut setup: S, mut routine: R, size: BatchSize)
+    where
+        S: FnMut() -> I,
+        R: FnMut(I) -> F,
+        F: Future<Output = O>,
+    {
+        let Some(session) = Session::start(self.id) else {
+            return self
+                .inner
+                .to_async(self.runner)
+                .iter_batched(setup, routine, size);
+        };
+        let iterations = session.iterations;
+        let batch = batch_size(size, iterations);
+        let runner = &self.runner;
+        self.inner.iter(|| {
+            runner.block_on(async {
+                if batch == 1 {
+                    for _ in 0..iterations {
+                        let input = black_box(setup());
+                        let output =
+                            crate::criterion::async_routine(async { routine(input).await }).await;
+                        drop(black_box(output));
+                    }
+                    return;
+                }
+                let mut done = 0;
+                while done < iterations {
+                    let len = batch.min(iterations - done);
+                    let inputs = black_box((0..len).map(|_| setup()).collect::<Vec<_>>());
+                    let mut outputs = Vec::with_capacity(len as usize);
+                    for input in inputs {
+                        outputs.push(
+                            crate::criterion::async_routine(async { routine(input).await }).await,
+                        );
+                    }
+                    black_box(outputs);
+                    done += len;
+                }
+            })
+        });
+    }
+
+    /// See [`criterion::AsyncBencher::iter_batched_ref`]. Batches like the
+    /// synchronous [`Bencher::iter_batched_ref`]: a batch's inputs drop after
+    /// its outputs.
+    pub fn iter_batched_ref<I, O, S, R, F>(self, mut setup: S, mut routine: R, size: BatchSize)
+    where
+        S: FnMut() -> I,
+        R: FnMut(&mut I) -> F,
+        F: Future<Output = O>,
+    {
+        let Some(session) = Session::start(self.id) else {
+            return self
+                .inner
+                .to_async(self.runner)
+                .iter_batched_ref(setup, routine, size);
+        };
+        let iterations = session.iterations;
+        let batch = batch_size(size, iterations);
+        let runner = &self.runner;
+        self.inner.iter(|| {
+            runner.block_on(async {
+                if batch == 1 {
+                    for _ in 0..iterations {
+                        let mut input = black_box(setup());
+                        let output =
+                            crate::criterion::async_routine(async { routine(&mut input).await })
+                                .await;
+                        drop(black_box(output));
+                        drop(black_box(input));
+                    }
+                    return;
+                }
+                let mut done = 0;
+                while done < iterations {
+                    let len = batch.min(iterations - done);
+                    let mut inputs = black_box((0..len).map(|_| setup()).collect::<Vec<_>>());
+                    let mut outputs = Vec::with_capacity(len as usize);
+                    for input in inputs.iter_mut() {
+                        outputs.push(
+                            crate::criterion::async_routine(async { routine(input).await }).await,
+                        );
+                    }
+                    black_box(outputs);
+                    done += len;
+                }
+            })
+        });
+    }
+
+    /// See [`criterion::AsyncBencher::iter_custom`]. The report has no
+    /// per-iteration row.
+    pub fn iter_custom<R, F>(self, mut routine: R)
+    where
+        R: FnMut(u64) -> F,
+        F: Future<Output = M::Value>,
+    {
+        let Some(session) = Session::start(self.id) else {
+            return self.inner.to_async(self.runner).iter_custom(routine);
+        };
+        self.inner
+            .to_async(self.runner)
+            .iter_custom(|_| routine(session.iterations));
     }
 }
 

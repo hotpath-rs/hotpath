@@ -13,6 +13,7 @@ pub mod tests {
 
     const ITERATIONS: u64 = 1000;
     const ROUTINE: &str = "hotpath::criterion::routine";
+    const ASYNC_ROUTINE: &str = "hotpath::criterion::async_routine";
     const BENCH: &str = "hotpath::criterion::bench";
     const WORK: &str = "fixture::work";
 
@@ -67,6 +68,15 @@ pub mod tests {
             .unwrap_or_else(|| panic!("{name} missing from {:#?}", list.data))
     }
 
+    /// The per-iteration row of `benchmark`.
+    fn routine_row(benchmark: &str) -> &'static str {
+        if benchmark.starts_with("async/") {
+            ASYNC_ROUTINE
+        } else {
+            ROUTINE
+        }
+    }
+
     #[track_caller]
     fn bytes(value: &str) -> u64 {
         hotpath::parse_bytes(value).unwrap_or_else(|| panic!("not bytes: {value:?}"))
@@ -89,11 +99,14 @@ pub mod tests {
     }
 
     // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched_per_iteration
+    // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact async/iter_multi_thread
     #[test]
     fn test_fixed_iterations_run_each_routine_exactly_n_times() {
         let n = ITERATIONS;
         // (benchmark, setups, routine bytes per call, bench row bytes per
-        // iteration, whether the bench row holds exactly those).
+        // iteration, whether the bench row holds exactly those). The `async/`
+        // routines yield before calling `run`, so their bytes are allocated
+        // after an `.await`.
         let cases = [
             ("top_level", 0, 64 + 32, 0, true),
             ("top_input/9", 0, 64 + 32, 0, true),
@@ -116,6 +129,24 @@ pub mod tests {
                 true,
             ),
             ("work/iter_batched_ref", n, 64, 1024 + 32 + 16, true),
+            ("async/iter", 0, 64 + 32, 0, true),
+            ("async/iter_multi_thread", 0, 64 + 32, 0, true),
+            (
+                "async/iter_batched_per_iteration",
+                n,
+                64 + 16,
+                1024 + 32,
+                true,
+            ),
+            ("async/iter_batched", n, 64 + 16, 1024 + 32, false),
+            (
+                "async/iter_batched_ref_per_iteration",
+                n,
+                64,
+                1024 + 32 + 16,
+                true,
+            ),
+            ("async/iter_batched_ref", n, 64, 1024 + 32 + 16, true),
         ];
         for (benchmark, setups, routine_bytes, bench_bytes, exact) in cases {
             let (counts, report) = fixed_run(benchmark);
@@ -139,24 +170,42 @@ pub mod tests {
                 Some(benchmark)
             );
 
+            let routine = routine_row(benchmark);
             let timing = report.functions_timing.as_ref().expect("timing section");
             assert_eq!(timing.caller_name, BENCH);
-            for name in [ROUTINE, WORK] {
+            for name in [routine, WORK] {
                 let e = entry(timing, name);
                 assert_eq!((e.calls, e.sampled_calls), (n, n), "{benchmark} {name}");
             }
             assert_eq!(entry(timing, BENCH).calls, 1);
+            let total = |name: &str| hotpath::parse_duration(&entry(timing, name).total).unwrap();
+            assert!(
+                total(routine) > total(WORK),
+                "{benchmark}: the routine row must include the work it awaits"
+            );
+            for other in [ROUTINE, ASYNC_ROUTINE]
+                .into_iter()
+                .filter(|r| *r != routine)
+            {
+                assert!(timing.data.iter().all(|e| e.name != other), "{benchmark}");
+            }
 
             let alloc = report.functions_alloc.as_ref().expect("alloc section");
             assert_eq!(bytes(&entry(alloc, WORK).avg), 512, "{benchmark}");
             assert_eq!(
-                bytes(&entry(alloc, ROUTINE).avg),
+                bytes(&entry(alloc, routine).avg),
                 routine_bytes,
                 "{benchmark}: setup and drops outside the routine must not be attributed to it"
             );
             let bench_total = bytes(&entry(alloc, BENCH).total);
             let expected = bench_bytes * n;
-            if exact {
+            if exact && routine == ASYNC_ROUTINE {
+                // Plus the executor's per-`block_on` bookkeeping.
+                assert!(
+                    (expected..expected + 1024).contains(&bench_total),
+                    "{benchmark}: bench row {bench_total} B, expected {expected} B"
+                );
+            } else if exact {
                 assert_eq!(
                     bench_total, expected,
                     "{benchmark}: setup and drops outside the routine belong to the bench row"
@@ -170,78 +219,93 @@ pub mod tests {
         }
     }
 
-    // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_custom
+    // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact async/iter_custom
     #[test]
     fn test_iter_custom_gets_the_iteration_count() {
-        let (counts, report) = fixed_run("work/iter_custom");
-        assert_eq!(counts.routine_calls, ITERATIONS);
-        let timing = report.functions_timing.expect("timing section");
-        assert_eq!(entry(&timing, WORK).calls, ITERATIONS);
-        assert!(
-            timing.data.iter().all(|e| e.name != ROUTINE),
-            "iter_custom loops on its own, so it has no per-iteration row"
-        );
+        for benchmark in ["work/iter_custom", "async/iter_custom"] {
+            let (counts, report) = fixed_run(benchmark);
+            assert_eq!(counts.routine_calls, ITERATIONS, "{benchmark}");
+            let timing = report.functions_timing.expect("timing section");
+            assert_eq!(entry(&timing, WORK).calls, ITERATIONS, "{benchmark}");
+            assert!(
+                timing
+                    .data
+                    .iter()
+                    .all(|e| e.name != ROUTINE && e.name != ASYNC_ROUTINE),
+                "{benchmark}: iter_custom loops on its own, so it has no per-iteration row"
+            );
+        }
     }
 
-    // cargo run -p test-criterion --example fixture --features hotpath -- --exact work/iter_batched
+    // cargo run -p test-criterion --example fixture --features hotpath -- --exact async/iter_batched
     #[test]
     fn test_without_iterations_criterion_runs_unchanged() {
-        // Test mode (implied by `cargo run`): one iteration, no report.
-        let output = fixture("hotpath")
-            .json()
-            .args(&["--exact", "work/iter_batched"])
-            .output();
-        assert_success(&output);
-        assert_eq!(
-            counts(&output),
-            Counts {
-                routine_calls: 1,
-                setup_calls: 1,
-                input_drops: 1,
-                output_drops: 1,
-            }
-        );
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(
-            !stdout.contains('{'),
-            "no hotpath report expected:\n{stdout}"
-        );
+        for prefix in ["work", "async"] {
+            // Test mode (implied by `cargo run`): one iteration, no report.
+            let output = fixture("hotpath")
+                .json()
+                .args(&["--exact", &format!("{prefix}/iter_batched")])
+                .output();
+            assert_success(&output);
+            assert_eq!(
+                counts(&output),
+                Counts {
+                    routine_calls: 1,
+                    setup_calls: 1,
+                    input_drops: 1,
+                    output_drops: 1,
+                },
+                "{prefix}"
+            );
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(
+                !stdout.contains('{'),
+                "no hotpath report expected:\n{stdout}"
+            );
 
-        // Benchmark mode: Criterion's own warm-up and sampling loop.
-        let output = fixture("hotpath")
-            .json()
-            .args(&["--bench", "--exact", "work/iter", "--discard-baseline"])
-            .output();
-        assert_success(&output);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("time:"), "no Criterion estimate:\n{stdout}");
-        assert!(
-            !stdout.contains('{'),
-            "no hotpath report expected:\n{stdout}"
-        );
-        assert!(counts(&output).routine_calls > ITERATIONS);
+            // Benchmark mode: Criterion's own warm-up and sampling loop.
+            let output = fixture("hotpath")
+                .json()
+                .args(&[
+                    "--bench",
+                    "--exact",
+                    &format!("{prefix}/iter"),
+                    "--discard-baseline",
+                ])
+                .output();
+            assert_success(&output);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(stdout.contains("time:"), "no Criterion estimate:\n{stdout}");
+            assert!(
+                !stdout.contains('{'),
+                "no hotpath report expected:\n{stdout}"
+            );
+            assert!(counts(&output).routine_calls > ITERATIONS, "{prefix}");
+        }
     }
 
-    // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath -- work/iter
+    // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath -- async/iter
     #[test]
     fn test_fixed_iterations_refuse_a_second_benchmark() {
-        // A regex filter matching several benchmarks.
-        let output = fixture("hotpath")
-            .env("HOTPATH_CRITERION_ITERATIONS", "10")
-            .args(&["work/iter"])
-            .output();
-        assert!(!output.status.success());
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("a second one started"), "{stderr}");
+        for benchmark in ["work/iter", "async/iter"] {
+            // A regex filter matching several benchmarks.
+            let output = fixture("hotpath")
+                .env("HOTPATH_CRITERION_ITERATIONS", "10")
+                .args(&[benchmark])
+                .output();
+            assert!(!output.status.success(), "{benchmark}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(stderr.contains("a second one started"), "{stderr}");
 
-        // Criterion's benchmark mode enters the routine once per sample.
-        let output = fixture("hotpath")
-            .env("HOTPATH_CRITERION_ITERATIONS", "10")
-            .args(&["--bench", "--exact", "work/iter", "--discard-baseline"])
-            .output();
-        assert!(!output.status.success());
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("a second one started"), "{stderr}");
+            // Criterion's benchmark mode enters the routine once per sample.
+            let output = fixture("hotpath")
+                .env("HOTPATH_CRITERION_ITERATIONS", "10")
+                .args(&["--bench", "--exact", benchmark, "--discard-baseline"])
+                .output();
+            assert!(!output.status.success(), "{benchmark}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(stderr.contains("a second one started"), "{stderr}");
+        }
     }
 
     // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath -- --exact missing
@@ -308,20 +372,22 @@ pub mod tests {
             .collect()
     }
 
-    // HOTPATH_CRITERION_ITERATIONS=25 cargo run -p test-criterion --example batching --features hotpath -- --exact batched/value/10
+    // HOTPATH_CRITERION_ITERATIONS=25 cargo run -p test-criterion --example batching --features hotpath -- --exact async_batched/value/10
     #[test]
     fn test_batches_follow_criterion() {
         let r = |c: &str, k: usize| c.repeat(k);
-        assert_eq!(
-            trace("batched/value/10"),
-            batches(10, |k| r("S", k) + &r("RI", k) + &r("O", k))
-        );
-        assert_eq!(
-            trace("batched/ref/10"),
-            batches(10, |k| r("S", k) + &r("R", k) + &r("O", k) + &r("I", k))
-        );
-        assert_eq!(trace("batched/value/1"), r("SRIO", 25));
-        assert_eq!(trace("batched/ref/1"), r("SROI", 25));
+        for group in ["batched", "async_batched"] {
+            assert_eq!(
+                trace(&format!("{group}/value/10")),
+                batches(10, |k| r("S", k) + &r("RI", k) + &r("O", k))
+            );
+            assert_eq!(
+                trace(&format!("{group}/ref/10")),
+                batches(10, |k| r("S", k) + &r("R", k) + &r("O", k) + &r("I", k))
+            );
+            assert_eq!(trace(&format!("{group}/value/1")), r("SRIO", 25));
+            assert_eq!(trace(&format!("{group}/ref/1")), r("SROI", 25));
+        }
     }
 
     const MERGE_FEATURES: &str = "hotpath,hotpath-alloc,hotpath-callgrind,hotpath-cloud";
@@ -357,26 +423,29 @@ pub mod tests {
         read(&out).functions_icount.expect("instruction counts")
     }
 
-    // CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" HOTPATH_CRITERION_ITERATIONS=1000 HOTPATH_OUTPUT_FORMAT=json cargo run --release -p test-criterion --example fixture --features hotpath,hotpath-callgrind -- --exact work/iter_batched
+    // CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" HOTPATH_CRITERION_ITERATIONS=1000 HOTPATH_OUTPUT_FORMAT=json cargo run --release -p test-criterion --example fixture --features hotpath,hotpath-callgrind -- --exact async/iter_batched
     #[test]
     fn test_callgrind_counts_are_stable() {
         if !valgrind_available() {
             return;
         }
-        let dir = RunDir::new();
-        let first = icount("work/iter_batched", &dir);
-        let second = icount("work/iter_batched", &dir);
-        let total = |list: &JsonFunctionsList, name: &str| -> u64 {
-            let e = entry(list, name);
-            assert_eq!(e.calls, ITERATIONS, "{name}");
-            e.total.parse().unwrap()
-        };
-        // A leaf measured function is exact.
-        assert_eq!(total(&first, WORK), total(&second, WORK));
-        // The routine also counts hotpath's own queueing, so it drifts slightly.
-        let (a, b) = (total(&first, ROUTINE), total(&second, ROUTINE));
-        let drift = a.abs_diff(b) as f64 / a as f64;
-        assert!(drift < 1e-3, "routine instructions {a} vs {b}");
+        for benchmark in ["work/iter_batched", "async/iter_batched"] {
+            let dir = RunDir::new();
+            let first = icount(benchmark, &dir);
+            let second = icount(benchmark, &dir);
+            let total = |list: &JsonFunctionsList, name: &str| -> u64 {
+                let e = entry(list, name);
+                assert_eq!(e.calls, ITERATIONS, "{benchmark} {name}");
+                e.total.parse().unwrap()
+            };
+            // A leaf measured function is exact.
+            assert_eq!(total(&first, WORK), total(&second, WORK), "{benchmark}");
+            // The routine also counts hotpath's own queueing, so it drifts slightly.
+            let routine = routine_row(benchmark);
+            let (a, b) = (total(&first, routine), total(&second, routine));
+            let drift = a.abs_diff(b) as f64 / a as f64;
+            assert!(drift < 1e-3, "{benchmark}: routine instructions {a} vs {b}");
+        }
     }
 
     // HOTPATH_CRITERION_ITERATIONS=1000 HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=native.json cargo run --release -p test-criterion --example fixture --features hotpath,hotpath-alloc,hotpath-callgrind,hotpath-cloud -- --exact work/iter_batched
@@ -386,32 +455,43 @@ pub mod tests {
         if !valgrind_available() {
             return;
         }
-        let dir = RunDir::new();
-        let (native_path, merged_path) = (dir.path("native.json"), dir.path("merged.json"));
-        let native_output = merge_run("work/iter_batched", &native_path, None).output();
-        assert_success(&native_output);
-        let output = merge_run("work/iter_batched", &merged_path, Some(&dir))
-            .env("HOTPATH_MERGE_REPORT", &native_path)
-            .output();
-        assert_success(&output);
+        for benchmark in ["work/iter_batched", "async/iter_batched"] {
+            let dir = RunDir::new();
+            let (native_path, merged_path) = (dir.path("native.json"), dir.path("merged.json"));
+            let native_output = merge_run(benchmark, &native_path, None).output();
+            assert_success(&native_output);
+            let output = merge_run(benchmark, &merged_path, Some(&dir))
+                .env("HOTPATH_MERGE_REPORT", &native_path)
+                .output();
+            assert_success(&output);
 
-        let (native, merged) = (read(&native_path), read(&merged_path));
-        assert_eq!(merged.meta.run, Some(hotpath::json::JsonRun::Merged));
-        assert_eq!(merged.meta.benchmark.as_deref(), Some("criterion-fixture"));
-        let timing = merged.functions_timing.as_ref().expect("native timing");
-        assert_eq!(
-            timing.total_elapsed_ns,
-            native.functions_timing.as_ref().unwrap().total_elapsed_ns
-        );
-        let alloc = merged.functions_alloc.as_ref().expect("native allocations");
-        assert_eq!(bytes(&entry(alloc, ROUTINE).avg), 64 + 16);
-        let icount = merged
-            .functions_icount
-            .as_ref()
-            .expect("instruction counts");
-        for list in [timing, alloc, icount] {
-            assert_eq!(entry(list, ROUTINE).calls, ITERATIONS);
-            assert_eq!(entry(list, WORK).calls, ITERATIONS);
+            let (native, merged) = (read(&native_path), read(&merged_path));
+            assert_eq!(merged.meta.run, Some(hotpath::json::JsonRun::Merged));
+            assert_eq!(merged.meta.benchmark.as_deref(), Some("criterion-fixture"));
+            assert_eq!(
+                merged
+                    .user_metadata
+                    .as_ref()
+                    .and_then(|m| m.get("criterion_benchmark"))
+                    .map(String::as_str),
+                Some(benchmark)
+            );
+            let timing = merged.functions_timing.as_ref().expect("native timing");
+            assert_eq!(
+                timing.total_elapsed_ns,
+                native.functions_timing.as_ref().unwrap().total_elapsed_ns
+            );
+            let routine = routine_row(benchmark);
+            let alloc = merged.functions_alloc.as_ref().expect("native allocations");
+            assert_eq!(bytes(&entry(alloc, routine).avg), 64 + 16, "{benchmark}");
+            let icount = merged
+                .functions_icount
+                .as_ref()
+                .expect("instruction counts");
+            for list in [timing, alloc, icount] {
+                assert_eq!(entry(list, routine).calls, ITERATIONS, "{benchmark}");
+                assert_eq!(entry(list, WORK).calls, ITERATIONS, "{benchmark}");
+            }
         }
     }
 }
