@@ -1,6 +1,6 @@
 [package]
 name = "hotpath-macros-meta"
-version = "0.30.0"
+version = "0.30.1"
 edition = "2021"
 description = "Hotpath meta - a version of hotpath used to profile the profiler itself. Not intended for external use. Proc macros crate."
 repository = "https://github.com/hotpath-rs/hotpath"
