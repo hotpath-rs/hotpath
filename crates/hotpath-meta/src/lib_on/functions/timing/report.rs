@@ -106,6 +106,7 @@ pub(crate) fn build_functions_list(
         time_elapsed: precision.duration(total_elapsed_ns),
         total_elapsed_ns: current_elapsed_ns,
         total_allocated: None,
+        total_icount: None,
         description: "Execution duration of functions.".to_string(),
         caller_name: config.caller_name.to_string(),
         percentiles: config.percentiles.clone(),

@@ -382,6 +382,7 @@ impl App {
             time_elapsed: "0 ns".to_string(),
             total_elapsed_ns: 0,
             total_allocated: None,
+            total_icount: None,
             description: "Waiting for data...".to_string(),
             caller_name: "unknown".to_string(),
             percentiles: vec![95.0],

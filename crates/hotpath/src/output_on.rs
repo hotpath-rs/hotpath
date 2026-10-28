@@ -166,6 +166,9 @@ pub(crate) fn display_functions_table_to<W: Write>(writer: &mut W, list: &JsonFu
     if let Some(total_alloc) = &list.total_allocated {
         let _ = writeln!(writer, "Total: {}", value(total_alloc));
     }
+    if let Some(total_icount) = list.total_icount {
+        let _ = writeln!(writer, "Total: {}", format_count_display(total_icount));
+    }
 
     print_table(&table, writer);
 

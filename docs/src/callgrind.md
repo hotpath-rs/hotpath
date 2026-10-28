@@ -31,6 +31,7 @@ Under Valgrind, hotpath does not report timing, to avoid confusing it with real 
 
 ```
 icount - Inclusive instructions executed per function (Callgrind Ir).
+Total: 39,730,412
 +------------------------------+-------+-----------+------------+---------+
 | Function                     | Calls | Avg       | Total      | % Total |
 +------------------------------+-------+-----------+------------+---------+
