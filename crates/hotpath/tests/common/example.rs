@@ -20,8 +20,12 @@ pub(crate) struct Example {
 impl Example {
     /// `cargo run -p <package> --example <example> --features hotpath`
     pub(crate) fn new(package: &str, example: &str) -> Self {
+        let mut cmd = Command::new("cargo");
+        // Many tests poll the metrics server, which is off on GitHub Actions
+        // by default.
+        cmd.env("HOTPATH_METRICS_SERVER_ON", "1");
         Self {
-            cmd: Command::new("cargo"),
+            cmd,
             manifest_path: None,
             package: Some(package.to_string()),
             example: example.to_string(),

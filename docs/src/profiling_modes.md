@@ -95,6 +95,7 @@ The macro accepts `limit`, `functions_limit`, `channels_limit`, `streams_limit`,
 | `HOTPATH_REPORT` | Report sections spec: `all`, `auto`, an exact comma-separated list of section names, or auto with exclusions like `auto,-threads`. Defaults to `auto` - function and thread sections plus every instrumented section with data. |
 | `HOTPATH_FOCUS` | Filter profiled functions by name. Plain text does substring matching; wrap in `/pattern/` for regex (e.g. `HOTPATH_FOCUS="/^(compute\|process)/"`). |
 | `HOTPATH_METRICS_SERVER_OFF` | Set to `true` or `1` to disable the HTTP metrics server. Useful when you only need a static report and don't want to use a TUI. |
+| `HOTPATH_METRICS_SERVER_ON` | Set to `true` or `1` to start the HTTP metrics server on GitHub Actions, where it is off by default. |
 
 Example - write a JSON report containing only function timing and thread usage metrics to a file:
 
