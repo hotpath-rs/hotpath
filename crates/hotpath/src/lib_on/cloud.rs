@@ -842,11 +842,11 @@ mod tests {
 
     #[test]
     fn interpret_error_bodies() {
-        let body = r#"{"error":"meta.ci.event is \"pull_request\" but the token was issued to a \"workflow_run\" run. Forward it through hotpath-relay.yml.","code":"bad_request"}"#;
+        let body = r#"{"error":"meta.ci.event is \"pull_request\" but the token was issued to a \"workflow_run\" run. Forward it through the hotpath-relay action.","code":"bad_request"}"#;
         assert_eq!(
             interpret(400, Some("1bac4db9-15a".into()), body.into()),
             Outcome::Failed {
-                message: "meta.ci.event is \"pull_request\" but the token was issued to a \"workflow_run\" run. Forward it through hotpath-relay.yml. (HTTP 400, request 1bac4db9-15a)".into(),
+                message: "meta.ci.event is \"pull_request\" but the token was issued to a \"workflow_run\" run. Forward it through the hotpath-relay action. (HTTP 400, request 1bac4db9-15a)".into(),
                 body: Some(body.into()),
             }
         );

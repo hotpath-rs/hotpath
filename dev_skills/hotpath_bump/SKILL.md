@@ -1,6 +1,6 @@
 ---
 name: hotpath_bump
-description: Bump the hotpath version number across the workspace and related files. Updates the versions of all six published crates (drain included) in Cargo.toml files (exact patch version), version references in the backend middleware and README (major.minor only), and the relay workflow release tag pins (exact `vX.Y.Z` tag). Use when the user wants to bump, bump the version, or release a new hotpath version.
+description: Bump the hotpath version number across the workspace and related files. Updates the versions of all six published crates (drain included) in Cargo.toml files (exact patch version), version references in the backend middleware and README (major.minor only), and the release tag the docs name (exact `vX.Y.Z` tag). Use when the user wants to bump, bump the version, or release a new hotpath version.
 allowed-tools: Bash, Read, Edit, Grep, Glob
 ---
 
@@ -12,7 +12,7 @@ Three formats are used:
 
 - **Exact version** (`X.Y.Z`, e.g. `0.25.0`) - all Cargo.toml entries
 - **Major.minor only** (`X.Y`, e.g. `0.25`) - crate version references
-- **Release tag** (`vX.Y.Z`, e.g. `v0.25.0`) - `hotpath-relay.yml` pins
+- **Release tag** (`vX.Y.Z`, e.g. `v0.25.0`) - the `{{HOTPATH_RELEASE_TAG}}` docs placeholder
 
 ## 1. Cargo.toml files - exact version `X.Y.Z`
 
@@ -50,9 +50,9 @@ All six crates always share the same version; never bump one without the others.
 
 The docs and the agent pages in `docs/agent/` use the `{{HOTPATH_VERSION}}` and `{{HOTPATH_RELEASE_TAG}}` placeholders, which the backend fills from its `middleware.rs` entries above and below; never hardcode a version there.
 
-## 3. Relay release tag - `vX.Y.Z`
+## 3. Release tag - `vX.Y.Z`
 
-Adopters pin the reusable relay workflow to the release tag, so these point at the tag this release creates:
+The agent pages name the latest release by its tag, so this points at the tag this release creates:
 
 - `../hotpath-backend/src/config/middleware.rs`:
 
@@ -60,9 +60,7 @@ Adopters pin the reusable relay workflow to the release tag, so these point at t
   ("{{HOTPATH_RELEASE_TAG}}", "vX.Y.Z"),
   ```
 
-- `.github/workflows/hotpath-relay.yml` - the `hotpath-relay.yml@vX.Y.Z` pin in the usage comment at the top
-
-Leave `.github/workflows/cloud-benchmark-relay.yml` on `@main`: it tests the relay on the default branch.
+The relay is the separate `hotpath-rs/hotpath-relay` action with its own versions, named in the docs by `{{RELAY_RELEASE_TAG}}`: a hotpath release does not touch it or its pins.
 
 ## 4. Verify
 
@@ -70,7 +68,7 @@ Search for stragglers with the old version, excluding lockfiles, target dirs, an
 
 ```bash
 rg -n 'OLD_X\.OLD_Y' Cargo.toml README.md crates/hotpath/Cargo.toml crates/hotpath-macros/Cargo.toml crates/hotpath-meta/Cargo.toml crates/hotpath-macros-meta/Cargo.toml crates/hotpath-drain/Cargo.toml crates/hotpath-drain-meta/Cargo.toml
-rg -n 'OLD_X\.OLD_Y' ../hotpath-backend/src/config/middleware.rs .github/workflows/hotpath-relay.yml
+rg -n 'OLD_X\.OLD_Y' ../hotpath-backend/src/config/middleware.rs
 ```
 
 Ignore matches that are not hotpath version references (other dependencies may coincidentally share the number). Then run `cargo check` so `Cargo.lock` picks up the new versions.
