@@ -76,7 +76,7 @@ Measure durations for only a fraction of calls to reduce profiling overhead in e
 | Variable | Description |
 |----------|-------------|
 | `HOTPATH_METRICS_PORT` | Port for the HTTP metrics server (binds to `localhost` only). (default: `6770`) |
-| `HOTPATH_METRICS_SERVER_OFF` | Set to `true` or `1` to disable the HTTP metrics server entirely. Under Valgrind and on GitHub Actions (`GITHUB_ACTIONS=true`) it is off by default; under Valgrind the MCP and Prometheus servers never start either. (default: `false`) |
+| `HOTPATH_METRICS_SERVER_OFF` | Set to `true` or `1` to disable the HTTP metrics server entirely. Under Valgrind and on GitHub Actions (`GITHUB_ACTIONS=true`) it is off by default. (default: `false`) |
 | `HOTPATH_METRICS_SERVER_ON` | Set to `true` or `1` to start the HTTP metrics server under Valgrind or on GitHub Actions, where it is off by default. `HOTPATH_METRICS_SERVER_OFF` still takes precedence. (default: `false`) |
 | `HOTPATH_METRICS_AUTH_TOKEN` | When set, every request must send this exact token as the `Authorization` header value (no `Bearer` prefix) or it gets `401`. Any printable ASCII characters without whitespace; anything else panics at startup. The token travels in plaintext: the server still binds to `localhost` only, so this guards against other local processes and accidental exposure through tunnels, not a substitute for TLS. (default: `''`) |
 

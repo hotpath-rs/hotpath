@@ -178,9 +178,6 @@ const PROTOBUF_CONTENT_TYPE: &str =
 
 #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure(log = true))]
 pub(crate) fn start_prometheus_server_once() {
-    if *crate::lib_on::valgrind::ON_VALGRIND {
-        return;
-    }
     PROMETHEUS_SERVER_STARTED.get_or_init(|| {
         start_prometheus_server(*PROMETHEUS_PORT);
     });

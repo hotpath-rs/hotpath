@@ -916,9 +916,6 @@ static MCP_SERVER_STARTED: OnceLock<()> = OnceLock::new();
 
 #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure(log = true))]
 pub(crate) fn start_mcp_server_once() {
-    if *crate::lib_on::valgrind::ON_VALGRIND {
-        return;
-    }
     MCP_SERVER_STARTED.get_or_init(|| {
         let port = *MCP_SERVER_PORT;
 
