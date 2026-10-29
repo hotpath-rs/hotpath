@@ -287,12 +287,19 @@ permissions: {} # jobs get only what they declare
 
 jobs:
   relay:
+    # only successful pull request runs have a report; the action checks this too
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       actions: read # download the artifact of the benchmark run
       id-token: write # authenticate the upload
       pull-requests: read # find the pull request the run belongs to
+    concurrency: # a newer run of the same benchmark and branch supersedes an older one
+      group: hotpath-relay-${{ github.event.workflow_run.name }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: true
     steps:
       - uses: hotpath-rs/hotpath-relay@{{RELAY_RELEASE_TAG}}
         with:
@@ -426,12 +433,19 @@ permissions: {}
 
 jobs:
   relay:
+    # only successful pull request runs have a report; the action checks this too
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       actions: read
       id-token: write
       pull-requests: read
+    concurrency: # a newer run of the same benchmark and branch supersedes an older one
+      group: hotpath-relay-${{ github.event.workflow_run.name }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: true
     steps:
       - uses: hotpath-rs/hotpath-relay@{{RELAY_RELEASE_TAG}}
         with:

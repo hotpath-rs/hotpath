@@ -12,17 +12,27 @@ permissions: {}
 # name, so keep the lookup in sync with `workflows:`.
 jobs:
   relay:
-    # The drain criterion benchmark uploads same-repository pull requests in
-    # process and writes an artifact only for forks.
+    # Only successful pull request runs have a report to relay; the action
+    # checks this too, so this only saves starting a runner. The drain
+    # criterion benchmark uploads same-repository pull requests in process and
+    # writes an artifact only for forks.
     if: >-
-      github.event.workflow_run.name != 'Cloud drain criterion benchmark' ||
-      github.event.workflow_run.head_repository.full_name != github.repository
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.name != 'Cloud drain criterion benchmark' ||
+      github.event.workflow_run.head_repository.full_name != github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       actions: read
       id-token: write
       pull-requests: read
+    concurrency:
+      # A newer run of the same benchmark and branch supersedes an older one.
+      # `workflow_run.pull_requests` is empty for fork pull requests, so the
+      # fork branch identifies the run instead of the pull request number.
+      group: hotpath-relay-${{ github.event.workflow_run.name }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: true
     steps:
       - uses: hotpath-rs/hotpath-relay@v1.0.0
         with:
