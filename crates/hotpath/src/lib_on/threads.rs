@@ -286,8 +286,22 @@ pub(crate) fn get_threads_raw() -> Option<ThreadsRaw> {
     let state_guard = state.read().ok()?;
     let current_elapsed_ns = state_guard.start_time.elapsed().as_nanos() as u64;
 
-    #[allow(unused_mut)]
     let mut current_metrics = state_guard.current_metrics.clone();
+
+    // A sample can catch a thread before std names it, and a short run may
+    // never resample it - the registry name is authoritative.
+    #[cfg(feature = "hotpath-alloc")]
+    for m in &mut current_metrics {
+        if let Some(name) =
+            crate::lib_on::functions::alloc::core::get_registered_thread_name(m.os_tid)
+        {
+            m.name = name;
+        }
+    }
+
+    #[cfg(feature = "hotpath-alloc")]
+    let live_tids: HashSet<u64> = current_metrics.iter().map(|m| m.os_tid).collect();
+    current_metrics.retain(|m| !crate::lib_on::is_hidden_internal_thread(m.name.as_bytes()));
     let live_count = current_metrics.len();
 
     // The allocation registry is the single source of truth for
@@ -299,16 +313,10 @@ pub(crate) fn get_threads_raw() -> Option<ThreadsRaw> {
     #[cfg(feature = "hotpath-alloc")]
     {
         use crate::lib_on::functions::alloc::core::{
-            get_registered_thread_name, get_registered_thread_stats, get_thread_alloc_stats,
-            is_orphaned_tid,
+            get_registered_thread_stats, get_thread_alloc_stats, is_orphaned_tid,
         };
 
         for m in &mut current_metrics {
-            // A sample can catch a thread before std names it, and a short
-            // run may never resample it - the registry name is authoritative.
-            if let Some(name) = get_registered_thread_name(m.os_tid) {
-                m.name = name;
-            }
             if let Some((alloc, dealloc)) = get_thread_alloc_stats(m.os_tid) {
                 m.alloc_bytes = Some(alloc);
                 m.dealloc_bytes = Some(dealloc);
@@ -316,9 +324,14 @@ pub(crate) fn get_threads_raw() -> Option<ThreadsRaw> {
             }
         }
 
-        let live_tids: HashSet<u64> = current_metrics.iter().map(|m| m.os_tid).collect();
         for (tid, alloc, dealloc, name) in get_registered_thread_stats() {
             if live_tids.contains(&tid) {
+                continue;
+            }
+            if name
+                .as_deref()
+                .is_some_and(|n| crate::lib_on::is_hidden_internal_thread(n.as_bytes()))
+            {
                 continue;
             }
             let status = if is_orphaned_tid(tid) {

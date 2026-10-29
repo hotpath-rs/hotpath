@@ -912,6 +912,9 @@ async fn auth_middleware(
 static MCP_SERVER_STARTED: OnceLock<()> = OnceLock::new();
 
 pub(crate) fn start_mcp_server_once() {
+    if *crate::lib_on::valgrind::ON_VALGRIND {
+        return;
+    }
     MCP_SERVER_STARTED.get_or_init(|| {
         let port = *MCP_SERVER_PORT;
 

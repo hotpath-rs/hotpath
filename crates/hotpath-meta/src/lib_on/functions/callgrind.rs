@@ -93,7 +93,7 @@ where
 
 /// Whether this run counts instructions (the process runs under Valgrind).
 pub(crate) fn active() -> bool {
-    *request::ON_VALGRIND
+    *crate::lib_on::valgrind::ON_VALGRIND
 }
 
 /// `HOTPATH_META_CALLGRIND_OUT_FILE`: the `--callgrind-out-file` value Valgrind

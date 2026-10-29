@@ -24,8 +24,11 @@ pub(crate) static METRICS_SERVER_PORT: LazyLock<u16> = LazyLock::new(|| {
 pub(crate) static METRICS_AUTH_TOKEN: LazyLock<Option<String>> =
     LazyLock::new(|| crate::auth::token_from_env("HOTPATH_METRICS_AUTH_TOKEN"));
 
-pub(crate) static METRICS_SERVER_DISABLED: LazyLock<bool> =
-    LazyLock::new(|| crate::shared::env_flag("HOTPATH_METRICS_SERVER_OFF"));
+/// Off by `HOTPATH_METRICS_SERVER_OFF` and always under Valgrind, where no
+/// client polls it and its threads would only add instructions and rows.
+pub(crate) static METRICS_SERVER_DISABLED: LazyLock<bool> = LazyLock::new(|| {
+    crate::shared::env_flag("HOTPATH_METRICS_SERVER_OFF") || *crate::lib_on::valgrind::ON_VALGRIND
+});
 
 // Worker snapshot queries can take hundreds of ms in debug builds of large
 // programs. Must stay below the TUI refresh interval: the TUI aborts an
