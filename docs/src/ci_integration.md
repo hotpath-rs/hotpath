@@ -287,36 +287,29 @@ permissions: {} # jobs get only what they declare
 
 jobs:
   relay:
-    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@{{HOTPATH_RELEASE_TAG}}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       actions: read # download the artifact of the benchmark run
       id-token: write # authenticate the upload
       pull-requests: read # find the pull request the run belongs to
-    with:
-      benchmark: my_benchmark
-      artifact_name: hotpath-report
-      report_file: report.json
+    steps:
+      - uses: hotpath-rs/hotpath-relay@v1.0.0
+        with:
+          benchmark: my_benchmark
+          artifact_name: hotpath-report
+          report_file: report.json
 ```
 
-[`hotpath-relay.yml`](https://github.com/hotpath-rs/hotpath/blob/main/.github/workflows/hotpath-relay.yml) is a reusable workflow. It runs after a successful benchmark run of a pull request, downloads the artifact, uploads the report and prints the server's response in the step summary. A rejected upload fails the relay job, and a comment that could not be posted is a warning. The pull request the report belongs to is looked up from the benchmark run's head commit, not read from the report, which the pull request's own code wrote; that lookup is what `pull-requests: read` is for.
+[hotpath-relay](https://github.com/marketplace/actions/hotpath-relay) is a GitHub Action. It runs after a successful benchmark run of a pull request, downloads the artifact, uploads the report and prints the server's response in the step summary; runs of other events, and failed runs, are skipped with a notice. A rejected upload fails the relay job, and a comment that could not be posted is a warning. The pull request the report belongs to is looked up from the benchmark run's head commit, not read from the report, which the pull request's own code wrote; that lookup is what `pull-requests: read` is for. The relay job never checks out or runs code from the pull request: keep the action its only step, since every step of the job could mint the upload token.
 
-Pin the relay to a release tag, the one of the `hotpath` version the benchmark builds with, so the relay and the report it uploads come from the same release. 
-
-```bash
-git ls-remote https://github.com/hotpath-rs/hotpath refs/tags/{{HOTPATH_RELEASE_TAG}}
-```
-
-Repositories that pin actions by commit hash should use the commit the tag points to, with the tag in the comment:
-
-```yaml
-    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@<commit sha> # {{HOTPATH_RELEASE_TAG}}
-```
+Pin the action to an exact version such as `v1.0.0`. Its versions are independent of hotpath's and published as [immutable releases](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/immutable-releases): a version tag can never be moved to another commit, so it is as fixed as a commit SHA. There is no moving `v1` tag; upgrade by changing the version.
 
 | Input | Description |
 |---|---|
 | `benchmark` | Name of the benchmark series, as in `HOTPATH_BENCHMARK`. Required. |
 | `artifact_name` | Name of the artifact the benchmark job uploaded. (default: `hotpath-report`) |
-| `report_file` | Name of the JSON report inside the artifact. (default: `report.json`) |
+| `report_file` | Path of the JSON report inside the artifact, relative, without `..`. (default: `report.json`) |
 | `source_root` | Path of the build workspace relative to the repository root, `""` when they are the same. (default: `""`) |
 
 Things to know about `workflow_run`:
@@ -433,23 +426,26 @@ permissions: {}
 
 jobs:
   relay:
-    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@{{HOTPATH_RELEASE_TAG}}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       actions: read
       id-token: write
       pull-requests: read
-    with:
-      # benchmark workflow `name:` -> its `HOTPATH_BENCHMARK`
-      benchmark: ${{ fromJSON('{"Benchmark":"my_benchmark","Parser benchmark":"parser"}')[github.event.workflow_run.name] }}
+    steps:
+      - uses: hotpath-rs/hotpath-relay@v1.0.0
+        with:
+          # benchmark workflow `name:` -> its `HOTPATH_BENCHMARK`
+          benchmark: ${{ fromJSON('{"Benchmark":"my_benchmark","Parser benchmark":"parser"}')[github.event.workflow_run.name] }}
 ```
 
-Keep `workflows:` and the lookup in sync: a workflow missing from `workflows:` is never relayed, and one missing from the lookup is relayed with an empty `benchmark`, which fails the upload.
+Keep `workflows:` and the lookup in sync: a workflow missing from `workflows:` is never relayed, and one missing from the lookup is relayed with an empty `benchmark`, which fails the relay.
 
 When the benchmark workflows differ in `artifact_name`, `report_file` or `source_root` (for example a benchmark built in a nested Cargo workspace), look those up the same way, listing only the workflows that differ and falling back to the default for the rest:
 
 ```yaml
-      artifact_name: ${{ fromJSON('{"Parser benchmark":"parser-report"}')[github.event.workflow_run.name] || 'hotpath-report' }}
-      source_root: ${{ fromJSON('{"Parser benchmark":"parser"}')[github.event.workflow_run.name] || '' }}
+          artifact_name: ${{ fromJSON('{"Parser benchmark":"parser-report"}')[github.event.workflow_run.name] || 'hotpath-report' }}
+          source_root: ${{ fromJSON('{"Parser benchmark":"parser"}')[github.event.workflow_run.name] || '' }}
 ```
 
 List each benchmark workflow in exactly one relay: a workflow named in two relays' `workflows:` is uploaded twice.

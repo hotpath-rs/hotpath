@@ -7,9 +7,9 @@ on:
 
 permissions: {}
 
-# Uploads the `hotpath-report` artifact of each benchmark's pull request run.
-# The series is looked up from the workflow name, so keep the lookup in sync
-# with `workflows:`. `@main` tests the relay on the default branch.
+# Uploads the `hotpath-report` artifact of each benchmark's pull request run
+# through the hotpath-relay action. The series is looked up from the workflow
+# name, so keep the lookup in sync with `workflows:`.
 jobs:
   relay:
     # The drain criterion benchmark uploads same-repository pull requests in
@@ -17,10 +17,13 @@ jobs:
     if: >-
       github.event.workflow_run.name != 'Cloud drain criterion benchmark' ||
       github.event.workflow_run.head_repository.full_name != github.repository
-    uses: hotpath-rs/hotpath/.github/workflows/hotpath-relay.yml@main
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       actions: read
       id-token: write
       pull-requests: read
-    with:
-      benchmark: ${{ fromJSON('{"Cloud random benchmark":"random","Cloud drain benchmark":"drain","Cloud meta benchmark":"meta","Cloud drain criterion benchmark":"drain-criterion"}')[github.event.workflow_run.name] }}
+    steps:
+      - uses: hotpath-rs/hotpath-relay@v1.0.0
+        with:
+          benchmark: ${{ fromJSON('{"Cloud random benchmark":"random","Cloud drain benchmark":"drain","Cloud meta benchmark":"meta","Cloud drain criterion benchmark":"drain-criterion"}')[github.event.workflow_run.name] }}
