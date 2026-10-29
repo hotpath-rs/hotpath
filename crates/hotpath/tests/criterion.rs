@@ -339,12 +339,7 @@ pub mod tests {
             return example;
         };
         let out_file = dir.path("cg.%p");
-        example
-            .env(
-                "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER",
-                format!("valgrind -q --tool=callgrind --callgrind-out-file={out_file}"),
-            )
-            .env("HOTPATH_CALLGRIND_OUT_FILE", out_file)
+        example.callgrind(&out_file)
     }
 
     fn read(path: &str) -> JsonReport {

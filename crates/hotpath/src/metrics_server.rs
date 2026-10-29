@@ -24,17 +24,17 @@ pub(crate) static METRICS_SERVER_PORT: LazyLock<u16> = LazyLock::new(|| {
 pub(crate) static METRICS_AUTH_TOKEN: LazyLock<Option<String>> =
     LazyLock::new(|| crate::auth::token_from_env("HOTPATH_METRICS_AUTH_TOKEN"));
 
-/// Off by `HOTPATH_METRICS_SERVER_OFF` and always under Valgrind, where no
-/// client polls it and its threads would only add instructions and rows. On
-/// GitHub Actions it is off too unless `HOTPATH_METRICS_SERVER_ON` asks for it.
+/// Off by `HOTPATH_METRICS_SERVER_OFF`. Also off under Valgrind, where no client
+/// polls it and its threads would only add instructions and rows, and on GitHub
+/// Actions, unless `HOTPATH_METRICS_SERVER_ON` asks for it.
 pub(crate) static METRICS_SERVER_DISABLED: LazyLock<bool> = LazyLock::new(|| {
-    if crate::shared::env_flag("HOTPATH_METRICS_SERVER_OFF")
-        || *crate::lib_on::valgrind::ON_VALGRIND
-    {
+    if crate::shared::env_flag("HOTPATH_METRICS_SERVER_OFF") {
         return true;
     }
-    crate::shared::env_flag("GITHUB_ACTIONS")
-        && !crate::shared::env_flag("HOTPATH_METRICS_SERVER_ON")
+    if crate::shared::env_flag("HOTPATH_METRICS_SERVER_ON") {
+        return false;
+    }
+    *crate::lib_on::valgrind::ON_VALGRIND || crate::shared::env_flag("GITHUB_ACTIONS")
 });
 
 // Worker snapshot queries can take hundreds of ms in debug builds of large

@@ -66,6 +66,17 @@ impl Example {
         self
     }
 
+    /// Runs the example under Callgrind, dumping to `out_file`. Drops the
+    /// helper's `HOTPATH_METRICS_SERVER_ON` so the server stays off there.
+    pub(crate) fn callgrind(self, out_file: &str) -> Self {
+        self.env_remove("HOTPATH_METRICS_SERVER_ON")
+            .env(
+                "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER",
+                format!("valgrind -q --tool=callgrind --callgrind-out-file={out_file}"),
+            )
+            .env("HOTPATH_CALLGRIND_OUT_FILE", out_file)
+    }
+
     pub(crate) fn env(mut self, key: &str, value: impl AsRef<OsStr>) -> Self {
         self.cmd.env(key, value);
         self

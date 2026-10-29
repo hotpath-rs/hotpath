@@ -23,11 +23,7 @@ pub mod tests {
             .release()
             .env("HOTPATH_REPORT", "auto,-threads")
             .env("HOTPATH_FUNCTIONS_LIMIT", "0")
-            .env(
-                "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER",
-                format!("valgrind -q --tool=callgrind --callgrind-out-file={out_file}"),
-            )
-            .env("HOTPATH_CALLGRIND_OUT_FILE", out_file)
+            .callgrind(&out_file)
     }
 
     /// The report and stderr of one Callgrind run of `instructions`. The
