@@ -35,6 +35,7 @@ A few things to know:
 - `threads` is a default feature of the hotpath crate, so no extra flag is needed - thread monitoring runs whenever the `hotpath` feature is on.
 - The per-thread **Alloc / Dealloc / Diff** columns require the `hotpath-alloc` feature. Without it you still get the CPU metrics.
 - There is zero compile-time or runtime overhead when the `hotpath` feature is disabled - all macros become noops and dependencies are not compiled.
+- hotpath's own `hp-*` threads (metrics server, background workers) are hidden from the thread list; set `HOTPATH_SHOW_INTERNAL_THREADS=1` to see them.
 - The sampling interval defaults to 250ms and is tunable via `HOTPATH_THREADS_INTERVAL_MS`. The number of rows in the final report is capped by `HOTPATH_THREADS_LIMIT` (default: 5).
 
 ## Metrics reference

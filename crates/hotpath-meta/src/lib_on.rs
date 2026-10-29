@@ -1,7 +1,7 @@
 #[doc(hidden)]
 pub use hotpath_macros_meta::{future_fn, main, measure, measure_all, skip};
 
-use std::sync::OnceLock;
+use std::sync::{LazyLock, OnceLock};
 
 use crate::instant::Instant;
 
@@ -74,6 +74,7 @@ pub(crate) mod native_histograms;
 pub(crate) mod report;
 pub(crate) mod report_meta;
 pub(crate) mod sampling;
+pub(crate) mod valgrind;
 
 #[doc(hidden)]
 pub use locations::{register_location, Location};
@@ -97,6 +98,25 @@ static HOST_ALLOC_HOOKS: OnceLock<(HostSuspendFn, HostResumeFn)> = OnceLock::new
 #[doc(hidden)]
 pub fn set_host_alloc_suspend_hooks(suspend: HostSuspendFn, resume: HostResumeFn) {
     let _ = HOST_ALLOC_HOOKS.set((suspend, resume));
+}
+
+/// Name prefix of hotpath-meta's own threads. On Linux the unnamed threads
+/// that third-party code spawns from one of them inherit it as well. The
+/// profiled hotpath's `hp-*` threads are what meta measures, so they stay.
+const INTERNAL_THREAD_PREFIX: &[u8] = b"hp-meta-";
+
+/// `HOTPATH_META_SHOW_INTERNAL_THREADS`: list hotpath-meta's own threads in
+/// thread stats and count the allocations of unnamed threads spawned from
+/// them, instead of hiding both.
+pub(crate) static SHOW_INTERNAL_THREADS: LazyLock<bool> =
+    LazyLock::new(|| crate::shared::env_flag("HOTPATH_META_SHOW_INTERNAL_THREADS"));
+
+/// Whether a thread with this name is hotpath-meta's own and hidden from
+/// thread stats. Matches by name, so a thread named `hp-meta-...` is hidden
+/// too.
+#[cfg_attr(not(feature = "threads"), allow(dead_code))]
+pub(crate) fn is_hidden_internal_thread(name: &[u8]) -> bool {
+    !*SHOW_INTERNAL_THREADS && name.starts_with(INTERNAL_THREAD_PREFIX)
 }
 
 #[must_use = "guard is dropped immediately without suspending tracking"]

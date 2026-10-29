@@ -76,7 +76,8 @@ Measure durations for only a fraction of calls to reduce profiling overhead in e
 | Variable | Description |
 |----------|-------------|
 | `HOTPATH_METRICS_PORT` | Port for the HTTP metrics server (binds to `localhost` only). (default: `6770`) |
-| `HOTPATH_METRICS_SERVER_OFF` | Set to `true` or `1` to disable the HTTP metrics server entirely. (default: `false`) |
+| `HOTPATH_METRICS_SERVER_OFF` | Set to `true` or `1` to disable the HTTP metrics server entirely. Under Valgrind and on GitHub Actions (`GITHUB_ACTIONS=true`) it is off by default. (default: `false`) |
+| `HOTPATH_METRICS_SERVER_ON` | Set to `true` or `1` to start the HTTP metrics server under Valgrind or on GitHub Actions, where it is off by default. `HOTPATH_METRICS_SERVER_OFF` still takes precedence. (default: `false`) |
 | `HOTPATH_METRICS_AUTH_TOKEN` | When set, every request must send this exact token as the `Authorization` header value (no `Bearer` prefix) or it gets `401`. Any printable ASCII characters without whitespace; anything else panics at startup. The token travels in plaintext: the server still binds to `localhost` only, so this guards against other local processes and accidental exposure through tunnels, not a substitute for TLS. (default: `''`) |
 
 ## MCP Server
@@ -116,6 +117,7 @@ Requires the `hotpath-prometheus` feature, see [Prometheus & Grafana](prometheus
 |----------|-------------|
 | `HOTPATH_DRAIN_INTERVAL_MS` | Interval in milliseconds between background worker sweeps of the per-thread event queues. Decrease for high-traffic apps to bound queue memory growth between sweeps, at the cost of more worker wakeups. (default: `50`) |
 | `HOTPATH_THREADS_INTERVAL_MS` | Thread monitoring sample interval in milliseconds. (default: `250`) |
+| `HOTPATH_SHOW_INTERNAL_THREADS` | Set to `true` or `1` to list hotpath's own `hp-*` threads in thread stats (report, TUI, MCP, Prometheus). By default they are hidden, and on Linux the allocations of unnamed threads spawned from them (the metrics server's HTTP workers) are not counted. Hiding matches by name, so a thread of your own named `hp-...` is hidden as well. (default: `false`) |
 | `HOTPATH_TOKIO_RUNTIME_INTERVAL_MS` | Tokio runtime metrics sampling interval in milliseconds. (default: `1000`) |
 | `HOTPATH_LOGS_LIMIT` | Maximum number of log entries to keep per channel, stream, or function. (default: `50`) |
 | `HOTPATH_ENTRIES_LIMIT` | Maximum number of distinct entries tracked per runtime-keyed subsystem (server routes, outbound HTTP endpoints, SQL queries). Further new keys are aggregated into a single `<other>` bucket so unmatched 404 paths or dynamic SQL cannot grow memory without bound. (default: `1000`) |

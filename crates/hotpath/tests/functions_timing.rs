@@ -333,6 +333,28 @@ pub mod tests {
         );
     }
 
+    // GITHUB_ACTIONS=true HOTPATH_METRICS_PORT=6789 TEST_SLEEP_SECONDS=5 cargo run -p test-tokio-async --example basic --features hotpath
+    #[test]
+    fn test_http_server_off_on_github_actions() {
+        use std::{thread::sleep, time::Duration};
+
+        let _running = example("basic")
+            .env_remove("HOTPATH_METRICS_SERVER_ON")
+            .env("GITHUB_ACTIONS", "true")
+            .env("HOTPATH_METRICS_PORT", "6789")
+            .env("TEST_SLEEP_SECONDS", "5")
+            .spawn();
+
+        sleep(Duration::from_secs(2));
+
+        let result = ureq::get("http://127.0.0.1:6789/functions_timing").call();
+
+        assert!(
+            result.is_err(),
+            "HTTP request should have failed on GitHub Actions without HOTPATH_METRICS_SERVER_ON"
+        );
+    }
+
     // cargo run -p test-tokio-async --example functions_file_output --features hotpath
     #[test]
     fn test_functions_file_output() {

@@ -20,8 +20,12 @@ pub(crate) struct Example {
 impl Example {
     /// `cargo run -p <package> --example <example> --features hotpath`
     pub(crate) fn new(package: &str, example: &str) -> Self {
+        let mut cmd = Command::new("cargo");
+        // Many tests poll the metrics server, which is off on GitHub Actions
+        // by default.
+        cmd.env("HOTPATH_METRICS_SERVER_ON", "1");
         Self {
-            cmd: Command::new("cargo"),
+            cmd,
             manifest_path: None,
             package: Some(package.to_string()),
             example: example.to_string(),
@@ -60,6 +64,17 @@ impl Example {
     pub(crate) fn args(mut self, args: &[&str]) -> Self {
         self.args.extend(args.iter().map(|a| a.to_string()));
         self
+    }
+
+    /// Runs the example under Callgrind, dumping to `out_file`. Drops the
+    /// helper's `HOTPATH_METRICS_SERVER_ON` so the server stays off there.
+    pub(crate) fn callgrind(self, out_file: &str) -> Self {
+        self.env_remove("HOTPATH_METRICS_SERVER_ON")
+            .env(
+                "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER",
+                format!("valgrind -q --tool=callgrind --callgrind-out-file={out_file}"),
+            )
+            .env("HOTPATH_CALLGRIND_OUT_FILE", out_file)
     }
 
     pub(crate) fn env(mut self, key: &str, value: impl AsRef<OsStr>) -> Self {

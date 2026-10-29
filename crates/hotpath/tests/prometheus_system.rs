@@ -25,7 +25,7 @@ pub mod tests {
         // named busy thread, and the gauges.
         let body = scrape_until(PROMETHEUS_PORT, 80, |body| {
             body.contains("hotpath_tokio_workers")
-                && body.contains("name=\"hp-busy-worker\"")
+                && body.contains("name=\"busy-worker\"")
                 && body.contains("hotpath_thread_cpu_percent_max")
                 && body.contains("hotpath_gauge{")
         });
@@ -75,7 +75,7 @@ pub mod tests {
             series_value(
                 &body,
                 "hotpath_thread_cpu_seconds_total",
-                &["name=\"hp-busy-worker\"", "mode=\"user\""]
+                &["name=\"busy-worker\"", "mode=\"user\""]
             ) > 0.0
         );
         assert!(series_value(&body, "hotpath_threads", &[]) >= 3.0);

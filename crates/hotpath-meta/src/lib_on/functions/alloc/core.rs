@@ -14,6 +14,11 @@ pub(crate) const MAX_DEPTH: usize = 64;
 /// totals.
 const MAX_THREADS: usize = 256;
 const SLOT_UNSET: u32 = u32::MAX;
+/// Cached slot index of a hidden internal thread, which never gets a slot.
+const SLOT_INTERNAL: u32 = u32::MAX - 1;
+/// Cached slot index of a thread that found the registry full. Slots are
+/// never reclaimed, so it stays full.
+const SLOT_OVERFLOW: u32 = u32::MAX - 2;
 const THREAD_NAME_LEN: usize = 64;
 /// Base of the synthetic tid range for dead threads whose OS tid was recycled
 /// by a new thread. The slot's counters and name stay reportable, and each
@@ -57,6 +62,16 @@ impl ThreadAllocStats {
         }
     }
 
+    fn store_name(&self, name: &[u8]) {
+        if name.is_empty() {
+            return;
+        }
+        for (i, &b) in name.iter().enumerate() {
+            self.name[i].store(b, Ordering::Relaxed);
+        }
+        self.name_len.store(name.len() as u32, Ordering::Release);
+    }
+
     fn name(&self) -> Option<String> {
         let len = self.name_len.load(Ordering::Acquire) as usize;
         if len == 0 || len > THREAD_NAME_LEN {
@@ -86,6 +101,9 @@ static OVERFLOW_DEALLOC_BYTES: AtomicU64 = AtomicU64::new(0);
 /// Initialize the thread allocation tracking system
 #[cfg_attr(not(feature = "threads"), allow(dead_code))]
 pub(crate) fn init_thread_alloc_tracking() {
+    // Read inside the allocator from here on, where a first-use env lookup
+    // would allocate and re-enter it.
+    std::sync::LazyLock::force(&crate::lib_on::SHOW_INTERNAL_THREADS);
     THREAD_TRACKING_ENABLED.store(1, Ordering::Release);
 }
 
@@ -111,23 +129,56 @@ pub(crate) fn get_thread_alloc_stats(os_tid: u64) -> Option<(u64, u64)> {
     None
 }
 
-#[inline]
-fn get_or_create_slot_cached() -> Option<&'static ThreadAllocStats> {
-    THREAD_ALLOC_SLOT_IDX.with(|slot_idx| {
-        let cached_idx = slot_idx.get();
-        if cached_idx != SLOT_UNSET {
-            return Some(&THREAD_ALLOC_STATS[cached_idx as usize]);
-        }
+/// Where a thread's per-thread allocation stats go.
+enum ThreadSlot {
+    Tracked(&'static ThreadAllocStats),
+    /// Registry full: counted only in the process-wide overflow totals.
+    Overflow,
+    /// A hidden internal thread: not counted at all.
+    Internal,
+}
 
-        let tid = current_tid();
-        let slot_idx_value = get_or_create_slot_index_slow(tid)?;
-        slot_idx.set(slot_idx_value as u32);
-        Some(&THREAD_ALLOC_STATS[slot_idx_value])
+#[inline]
+fn thread_slot() -> ThreadSlot {
+    THREAD_ALLOC_SLOT_IDX.with(|slot_idx| match slot_idx.get() {
+        SLOT_UNSET => thread_slot_slow(slot_idx),
+        SLOT_INTERNAL => ThreadSlot::Internal,
+        SLOT_OVERFLOW => ThreadSlot::Overflow,
+        idx => ThreadSlot::Tracked(&THREAD_ALLOC_STATS[idx as usize]),
     })
 }
 
+/// One-time per-thread registration, running on the thread itself on its
+/// first tracked allocation. Captures the thread's own name so it can be
+/// reported even after the thread exits, when resolving it via its pthread is
+/// no longer possible.
 #[cold]
-fn get_or_create_slot_index_slow(tid: u64) -> Option<usize> {
+fn thread_slot_slow(slot_idx: &Cell<u32>) -> ThreadSlot {
+    let mut buf = [0u8; THREAD_NAME_LEN];
+    let name = current_thread_name(&mut buf);
+
+    // hotpath's own threads suspend tracking before they allocate, but the
+    // unnamed threads third-party code spawns from them (tiny_http's accept
+    // loop and worker pool) cannot, and on Linux inherit the parent's name.
+    if crate::lib_on::is_hidden_internal_thread(name) {
+        slot_idx.set(SLOT_INTERNAL);
+        return ThreadSlot::Internal;
+    }
+
+    match get_or_create_slot_index_slow(current_tid(), name) {
+        Some(idx) => {
+            slot_idx.set(idx as u32);
+            ThreadSlot::Tracked(&THREAD_ALLOC_STATS[idx])
+        }
+        None => {
+            slot_idx.set(SLOT_OVERFLOW);
+            ThreadSlot::Overflow
+        }
+    }
+}
+
+#[cold]
+fn get_or_create_slot_index_slow(tid: u64, name: &[u8]) -> Option<usize> {
     for (idx, slot) in THREAD_ALLOC_STATS.iter().enumerate() {
         let slot_tid = slot.tid.load(Ordering::Acquire);
 
@@ -148,7 +199,7 @@ fn get_or_create_slot_index_slow(tid: u64) -> Option<usize> {
                 .compare_exchange(0, tid, Ordering::AcqRel, Ordering::Acquire)
             {
                 Ok(_) => {
-                    capture_thread_name(slot);
+                    slot.store_name(name);
                     return Some(idx);
                 }
                 Err(current) if current == tid => return Some(idx),
@@ -159,15 +210,11 @@ fn get_or_create_slot_index_slow(tid: u64) -> Option<usize> {
     None
 }
 
-/// One-time per-thread registration hook, running on the thread itself when it
-/// claims its allocation slot (i.e. on its first tracked allocation). Captures
-/// the thread's own name so it can be reported even after the thread exits,
-/// when resolving it via its pthread is no longer possible.
-#[cold]
-fn capture_thread_name(slot: &ThreadAllocStats) {
+/// The calling thread's name, empty when it has none or the platform cannot
+/// tell. Does not allocate, so it is safe inside the allocator.
+fn current_thread_name(buf: &mut [u8; THREAD_NAME_LEN]) -> &[u8] {
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
-        let mut buf = [0u8; THREAD_NAME_LEN];
         // SAFETY: pthread_self is always valid for the calling thread and the
         // buffer is valid for the passed length. pthread_getname_np writes a
         // NUL-terminated string and does not allocate.
@@ -179,20 +226,14 @@ fn capture_thread_name(slot: &ThreadAllocStats) {
             )
         };
         if ret != 0 {
-            return;
+            return &[];
         }
         let len = buf.iter().position(|&b| b == 0).unwrap_or(0);
-        if len == 0 {
-            return;
-        }
-        for (i, &b) in buf[..len].iter().enumerate() {
-            slot.name[i].store(b, Ordering::Relaxed);
-        }
-        slot.name_len.store(len as u32, Ordering::Release);
+        &buf[..len]
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
-        let _ = slot;
+        &buf[..0]
     }
 }
 
@@ -348,13 +389,14 @@ pub(crate) fn track_alloc(size: usize) {
     }
 
     if THREAD_TRACKING_ENABLED.load(Ordering::Relaxed) != 0 {
-        match get_or_create_slot_cached() {
-            Some(slot) => {
+        match thread_slot() {
+            ThreadSlot::Tracked(slot) => {
                 slot.alloc_bytes.fetch_add(size as u64, Ordering::Relaxed);
             }
-            None => {
+            ThreadSlot::Overflow => {
                 OVERFLOW_ALLOC_BYTES.fetch_add(size as u64, Ordering::Relaxed);
             }
+            ThreadSlot::Internal => {}
         }
     }
 }
@@ -367,13 +409,14 @@ pub(crate) fn track_dealloc(size: usize) {
     }
 
     if THREAD_TRACKING_ENABLED.load(Ordering::Relaxed) != 0 {
-        match get_or_create_slot_cached() {
-            Some(slot) => {
+        match thread_slot() {
+            ThreadSlot::Tracked(slot) => {
                 slot.dealloc_bytes.fetch_add(size as u64, Ordering::Relaxed);
             }
-            None => {
+            ThreadSlot::Overflow => {
                 OVERFLOW_DEALLOC_BYTES.fetch_add(size as u64, Ordering::Relaxed);
             }
+            ThreadSlot::Internal => {}
         }
     }
 }

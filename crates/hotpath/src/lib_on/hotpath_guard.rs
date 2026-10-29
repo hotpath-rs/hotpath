@@ -578,18 +578,24 @@ impl HotpathGuardBuilder {
         if let Some(timeout) =
             crate::shared::resolve_timeout_duration(duration, "HOTPATH_SHUTDOWN_MS")
         {
-            thread::spawn(move || {
-                thread::sleep(timeout);
-                drop(guard);
-                std::process::exit(0);
-            });
+            thread::Builder::new()
+                .name("hp-guard".into())
+                .spawn(move || {
+                    thread::sleep(timeout);
+                    drop(guard);
+                    std::process::exit(0);
+                })
+                .expect("Failed to spawn hp-guard thread");
         } else {
-            thread::spawn(move || {
-                let _guard = guard;
-                loop {
-                    thread::park();
-                }
-            });
+            thread::Builder::new()
+                .name("hp-guard".into())
+                .spawn(move || {
+                    let _guard = guard;
+                    loop {
+                        thread::park();
+                    }
+                })
+                .expect("Failed to spawn hp-guard thread");
         }
     }
 }

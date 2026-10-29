@@ -1,6 +1,6 @@
 #[doc(hidden)]
 pub use hotpath_macros::{future_fn, main, measure, measure_all, skip};
-use std::sync::OnceLock;
+use std::sync::{LazyLock, OnceLock};
 
 use crate::instant::Instant;
 
@@ -80,6 +80,7 @@ pub(crate) mod native_histograms;
 pub(crate) mod report;
 pub(crate) mod report_meta;
 pub(crate) mod sampling;
+pub(crate) mod valgrind;
 
 #[doc(hidden)]
 pub use locations::{register_location, Location};
@@ -119,6 +120,23 @@ pub use functions::{
     measure_sync_log, MeasurementGuardAsync, MeasurementGuardSync,
 };
 pub use hotpath_guard::{HotpathGuard, HotpathGuardBuilder};
+
+/// Name prefix of every thread hotpath spawns. On Linux the unnamed threads
+/// that third-party code spawns from one of them inherit it as well.
+const INTERNAL_THREAD_PREFIX: &[u8] = b"hp-";
+
+/// `HOTPATH_SHOW_INTERNAL_THREADS`: list hotpath's own threads in thread
+/// stats and count the allocations of unnamed threads spawned from them,
+/// instead of hiding both.
+pub(crate) static SHOW_INTERNAL_THREADS: LazyLock<bool> =
+    LazyLock::new(|| crate::shared::env_flag("HOTPATH_SHOW_INTERNAL_THREADS"));
+
+/// Whether a thread with this name is hotpath's own and hidden from thread
+/// stats. Matches by name, so a user thread named `hp-...` is hidden too.
+#[cfg_attr(not(feature = "threads"), allow(dead_code))]
+pub(crate) fn is_hidden_internal_thread(name: &[u8]) -> bool {
+    !*SHOW_INTERNAL_THREADS && name.starts_with(INTERNAL_THREAD_PREFIX)
+}
 
 #[must_use = "guard is dropped immediately without suspending tracking"]
 pub(crate) struct SuspendAllocTracking {

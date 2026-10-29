@@ -19,7 +19,7 @@ Each subsystem spawns a worker thread named `hp-<subsystem>` from its `lib_on/<s
 ## Instruction counts (`hotpath-callgrind`, x86_64 Linux)
 
 - `lib_on/functions/callgrind.rs` - marker registry, session start/finish, report section.
-- `lib_on/functions/callgrind/request.rs` - Valgrind client requests (`asm!`).
+- `lib_on/valgrind.rs` - generic Valgrind client request (`asm!`) and `ON_VALGRIND`; `lib_on/functions/callgrind/request.rs` - Callgrind request codes.
 - `lib_on/functions/callgrind/parser.rs` - Callgrind dump parsing, fixture in `callgrind/fixtures/`.
 - Markers are emitted in `measure_impl` (`hotpath-macros/src/lib_on.rs`).
 - `lib_on/merge.rs` - `HOTPATH_MERGE_REPORT`: a Callgrind run merges a native run's JSON report into its own (wired in `HotpathGuard::drop`); tests in `tests/functions_icount.rs`.

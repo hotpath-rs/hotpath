@@ -335,7 +335,7 @@ Total: 100.1 KB
 | docs_example::async_function | 1,000 | 0 B     | 0 B     | 0 B     | 0.00%   |
 +------------------------------+-------+---------+---------+---------+---------+
 
-threads - Thread CPU and memory statistics. (Max RSS: 8.6 MB, Alloc: 108.5 KB, Dealloc: 123.8 KB, Diff: -15.3 KB, 5/15)
+threads - Thread CPU and memory statistics. (Max RSS: 8.6 MB, Alloc: 108.5 KB, Dealloc: 123.8 KB, Diff: -15.3 KB, 4/14)
 +-----------------+------+------+----------+---------+----------+
 | Thread          | Max% | Avg% | Alloc    | Dealloc | Diff     |
 +-----------------+------+------+----------+---------+----------+
@@ -346,8 +346,6 @@ threads - Thread CPU and memory statistics. (Max RSS: 8.6 MB, Alloc: 108.5 KB, D
 | tokio-rt-worker | 0.0% | 0.0% | 4.2 KB   | 471 B   | 3.8 KB   |
 +-----------------+------+------+----------+---------+----------+
 | tokio-rt-worker | 0.0% | 0.0% | 3.3 KB   | 407 B   | 2.9 KB   |
-+-----------------+------+------+----------+---------+----------+
-| hp-functions    | 1.3% | 1.0% | 0 B      | 2.0 KB  | -2.0 KB  |
 +-----------------+------+------+----------+---------+----------+
 ```
 

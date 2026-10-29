@@ -24,7 +24,7 @@ async fn main() {
     let stop = Arc::new(AtomicBool::new(false));
     let stop_flag = Arc::clone(&stop);
     let busy = std::thread::Builder::new()
-        .name("hp-busy-worker".into())
+        .name("busy-worker".into())
         .spawn(move || {
             let mut x = 0u64;
             while !stop_flag.load(Ordering::Relaxed) {
