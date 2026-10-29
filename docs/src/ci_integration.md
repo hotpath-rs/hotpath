@@ -294,7 +294,7 @@ jobs:
       id-token: write # authenticate the upload
       pull-requests: read # find the pull request the run belongs to
     steps:
-      - uses: hotpath-rs/hotpath-relay@v1.0.0
+      - uses: hotpath-rs/hotpath-relay@{{RELAY_RELEASE_TAG}}
         with:
           benchmark: my_benchmark
           artifact_name: hotpath-report
@@ -303,7 +303,7 @@ jobs:
 
 [hotpath-relay](https://github.com/marketplace/actions/hotpath-relay) is a GitHub Action. It runs after a successful benchmark run of a pull request, downloads the artifact, uploads the report and prints the server's response in the step summary; runs of other events, and failed runs, are skipped with a notice. A rejected upload fails the relay job, and a comment that could not be posted is a warning. The pull request the report belongs to is looked up from the benchmark run's head commit, not read from the report, which the pull request's own code wrote; that lookup is what `pull-requests: read` is for. The relay job never checks out or runs code from the pull request: keep the action its only step, since every step of the job could mint the upload token.
 
-Pin the action to an exact version such as `v1.0.0`. Its versions are independent of hotpath's and published as [immutable releases](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/immutable-releases): a version tag can never be moved to another commit, so it is as fixed as a commit SHA. There is no moving `v1` tag; upgrade by changing the version.
+Pin the action to an exact version, such as `{{RELAY_RELEASE_TAG}}`. Its versions are independent of hotpath's and published as [immutable releases](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/immutable-releases): a version tag can never be moved to another commit, so it is as fixed as a commit SHA. There is no moving `v1` tag; upgrade by changing the version.
 
 | Input | Description |
 |---|---|
@@ -433,7 +433,7 @@ jobs:
       id-token: write
       pull-requests: read
     steps:
-      - uses: hotpath-rs/hotpath-relay@v1.0.0
+      - uses: hotpath-rs/hotpath-relay@{{RELAY_RELEASE_TAG}}
         with:
           # benchmark workflow `name:` -> its `HOTPATH_BENCHMARK`
           benchmark: ${{ fromJSON('{"Benchmark":"my_benchmark","Parser benchmark":"parser"}')[github.event.workflow_run.name] }}

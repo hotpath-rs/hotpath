@@ -60,7 +60,7 @@ The agent pages name the latest release by its tag, so this points at the tag th
   ("{{HOTPATH_RELEASE_TAG}}", "vX.Y.Z"),
   ```
 
-The relay is the separate `hotpath-rs/hotpath-relay` action with its own versions: a hotpath release does not touch its pins.
+The relay is the separate `hotpath-rs/hotpath-relay` action with its own versions, named in the docs by `{{RELAY_RELEASE_TAG}}`: a hotpath release does not touch it or its pins.
 
 ## 4. Verify
 
