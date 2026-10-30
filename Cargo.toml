@@ -50,12 +50,12 @@ resolver = "2"
 exclude = ["crates/test-toasty"]
 
 [workspace.dependencies]
-hotpath-macros = { path = "./crates/hotpath-macros", version = "0.30.1" }
-hotpath-drain = { path = "./crates/hotpath-drain", version = "0.30.1" }
-hotpath = { path = "./crates/hotpath", version = "0.30.1" }
-hotpath-meta = { path = "./crates/hotpath-meta", version = "0.30.1" }
-hotpath-macros-meta = { path = "./crates/hotpath-macros-meta", version = "0.30.1" }
-hotpath-drain-meta = { path = "./crates/hotpath-drain-meta", version = "0.30.1" }
+hotpath-macros = { path = "./crates/hotpath-macros", version = "0.30.2" }
+hotpath-drain = { path = "./crates/hotpath-drain", version = "0.30.2" }
+hotpath = { path = "./crates/hotpath", version = "0.30.2" }
+hotpath-meta = { path = "./crates/hotpath-meta", version = "0.30.2" }
+hotpath-macros-meta = { path = "./crates/hotpath-macros-meta", version = "0.30.2" }
+hotpath-drain-meta = { path = "./crates/hotpath-drain-meta", version = "0.30.2" }
 proc-macro2 = "1.0.75"
 quote = "1.0.35"
 syn = { version = "2.0.52", features = ["full"] }
