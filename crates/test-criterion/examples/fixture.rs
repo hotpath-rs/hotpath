@@ -1,5 +1,5 @@
 //! Criterion benchmarks run through `hotpath::criterion`, one per Bencher
-//! API. Each prints its own routine, setup and drop counts to stderr, and
+//! and AsyncBencher API. Each prints its own routine, setup and drop counts to stderr, and
 //! every allocation site uses a distinct size.
 //!
 //! Run with:
@@ -75,6 +75,13 @@ fn run(seed: u64) -> Output {
     }
 }
 
+/// [`run`] after yielding to the executor, so the measured work happens
+/// after an `.await`.
+async fn run_async(seed: u64) -> Output {
+    tokio::task::yield_now().await;
+    run(seed)
+}
+
 fn print_counts() {
     eprintln!(
         "fixture: routine_calls={} setup_calls={} input_drops={} output_drops={}",
@@ -143,6 +150,68 @@ fn bench_work(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_async(c: &mut Criterion) {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let multi_thread = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .build()
+        .unwrap();
+    let mut group = c.benchmark_group("async");
+    group.bench_function("iter", |b| {
+        b.to_async(&rt).iter(|| run_async(1));
+        print_counts();
+    });
+    group.bench_function("iter_multi_thread", |b| {
+        b.to_async(&multi_thread).iter(|| run_async(1));
+        print_counts();
+    });
+    group.bench_function("iter_batched", |b| {
+        b.to_async(&rt).iter_batched(
+            Input::setup,
+            |input| async move { run_async(input.seed).await },
+            BatchSize::SmallInput,
+        );
+        print_counts();
+    });
+    group.bench_function("iter_batched_per_iteration", |b| {
+        b.to_async(&rt).iter_batched(
+            Input::setup,
+            |input| async move { run_async(input.seed).await },
+            BatchSize::PerIteration,
+        );
+        print_counts();
+    });
+    group.bench_function("iter_batched_ref_per_iteration", |b| {
+        b.to_async(&rt).iter_batched_ref(
+            Input::setup,
+            |input: &mut Input| run_async(input.seed),
+            BatchSize::PerIteration,
+        );
+        print_counts();
+    });
+    group.bench_function("iter_batched_ref", |b| {
+        b.to_async(&rt).iter_batched_ref(
+            Input::setup,
+            |input: &mut Input| run_async(input.seed),
+            BatchSize::LargeInput,
+        );
+        print_counts();
+    });
+    group.bench_function("iter_custom", |b| {
+        b.to_async(&rt).iter_custom(|iters| async move {
+            let start = Instant::now();
+            for _ in 0..iters {
+                black_box(run_async(1).await);
+            }
+            start.elapsed()
+        });
+        print_counts();
+    });
+    group.finish();
+}
+
 fn bench_inputs(c: &mut Criterion) {
     let mut group = c.benchmark_group("inputs");
     for seed in [3u64, 5] {
@@ -164,6 +233,6 @@ criterion_group! {
         .sample_size(10)
         .warm_up_time(Duration::from_millis(50))
         .measurement_time(Duration::from_millis(200));
-    targets = bench_top_level, bench_work, bench_inputs
+    targets = bench_top_level, bench_work, bench_async, bench_inputs
 }
 criterion_main!(benches);

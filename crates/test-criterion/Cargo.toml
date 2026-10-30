@@ -7,7 +7,8 @@ description = "Tests for the Criterion adapter via the criterion-0-8 feature."
 
 [dependencies]
 hotpath = { workspace = true, features = ["criterion-0-8"] }
-criterion = { version = "0.8", default-features = false }
+criterion = { version = "0.8", default-features = false, features = ["async_tokio"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "io-util", "macros"] }
 
 [features]
 hotpath = ["hotpath/hotpath"]
@@ -17,4 +18,8 @@ hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 
 [[bench]]
 name = "codec"
+harness = false
+
+[[bench]]
+name = "pipe"
 harness = false
