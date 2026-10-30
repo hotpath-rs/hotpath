@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.30.2] - 2026-10-30
+
+### 🚀 Features
+
+- Use GitHub marketplace relay action
+
+- Hide internal threads and disable server for Valgrind and CI
+
+- Async criterion support
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.30.2
+
+
 ## [0.30.1] - 2026-10-28
 
 ### 🚀 Features
