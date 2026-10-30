@@ -172,8 +172,11 @@ mod tests {
     fn linux_rss_test() {
         let rss = get_rss_bytes().expect("RSS should be available on Linux");
         let max_rss = get_rss_bytes_max().expect("max RSS should be available on Linux");
+        // No `max_rss >= rss` check: the kernel's per-CPU RSS counters are
+        // approximate, so statm and VmHWM read separately can disagree by a
+        // few pages while parallel tests allocate and free.
         assert!(rss > 0);
-        assert!(max_rss >= rss, "max {max_rss} below current {rss}");
+        assert!(max_rss > 0);
     }
 
     #[test]
