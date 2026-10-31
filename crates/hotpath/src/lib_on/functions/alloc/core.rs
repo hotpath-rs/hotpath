@@ -5,7 +5,23 @@ use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8, Ordering};
 use crate::lib_on::caller_stack::RequestAlloc;
 use crate::tid::current_tid;
 
-pub(crate) const MAX_DEPTH: usize = 64;
+/// Maximum number of nested measured functions per thread in alloc mode,
+/// set at build time through `HOTPATH_ALLOC_MAX_DEPTH` (validated in
+/// `build.rs`). It cannot be a runtime `LazyLock`: it sizes the
+/// const-initialized thread-local frame stack, and sizing it lazily would
+/// allocate inside the allocator.
+pub(crate) const MAX_DEPTH: usize = parse_depth(env!("HOTPATH_ALLOC_MAX_DEPTH"));
+
+const fn parse_depth(raw: &str) -> usize {
+    let bytes = raw.as_bytes();
+    let mut value = 0;
+    let mut i = 0;
+    while i < bytes.len() {
+        value = value * 10 + (bytes[i] - b'0') as usize;
+        i += 1;
+    }
+    value
+}
 
 /// Fixed registry capacity; slots are intentionally never reclaimed so that
 /// exited threads stay reportable. After this many unique allocating threads,
@@ -298,7 +314,9 @@ impl std::ops::AddAssign for AllocationInfo {
 
 pub(crate) struct AllocationInfoStack {
     pub(crate) depth: Cell<u32>,
-    pub(crate) elements: [AllocationInfo; MAX_DEPTH],
+    /// Slot 0 collects allocations outside any measured function, so nesting
+    /// `MAX_DEPTH` functions needs one extra slot.
+    pub(crate) elements: [AllocationInfo; MAX_DEPTH + 1],
     pub(crate) tracking_enabled: Cell<bool>,
     /// Running totals of the server request whose route scope is active on
     /// this thread; fed by `pop_alloc_stack`, never by `track_alloc`.
@@ -316,7 +334,7 @@ thread_local! {
         elements: [const { AllocationInfo {
             bytes_total: Cell::new(0),
             count_total: Cell::new(0),
-        } }; MAX_DEPTH],
+        } }; MAX_DEPTH + 1],
         tracking_enabled: Cell::new(true),
         #[cfg(feature = "axum-0-8")]
         route: Cell::new(RequestAlloc::ZERO),
