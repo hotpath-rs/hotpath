@@ -400,4 +400,4 @@ Explore the docs for customization options and advanced profiling features.
 
 ## Building in public
 
-[Follow @pawelurbanekcom on X](https://x.com/pawelurbanekcom) for development updates, new releases and performance tips.
+[Follow @pawelurbanekcom on X](https://x.com/pawelurbanekcom) or [subscribe to the mailing list](https://eepurl.com/dhuFg5) for development updates, new releases and performance tips.
