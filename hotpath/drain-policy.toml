@@ -23,6 +23,8 @@ fail_check = true
 min_percent_change = 2
 metrics = ["avg", "total"]
 min_calls = 0
+# Left out of allocation judging only; its other sections are still judged.
+ignore = ["throughput::main"]
 
 # Producer/consumer interleaving moves the hot paths' instruction counts by up
 # to ~1.5% between runs of one commit (`push`, `sweep`, `drain_into`), so the

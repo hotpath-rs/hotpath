@@ -14,6 +14,9 @@ use lockstep::{PRODUCERS, TOTAL_EVENTS};
 
 #[cfg_attr(feature = "hotpath-meta", hotpath_meta::main(percentiles = [95, 99, 99.9]))]
 fn main() {
+    // A 1 MB scratch buffer on the main thread: an allocation regression of
+    // `throughput::main` that `[functions.alloc] ignore` leaves unjudged.
+    std::hint::black_box(Vec::<u8>::with_capacity(1 << 20));
     let elapsed = lockstep::run();
     println!(
         "{PRODUCERS} producers sent {TOTAL_EVENTS} events, consumer received {TOTAL_EVENTS} in {elapsed:.2?} ({:.1} M events/s)",
