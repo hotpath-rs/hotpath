@@ -70,7 +70,15 @@ hotpath = { version = "{{HOTPATH_VERSION}}", features = ["criterion-0-8", "crite
 
 `criterion-tokio` turns on Criterion's `async_tokio` feature only on the Criterion version the adapter uses, so benchmarks without it never build Tokio support. For another executor, enable its feature on a `criterion` dependency of the same version, e.g. `criterion = { version = "0.8", features = ["async_futures"] }` (or `version = "0.5"` with `criterion-0-5`), so it lands on the same Criterion crate the adapter uses.
 
-hotpath depends on Criterion without its default features. A project with no `criterion` dependency of its own therefore runs `cargo bench` without Criterion's HTML reports and plots; keep a plain `criterion` dependency of the same version if you use them.
+hotpath depends on Criterion with `default-features = false`, to keep its dependencies small. A project with no `criterion` dependency of its own therefore builds Criterion without its default features:
+
+| Criterion feature | Without it |
+| --- | --- |
+| `rayon` | Criterion's statistical analysis runs on one thread, so `cargo bench` takes longer |
+| `plotters` | no Plotters backend for charts: with `html_reports`, charts need gnuplot installed |
+| `cargo_bench_support` | no effect in Criterion 0.5 to 0.8 |
+
+`html_reports` is not a default feature, so it needs enabling on a `criterion` dependency either way. hotpath's own reports are unaffected. Existing Criterion projects that rely on these features should keep their `criterion` dependency, whose features merge onto the Criterion crate the adapter uses; new integrations can go without one.
 
 Only the imports change:
 
@@ -90,7 +98,7 @@ criterion_main!(benches);
 
 `iter`, `iter_batched`, `iter_batched_ref` and `iter_custom` are supported. Each method consumes the async bencher, so call one method on each `to_async(...)` result, as `b.to_async(&rt).iter(...)` does.
 
-Without `HOTPATH_CRITERION_ITERATIONS` the wrappers forward to Criterion unchanged: `cargo bench` and `cargo test --benches` behave exactly as before. Build those runs without hotpath's profiling features: with them on, measured functions and the tracking allocator still do their bookkeeping when no report is being written, which biases Criterion's own timings. Without them the wrappers and `CountingAllocator` are plain pass-throughs.
+Without `HOTPATH_CRITERION_ITERATIONS` the wrappers forward to Criterion unchanged: `cargo bench` and `cargo test --benches` behave exactly as before, as long as the project keeps its own `criterion` dependency (see the default features above). Build those runs without hotpath's profiling features: with them on, measured functions and the tracking allocator still do their bookkeeping when no report is being written, which biases Criterion's own timings. Without them the wrappers and `CountingAllocator` are plain pass-throughs.
 
 ## Running one benchmark
 
