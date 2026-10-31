@@ -39,6 +39,19 @@ criterion_main!(benches);
 
 The `config = ...` form of `criterion_group!` takes a plain `criterion::Criterion`, re-exported as `hotpath::criterion::Config`: write `config = Config::default().sample_size(10)`.
 
+Benchmark closures receive hotpath's `Bencher`, a wrapper around Criterion's that runs the routine the fixed number of times. Closures written inline (`|b| b.iter(...)`) need no change. A helper function that names the type must take hotpath's `Bencher`, which has two lifetimes where Criterion's has one:
+
+```rust
+use hotpath::criterion::Bencher;
+
+// before: fn write_then_flush(b: &mut criterion::Bencher<'_>)
+fn write_then_flush(b: &mut Bencher<'_, '_>) {
+    b.iter(|| write_and_flush());
+}
+```
+
+A helper taking Criterion's `AsyncBencher` switches to `hotpath::criterion::AsyncBencher` with the same parameters.
+
 `criterion_main!` installs hotpath's tracking allocator, as `#[hotpath::main]` does. If the benchmark declares its own `#[global_allocator]`, remove it and pass the allocator instead: `criterion_main!(allocator = tikv_jemallocator::Jemalloc; benches)`. If the benchmarked library already installs one (it uses `#[hotpath::main]` or declares `hotpath::CountingAllocator`), pass `allocator = none;`.
 
 ### Async benchmarks
