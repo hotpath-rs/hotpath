@@ -1,8 +1,9 @@
-// Exports the rustc version (report `meta.rustc`) and the Cargo profile
-// (Prometheus `hotpath_build_info`).
+// Exports the rustc version (report `meta.rustc`), the Cargo profile
+// (Prometheus `hotpath_build_info`) and the alloc-mode nesting limit.
 fn main() {
     println!("cargo:rerun-if-env-changed=RUSTC");
     println!("cargo:rerun-if-env-changed=RUSTUP_TOOLCHAIN");
+    println!("cargo:rerun-if-env-changed={ALLOC_MAX_DEPTH_VAR}");
 
     let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".to_string());
     // "rustc 1.89.0 (29483883e 2025-08-04)" -> "1.89.0"
@@ -16,6 +17,32 @@ fn main() {
     println!("cargo:rustc-env=HOTPATH_RUSTC_VERSION={version}");
 
     println!("cargo:rustc-env=HOTPATH_CARGO_PROFILE={}", cargo_profile());
+    println!(
+        "cargo:rustc-env={ALLOC_MAX_DEPTH_VAR}={}",
+        alloc_max_depth()
+    );
+}
+
+const ALLOC_MAX_DEPTH_VAR: &str = "HOTPATH_ALLOC_MAX_DEPTH";
+const DEFAULT_ALLOC_MAX_DEPTH: usize = 64;
+/// Each level costs 16 bytes of thread-local storage on every thread, so the
+/// limit stays bounded.
+const ALLOC_MAX_DEPTH_RANGE: std::ops::RangeInclusive<usize> = 1..=4096;
+
+/// Maximum number of nested measured functions tracked in alloc mode. Read at
+/// build time because it sizes the const-initialized thread-local frame stack.
+fn alloc_max_depth() -> usize {
+    let Ok(raw) = std::env::var(ALLOC_MAX_DEPTH_VAR) else {
+        return DEFAULT_ALLOC_MAX_DEPTH;
+    };
+    match raw.trim().parse::<usize>() {
+        Ok(depth) if ALLOC_MAX_DEPTH_RANGE.contains(&depth) => depth,
+        _ => panic!(
+            "Invalid {ALLOC_MAX_DEPTH_VAR} value: '{raw}'. Expected an integer in {}..={}.",
+            ALLOC_MAX_DEPTH_RANGE.start(),
+            ALLOC_MAX_DEPTH_RANGE.end()
+        ),
+    }
 }
 
 /// Cargo's `PROFILE` env var only distinguishes `debug` from `release`, so a

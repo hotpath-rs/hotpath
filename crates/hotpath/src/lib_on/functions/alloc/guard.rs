@@ -51,10 +51,17 @@ pub(crate) static ALLOC_CUMULATIVE: LazyLock<bool> =
 #[inline]
 pub(crate) fn push_alloc_stack() {
     crate::functions::alloc::core::ALLOCATIONS.with(|stack| {
-        let current_depth = stack.depth.get();
-        stack.depth.set(current_depth + 1);
-        assert!((stack.depth.get() as usize) < crate::functions::alloc::core::MAX_DEPTH);
-        let depth = stack.depth.get() as usize;
+        let max_depth = crate::functions::alloc::core::MAX_DEPTH;
+        let depth = stack.depth.get() as usize + 1;
+        // Checked before `depth` moves: the panic allocates, and
+        // `track_alloc` must still index a valid frame.
+        if depth > max_depth {
+            panic!(
+                "hotpath: more than {max_depth} nested measured functions on one thread in alloc mode. \
+                 Raise the limit by rebuilding with HOTPATH_ALLOC_MAX_DEPTH set (e.g. HOTPATH_ALLOC_MAX_DEPTH=256)."
+            );
+        }
+        stack.depth.set(depth as u32);
         stack.elements[depth].bytes_total.set(0);
         stack.elements[depth].count_total.set(0);
     });
@@ -487,5 +494,31 @@ impl Drop for MeasurementGuardAsyncWithLog {
             Some(self.tid),
             None,
         );
+    }
+}
+
+#[cfg(all(test, feature = "hotpath-alloc"))]
+mod tests {
+    use crate::functions::alloc::core::{track_alloc, MAX_DEPTH};
+    use crate::functions::alloc::guard::{pop_alloc_stack, push_alloc_stack};
+
+    #[test]
+    fn nesting_up_to_max_depth_keeps_frames_exclusive() {
+        for _ in 0..MAX_DEPTH {
+            push_alloc_stack();
+        }
+        track_alloc(64);
+        assert_eq!(pop_alloc_stack(), (64, 1));
+        for _ in 1..MAX_DEPTH {
+            pop_alloc_stack();
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "HOTPATH_ALLOC_MAX_DEPTH")]
+    fn nesting_past_max_depth_panics_with_hint() {
+        for _ in 0..=MAX_DEPTH {
+            push_alloc_stack();
+        }
     }
 }
