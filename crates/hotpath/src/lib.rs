@@ -77,7 +77,12 @@ pub use lib_off::*;
 #[cfg(not(feature = "hotpath"))]
 mod lib_off;
 
-#[cfg(any(feature = "criterion-0-5", feature = "criterion-0-8"))]
+#[cfg(any(
+    feature = "criterion-0-5",
+    feature = "criterion-0-6",
+    feature = "criterion-0-7",
+    feature = "criterion-0-8"
+))]
 pub mod criterion;
 
 /// Mirror of `std` paths so instrumented types can be used as drop-in

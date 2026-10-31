@@ -16,8 +16,14 @@ pub mod tests {
     const ASYNC_ROUTINE: &str = "hotpath::criterion::async_routine";
     const BENCH: &str = "hotpath::criterion::bench";
     const WORK: &str = "fixture::work";
-    /// Crates building the same benchmark sources against Criterion 0.8 and 0.5.
-    const PACKAGES: [&str; 2] = ["test-criterion", "test-criterion-0-5"];
+    /// Crates building the same benchmark sources against Criterion 0.8, 0.7,
+    /// 0.6 and 0.5.
+    const PACKAGES: [&str; 4] = [
+        "test-criterion",
+        "test-criterion-0-7",
+        "test-criterion-0-6",
+        "test-criterion-0-5",
+    ];
 
     /// Every case once per package.
     fn each_package<T: Copy, const N: usize>(

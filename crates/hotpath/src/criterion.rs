@@ -1,4 +1,4 @@
-//! Criterion adapter (`criterion-0-5` / `criterion-0-8`): one hotpath report
+//! Criterion adapter (`criterion-0-5` to `criterion-0-8`): one hotpath report
 //! per existing Criterion benchmark.
 //!
 //! ```ignore
@@ -23,15 +23,31 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::LazyLock;
 use std::time::Duration;
 
-// One source for both Criterion versions, used below as `criterion`.
-// Workspace builds and `--all-features` enable both features at once; 0.8
-// wins then.
+// One source for every supported Criterion version, used below as
+// `criterion`. Workspace builds and `--all-features` enable several version
+// features at once; the newest wins then.
 #[cfg(feature = "criterion-0-8")]
 #[doc(hidden)]
 pub use ::criterion as __criterion;
-#[cfg(all(feature = "criterion-0-5", not(feature = "criterion-0-8")))]
+#[cfg(all(
+    feature = "criterion-0-5",
+    not(any(
+        feature = "criterion-0-6",
+        feature = "criterion-0-7",
+        feature = "criterion-0-8"
+    ))
+))]
 #[doc(hidden)]
 pub use ::criterion_05 as __criterion;
+#[cfg(all(
+    feature = "criterion-0-6",
+    not(any(feature = "criterion-0-7", feature = "criterion-0-8"))
+))]
+#[doc(hidden)]
+pub use ::criterion_06 as __criterion;
+#[cfg(all(feature = "criterion-0-7", not(feature = "criterion-0-8")))]
+#[doc(hidden)]
+pub use ::criterion_07 as __criterion;
 
 use crate::criterion::__criterion as criterion;
 

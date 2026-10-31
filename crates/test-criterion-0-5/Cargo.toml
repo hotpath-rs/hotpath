@@ -5,8 +5,9 @@ publish = false
 edition = "2021"
 description = "Tests for the Criterion adapter via the criterion-0-5 feature, on test-criterion's sources."
 
-# Only build it with `-p test-criterion-0-5`: selected together with
-# test-criterion, hotpath gets both Criterion features and targets 0.8.
+# Only build it with `-p test-criterion-0-5`: selected together with the other
+# test-criterion crates, hotpath gets several Criterion features and targets
+# the newest.
 [dependencies]
 hotpath = { workspace = true, features = ["criterion-0-5"] }
 criterion = { version = "0.5", default-features = false, features = ["async_tokio"] }

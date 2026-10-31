@@ -4,9 +4,14 @@
 //!   cargo bench -p test-criterion --bench codec
 //!   HOTPATH_CRITERION_ITERATIONS=1000 cargo bench -p test-criterion --bench codec --features hotpath-alloc -- --test --exact codec/encode
 //!
-//! On Criterion 0.5 (`crates/test-criterion-0-5` builds this same file):
+//! On Criterion 0.5, 0.6 and 0.7 (`crates/test-criterion-0-5`, `-0-6` and `-0-7`
+//! build this same file):
 //!   cargo bench -p test-criterion-0-5 --bench codec
 //!   HOTPATH_CRITERION_ITERATIONS=1000 cargo bench -p test-criterion-0-5 --bench codec --features hotpath-alloc -- --test --exact codec/encode
+//!   cargo bench -p test-criterion-0-6 --bench codec
+//!   HOTPATH_CRITERION_ITERATIONS=1000 cargo bench -p test-criterion-0-6 --bench codec --features hotpath-alloc -- --test --exact codec/encode
+//!   cargo bench -p test-criterion-0-7 --bench codec
+//!   HOTPATH_CRITERION_ITERATIONS=1000 cargo bench -p test-criterion-0-7 --bench codec --features hotpath-alloc -- --test --exact codec/encode
 
 use std::hint::black_box;
 

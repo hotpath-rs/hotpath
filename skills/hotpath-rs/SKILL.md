@@ -35,7 +35,7 @@ Paths are relative to https://hotpath.rs. Fetch the pages listed for the task, p
 | Use a guard instead of `#[hotpath::main]` (libraries, tests, benchmarks); report format, output, shutdown; live TUI | `/profiling_modes`, `/configuration` |
 | CPU time inside functions (samply) | `/cpu_profiling` |
 | Callgrind instruction counts, alone or merged with native timing; missing or unstable counts | `/callgrind` (+ `/ci_integration` "Troubleshooting" in CI) |
-| Reuse existing Criterion benchmarks (0.8 or 0.5), sync or async (`to_async`), for hotpath reports (fixed iterations, native, Callgrind, merged) | `/criterion`, `/callgrind` |
+| Reuse existing Criterion benchmarks (0.5 to 0.8), sync or async (`to_async`), for hotpath reports (fixed iterations, native, Callgrind, merged) | `/criterion`, `/callgrind` |
 | Threads | `/threads` |
 | Channels, streams, futures | `/data_flow` |
 | Lock contention | `/locks` |
