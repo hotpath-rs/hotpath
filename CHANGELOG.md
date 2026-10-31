@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.30.3] - 2026-10-31
+
+### 🚀 Features
+
+- Customize max functions depth
+
+- Re-export Criterion types from hotpath::criterion
+
+- Criterion 0.5, 0.6 and 0.7 support
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.30.3
+
+
 ## [0.30.2] - 2026-10-30
 
 ### 🚀 Features
