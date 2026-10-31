@@ -6,10 +6,13 @@ Supported versions: Criterion `0.5`, `0.6`, `0.7` and `0.8`, each behind its own
 
 ## Setup
 
-Enable the `criterion-0-8` feature (or `criterion-0-5`, `criterion-0-6`, `criterion-0-7` for those versions) and forward hotpath's profiling features:
+Enable the `criterion-0-8` feature (or `criterion-0-5`, `criterion-0-6`, `criterion-0-7` for those versions) on a `hotpath` dev-dependency and forward hotpath's profiling features:
 
 ```toml
 [dependencies]
+hotpath = "{{HOTPATH_VERSION}}"
+
+[dev-dependencies]
 hotpath = { version = "{{HOTPATH_VERSION}}", features = ["criterion-0-8"] }
 
 [features]
@@ -18,6 +21,8 @@ hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
 hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
 hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 ```
+
+Both entries name the same crate. The `[dependencies]` one is what `#[hotpath::measure]` in your library code uses, and without profiling features it is a no-op. The Criterion feature only applies to benchmark, test and example builds, so Criterion never reaches a `cargo build` of your application. A project that only uses hotpath from its benchmarks can drop the `[dependencies]` entry.
 
 In each benchmark file, import from `hotpath::criterion` instead of `criterion`. It provides `Criterion`, `BenchmarkId`, `criterion_group!` and `criterion_main!`, and re-exports the Criterion types they take: `BatchSize`, `Throughput`, `SamplingMode`, `PlotConfiguration`, `AxisScale`, `PlottingBackend` and the `measurement` and `async_executor` modules. hotpath's `BenchmarkId` has the same constructors, and lets the report name the benchmark it ran:
 
@@ -59,7 +64,7 @@ A helper taking Criterion's `AsyncBencher` switches to `hotpath::criterion::Asyn
 Async benchmarks keep using `b.to_async(executor)` with any Criterion `AsyncExecutor` (`hotpath::criterion::async_executor::AsyncExecutor`): a Tokio `Runtime` or `Handle`, `FuturesExecutor`, `SmolExecutor` or your own implementation. The built-in executors are behind Criterion feature flags. For Tokio, enable hotpath's `criterion-tokio` feature next to the version feature, and the benchmarks need no `criterion` dependency of their own:
 
 ```toml
-[dependencies]
+[dev-dependencies]
 hotpath = { version = "{{HOTPATH_VERSION}}", features = ["criterion-0-8", "criterion-tokio"] }
 ```
 
