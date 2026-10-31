@@ -5,6 +5,10 @@
 //! Run with:
 //!   cargo bench -p test-criterion --bench pipe
 //!   HOTPATH_CRITERION_ITERATIONS=1000 cargo bench -p test-criterion --bench pipe --features hotpath-alloc -- --test --exact pipe/roundtrip/4096
+//!
+//! On Criterion 0.5 (`crates/test-criterion-0-5` builds this same file):
+//!   cargo bench -p test-criterion-0-5 --bench pipe
+//!   HOTPATH_CRITERION_ITERATIONS=1000 cargo bench -p test-criterion-0-5 --bench pipe --features hotpath-alloc -- --test --exact pipe/roundtrip/4096
 
 use std::hint::black_box;
 

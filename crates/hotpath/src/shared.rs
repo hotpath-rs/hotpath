@@ -1,9 +1,17 @@
 use std::str::FromStr;
 
 /// `user_metadata` keys the Criterion adapter records.
-#[cfg(any(feature = "hotpath", feature = "criterion-0-8"))]
+#[cfg(any(
+    feature = "hotpath",
+    feature = "criterion-0-5",
+    feature = "criterion-0-8"
+))]
 pub(crate) const CRITERION_BENCHMARK_KEY: &str = "criterion_benchmark";
-#[cfg(any(feature = "hotpath", feature = "criterion-0-8"))]
+#[cfg(any(
+    feature = "hotpath",
+    feature = "criterion-0-5",
+    feature = "criterion-0-8"
+))]
 pub(crate) const CRITERION_ITERATIONS_KEY: &str = "criterion_iterations";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

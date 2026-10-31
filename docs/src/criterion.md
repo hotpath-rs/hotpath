@@ -2,11 +2,11 @@
 
 Existing [Criterion.rs](https://crates.io/crates/criterion) benchmarks can produce hotpath reports, with function timing, allocations and [Callgrind instruction counts](callgrind.md), without rewriting them. Each run executes one benchmark a **fixed number of times** and writes one report, so native and Callgrind runs of the same build do identical work and can be [merged](callgrind.md#timing-and-instruction-counts-in-one-report) and uploaded to [hotpath-cloud](cloud.md).
 
-Supported version: Criterion `0.8` (the `criterion-0-8` feature).
+Supported versions: Criterion `0.8` (the `criterion-0-8` feature) and `0.5` (the `criterion-0-5` feature). Both expose the same API described here. Enable the one matching the Criterion version your benchmarks use; if a build enables both (for example two workspace crates on different versions), the adapter targets `0.8`.
 
 ## Setup
 
-Enable the `criterion-0-8` feature and forward hotpath's profiling features:
+Enable the `criterion-0-8` feature (`criterion-0-5` on Criterion 0.5) and forward hotpath's profiling features:
 
 ```toml
 [dependencies]
@@ -49,6 +49,8 @@ Async benchmarks keep using `b.to_async(executor)` with any Criterion `AsyncExec
 [dev-dependencies]
 criterion = { version = "0.8", features = ["async_tokio"] }
 ```
+
+With `criterion-0-5`, use `version = "0.5"` here, so the executor feature lands on the same Criterion crate the adapter uses.
 
 Only the imports change:
 
