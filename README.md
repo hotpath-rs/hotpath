@@ -3,7 +3,11 @@
 
 A simple Rust profiler that shows exactly why your code is slow.
 
-Performance feedback for developers and coding agents. Find CPU, memory, async, SQL, I/O and contention bottlenecks with a single Rust profiler. Export metrics to Prometheus and Grafana when you need production monitoring.
+**Performance profiling for developers and coding agents.** Profile CPU, memory allocations, async tasks, SQL queries, I/O, and lock contention in one place. Explore performance metrics in a live TUI, or export to Prometheus and Grafana when you need production monitoring.
+
+**Already using Criterion.rs?** Criterion tells you how fast your code runs. **hotpath-rs explains why.** Add detailed CPU and memory profiling to your existing Criterion benchmarks with minimal changes. [Explore Criterion integration →](https://hotpath.rs/criterion)
+
+Find bottlenecks locally, then use [hotpath-cloud](https://hotpath.rs/cloud) to track performance changes across pull requests.
 
 Try the TUI demo via SSH - no installation required:
 
@@ -211,6 +215,7 @@ Read the [complete guide to profiling Rust applications](https://hotpath.rs/blog
 - [Tokio Runtime](https://hotpath.rs/tokio_runtime) - monitor Tokio runtime worker stats and task scheduling
 - [Debug & Metrics](https://hotpath.rs/debug) - track custom values with dbg!, val!, and gauge! macros
 - [Prometheus & Grafana](https://hotpath.rs/prometheus_grafana) - export metrics to Prometheus and build Grafana dashboards
+- [Criterion benchmarks](https://hotpath.rs/criterion) - profile existing Criterion benchmarks with timing, allocations and Callgrind instruction counts
 - [hotpath-cloud CI integration](https://hotpath.rs/ci_integration) - performance regression detection on every pull request
 - [MCP Server](https://hotpath.rs/mcp) - LLM integration via Model Context Protocol
 - [Cargo flamegraph alternatives](https://hotpath.rs/blog/sampling_comparison) - when to use `hotpath` vs sampling profilers like perf and samply

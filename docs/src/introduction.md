@@ -1,8 +1,10 @@
 # A simple Rust profiler that shows exactly why your code is slow
 
-<h2 class="hero-subtitle"><b>Performance profiling for developers and coding agents.</b> Profile CPU, memory allocations, async tasks, SQL queries, I/O, and lock contention in one place. Explore performance metrics in a live TUI, or export to Prometheus and Grafana when you need production monitoring..</h2>
+<h2 class="hero-subtitle"><b>Performance profiling for developers and coding agents.</b> Profile CPU, memory allocations, async tasks, SQL queries, I/O, and lock contention in one place. Explore performance metrics in a live TUI, or export to Prometheus and Grafana when you need production monitoring.</h2>
 
-<p class="hero-tagline">Find bottlenecks locally, then use <a href="/cloud">hotpath-cloud</a> to track performance changes across pull requests.</p>
+<p class="hero-subtitle"><b>Already using Criterion.rs?</b> Criterion tells you how fast your code runs. <b>hotpath-rs explains why.</b> Add detailed CPU and memory profiling to your existing Criterion benchmarks with minimal changes. <a href="/criterion">Explore Criterion integration →</a></p>
+
+<p class="hero-subtitle">Find bottlenecks locally, then use <a href="/cloud">hotpath-cloud</a> to track performance changes across pull requests. </p>
 
 <div class="hero-badges">
   <a href="https://github.com/hotpath-rs/hotpath" target="_blank" rel="noopener noreferrer"><img src="{{#asset-hash images/stars-hotpath-rs-hotpath.svg}}" alt="GitHub Stars"></a>
@@ -393,6 +395,7 @@ Explore the docs for customization options and advanced profiling features.
 - [Tokio Runtime](./tokio_runtime.html) - monitor Tokio runtime worker stats and task scheduling
 - [Debug & Metrics](./debug.html) - track custom values with dbg!, val!, and gauge! macros
 - [Prometheus & Grafana](./prometheus_grafana.html) - export metrics to Prometheus and build Grafana dashboards
+- [Criterion benchmarks](./criterion.html) - profile existing Criterion benchmarks with timing, allocations and Callgrind instruction counts
 - [hotpath-cloud CI integration](./ci_integration.html) - performance regression detection on every pull request
 - [MCP Server](./mcp.html) - LLM integration via Model Context Protocol
 - [Cargo flamegraph alternatives](/blog/sampling_comparison) - when to use `hotpath` vs sampling profilers like perf and samply
