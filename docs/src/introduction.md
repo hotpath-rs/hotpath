@@ -397,3 +397,7 @@ Explore the docs for customization options and advanced profiling features.
 - [MCP Server](./mcp.html) - LLM integration via Model Context Protocol
 - [Cargo flamegraph alternatives](/blog/sampling_comparison) - when to use `hotpath` vs sampling profilers like perf and samply
 - [Configuration](./configuration.html) - explore all config options
+
+## Building in public
+
+[Follow @pawelurbanekcom on X](https://x.com/pawelurbanekcom) for development updates, new releases and performance tips.
