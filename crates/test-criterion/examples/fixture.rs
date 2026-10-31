@@ -4,6 +4,12 @@
 //!
 //! Run with:
 //!   HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched_per_iteration
+//!
+//! On Criterion 0.5, 0.6 and 0.7 (`crates/test-criterion-0-5`, `-0-6` and `-0-7`
+//! build this same file):
+//!   HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion-0-5 --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched_per_iteration
+//!   HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion-0-6 --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched_per_iteration
+//!   HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion-0-7 --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched_per_iteration
 
 use std::hint::black_box;
 use std::sync::atomic::{AtomicU64, Ordering};

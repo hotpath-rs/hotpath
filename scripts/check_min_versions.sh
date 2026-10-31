@@ -74,7 +74,7 @@ extras = ("schemars", "rmcp", "axum", "tokio-util", "ureq", "reqwest",
           "reqwest-012", "reqwest-middleware-04", "reqwest-middleware-05",
           "async-trait", "http",
           "clap", "crossterm", "ratatui", "eyre", "tracing",
-          "tracing-subscriber", "sqlx", "diesel", "libsqlite3-sys", "criterion")
+          "tracing-subscriber", "sqlx", "diesel", "libsqlite3-sys", "criterion", "criterion-05", "criterion-06", "criterion-07")
 for dep in extras:
     src = re.sub(rf'^{re.escape(dep)}\s*=.*\n', '', src, flags=re.MULTILINE)
     src = re.sub(rf'"dep:{re.escape(dep)}",?\s*', '', src)

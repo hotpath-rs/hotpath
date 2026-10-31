@@ -1,0 +1,38 @@
+[package]
+name = "test-criterion-0-7"
+version = "0.0.0"
+publish = false
+edition = "2021"
+description = "Tests for the Criterion adapter via the criterion-0-7 feature, on test-criterion's sources."
+
+# Only build it with `-p test-criterion-0-7`: selected together with the other
+# test-criterion crates, hotpath gets several Criterion features and targets
+# the newest.
+[dependencies]
+hotpath = { workspace = true, features = ["criterion-0-7"] }
+criterion = { version = "0.7", default-features = false, features = ["async_tokio"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "io-util", "macros"] }
+
+[features]
+hotpath = ["hotpath/hotpath"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
+
+[[example]]
+name = "fixture"
+path = "../test-criterion/examples/fixture.rs"
+
+[[example]]
+name = "batching"
+path = "../test-criterion/examples/batching.rs"
+
+[[bench]]
+name = "codec"
+path = "../test-criterion/benches/codec.rs"
+harness = false
+
+[[bench]]
+name = "pipe"
+path = "../test-criterion/benches/pipe.rs"
+harness = false

@@ -6,6 +6,12 @@
 //!
 //! Run with:
 //!   HOTPATH_CRITERION_ITERATIONS=25 cargo run -p test-criterion --example batching --features hotpath -- --exact batched/value/10
+//!
+//! On Criterion 0.5, 0.6 and 0.7 (`crates/test-criterion-0-5`, `-0-6` and `-0-7`
+//! build this same file):
+//!   HOTPATH_CRITERION_ITERATIONS=25 cargo run -p test-criterion-0-5 --example batching --features hotpath -- --exact batched/value/10
+//!   HOTPATH_CRITERION_ITERATIONS=25 cargo run -p test-criterion-0-6 --example batching --features hotpath -- --exact batched/value/10
+//!   HOTPATH_CRITERION_ITERATIONS=25 cargo run -p test-criterion-0-7 --example batching --features hotpath -- --exact batched/value/10
 
 use std::future::Future;
 use std::pin::{pin, Pin};

@@ -2,11 +2,11 @@
 
 Existing [Criterion.rs](https://crates.io/crates/criterion) benchmarks can produce hotpath reports, with function timing, allocations and [Callgrind instruction counts](callgrind.md), without rewriting them. Each run executes one benchmark a **fixed number of times** and writes one report, so native and Callgrind runs of the same build do identical work and can be [merged](callgrind.md#timing-and-instruction-counts-in-one-report) and uploaded to [hotpath-cloud](cloud.md).
 
-Supported version: Criterion `0.8` (the `criterion-0-8` feature).
+Supported versions: Criterion `0.5`, `0.6`, `0.7` and `0.8`, each behind its own feature (`criterion-0-5`, `criterion-0-6`, `criterion-0-7`, `criterion-0-8`). All expose the same API described here. Enable the one matching the Criterion version your benchmarks use. If multiple Criterion adapter features are enabled simultaneously, the newest version takes precedence. Workspaces using different Criterion versions should build benchmark packages separately with `cargo bench -p`.
 
 ## Setup
 
-Enable the `criterion-0-8` feature and forward hotpath's profiling features:
+Enable the `criterion-0-8` feature (or `criterion-0-5`, `criterion-0-6`, `criterion-0-7` for those versions) and forward hotpath's profiling features:
 
 ```toml
 [dependencies]
@@ -39,6 +39,19 @@ criterion_main!(benches);
 
 The `config = ...` form of `criterion_group!` takes a plain `criterion::Criterion`, re-exported as `hotpath::criterion::Config`: write `config = Config::default().sample_size(10)`.
 
+Benchmark closures receive hotpath's `Bencher`, a wrapper around Criterion's that runs the routine the fixed number of times. Closures written inline (`|b| b.iter(...)`) need no change. A helper function that names the type must take hotpath's `Bencher`, which has two lifetimes where Criterion's has one:
+
+```rust
+use hotpath::criterion::Bencher;
+
+// before: fn write_then_flush(b: &mut criterion::Bencher<'_>)
+fn write_then_flush(b: &mut Bencher<'_, '_>) {
+    b.iter(|| write_and_flush());
+}
+```
+
+A helper taking Criterion's `AsyncBencher` switches to `hotpath::criterion::AsyncBencher` with the same parameters.
+
 `criterion_main!` installs hotpath's tracking allocator, as `#[hotpath::main]` does. If the benchmark declares its own `#[global_allocator]`, remove it and pass the allocator instead: `criterion_main!(allocator = tikv_jemallocator::Jemalloc; benches)`. If the benchmarked library already installs one (it uses `#[hotpath::main]` or declares `hotpath::CountingAllocator`), pass `allocator = none;`.
 
 ### Async benchmarks
@@ -49,6 +62,8 @@ Async benchmarks keep using `b.to_async(executor)` with any Criterion `AsyncExec
 [dev-dependencies]
 criterion = { version = "0.8", features = ["async_tokio"] }
 ```
+
+With an older version feature, use that version here (for example `version = "0.5"` with `criterion-0-5`), so the executor feature lands on the same Criterion crate the adapter uses.
 
 Only the imports change:
 

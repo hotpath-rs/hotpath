@@ -23,24 +23,27 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::LazyLock;
 use std::time::Duration;
 
-use ::criterion::async_executor::AsyncExecutor;
-use ::criterion::measurement::{Measurement, WallTime};
-
-use crate::shared::{CRITERION_BENCHMARK_KEY, CRITERION_ITERATIONS_KEY};
-
+// The Criterion crate, used below as `criterion`.
 #[doc(hidden)]
 pub use ::criterion as __criterion;
 
+use crate::criterion::__criterion as criterion;
+
+use criterion::async_executor::AsyncExecutor;
+use criterion::measurement::{Measurement, WallTime};
+
+use crate::shared::{CRITERION_BENCHMARK_KEY, CRITERION_ITERATIONS_KEY};
+
 // Criterion's own types the wrappers take or return, so benchmarks need no
 // direct `criterion` imports (or version match) for them.
-pub use ::criterion::{
+pub use criterion::{
     async_executor, measurement, AxisScale, BatchSize, PlotConfiguration, PlottingBackend,
     SamplingMode, Throughput,
 };
 
 /// The plain [`criterion::Criterion`] that configures a group, as in
 /// `criterion_group!(name = benches; config = Config::default().sample_size(10); targets = ...)`.
-pub type Config<M = WallTime> = ::criterion::Criterion<M>;
+pub type Config<M = WallTime> = criterion::Criterion<M>;
 
 const BENCH_LABEL: &str = "hotpath_meta::criterion::bench";
 
@@ -136,11 +139,11 @@ pub fn __finish<M: Measurement>(criterion: Criterion<M>) {
 
 /// [`criterion::Criterion`] whose benchmarks honor `HOTPATH_META_CRITERION_ITERATIONS`.
 pub struct Criterion<M: Measurement = WallTime> {
-    inner: ::criterion::Criterion<M>,
+    inner: criterion::Criterion<M>,
 }
 
-impl<M: Measurement> From<::criterion::Criterion<M>> for Criterion<M> {
-    fn from(inner: ::criterion::Criterion<M>) -> Self {
+impl<M: Measurement> From<criterion::Criterion<M>> for Criterion<M> {
+    fn from(inner: criterion::Criterion<M>) -> Self {
         Self { inner }
     }
 }
@@ -211,10 +214,10 @@ impl BenchmarkId {
         }
     }
 
-    fn into_criterion(self) -> ::criterion::BenchmarkId {
+    fn into_criterion(self) -> criterion::BenchmarkId {
         match (self.function, self.parameter) {
-            (Some(function), Some(parameter)) => ::criterion::BenchmarkId::new(function, parameter),
-            (None, Some(parameter)) => ::criterion::BenchmarkId::from_parameter(parameter),
+            (Some(function), Some(parameter)) => criterion::BenchmarkId::new(function, parameter),
+            (None, Some(parameter)) => criterion::BenchmarkId::from_parameter(parameter),
             (function, None) => unreachable!("BenchmarkId {function:?} without a parameter"),
         }
     }
@@ -255,7 +258,7 @@ impl IntoBenchmarkId for &String {
 
 /// [`criterion::BenchmarkGroup`] whose benchmarks honor `HOTPATH_META_CRITERION_ITERATIONS`.
 pub struct BenchmarkGroup<'a, M: Measurement = WallTime> {
-    inner: ::criterion::BenchmarkGroup<'a, M>,
+    inner: criterion::BenchmarkGroup<'a, M>,
     name: String,
 }
 
@@ -341,7 +344,7 @@ impl<M: Measurement> BenchmarkGroup<'_, M> {
     {
         let id = id.into_id();
         let full = full_id(&self.name, id.function.as_deref(), id.parameter.as_deref());
-        let f = |b: &mut ::criterion::Bencher<'_, M>, i: &I| {
+        let f = |b: &mut criterion::Bencher<'_, M>, i: &I| {
             f(
                 &mut Bencher {
                     inner: b,
@@ -369,7 +372,7 @@ impl<M: Measurement> BenchmarkGroup<'_, M> {
 /// [`criterion::Bencher`] that runs a routine exactly
 /// `HOTPATH_META_CRITERION_ITERATIONS` times when it is set.
 pub struct Bencher<'a, 'b, M: Measurement = WallTime> {
-    inner: &'b mut ::criterion::Bencher<'a, M>,
+    inner: &'b mut criterion::Bencher<'a, M>,
     id: &'b str,
 }
 
@@ -494,7 +497,7 @@ impl<'a, M: Measurement> Bencher<'a, '_, M> {
 /// [`criterion::Bencher::to_async`], and `AsyncExecutor` is not implemented
 /// for references to every executor.
 pub struct AsyncBencher<'a, 'b, A, M: Measurement = WallTime> {
-    inner: &'b mut ::criterion::Bencher<'a, M>,
+    inner: &'b mut criterion::Bencher<'a, M>,
     runner: A,
     id: &'b str,
 }
