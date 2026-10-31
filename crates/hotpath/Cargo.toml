@@ -67,8 +67,6 @@ diesel = ["dep:diesel"]
 "criterion-0-6" = ["dep:criterion-06", "criterion-06/async"]
 "criterion-0-7" = ["dep:criterion-07", "criterion-07/async"]
 "criterion-0-8" = ["dep:criterion", "criterion/async"]
-# Tokio's `AsyncExecutor` for `to_async`, on whichever Criterion version above is enabled.
-"criterion-tokio" = ["criterion?/async_tokio", "criterion-05?/async_tokio", "criterion-06?/async_tokio", "criterion-07?/async_tokio"]
 "axum-0-8" = ["dep:axum", "axum/matched-path", "dep:tower-layer", "dep:tower-service", "dep:pin-project-lite"]
 threads = []
 dev = ["dep:time", "time/formatting", "time/local-offset"]

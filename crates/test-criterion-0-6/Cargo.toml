@@ -9,7 +9,8 @@ description = "Tests for the Criterion adapter via the criterion-0-6 feature, on
 # test-criterion crates, hotpath gets several Criterion features and targets
 # the newest.
 [dependencies]
-hotpath = { workspace = true, features = ["criterion-0-6", "criterion-tokio"] }
+hotpath = { workspace = true, features = ["criterion-0-6"] }
+criterion = { version = "0.6", default-features = false, features = ["async_tokio"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "io-util", "macros"] }
 
 [features]

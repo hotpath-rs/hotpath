@@ -78,7 +78,7 @@ extras = ("schemars", "rmcp", "axum", "tokio-util", "ureq", "reqwest",
 for dep in extras:
     src = re.sub(rf'^{re.escape(dep)}\s*=.*\n', '', src, flags=re.MULTILINE)
     src = re.sub(rf'"dep:{re.escape(dep)}",?\s*', '', src)
-    src = re.sub(rf'"{re.escape(dep)}\??/[^"]*",?\s*', '', src)
+    src = re.sub(rf'"{re.escape(dep)}/[^"]*",?\s*', '', src)
 src = re.sub(r'^demo\s*=.*\n', '', src, flags=re.MULTILINE)
 src = re.sub(r'^"reqwest-0-1[23]"\s*=.*\n', '', src, flags=re.MULTILINE)
 p.write_text(src)

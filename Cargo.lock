@@ -4879,6 +4879,7 @@ dependencies = [
 name = "test-criterion"
 version = "0.0.0"
 dependencies = [
+ "criterion 0.8.2",
  "hotpath",
  "tokio",
 ]
@@ -4887,6 +4888,7 @@ dependencies = [
 name = "test-criterion-0-5"
 version = "0.0.0"
 dependencies = [
+ "criterion 0.5.1",
  "hotpath",
  "tokio",
 ]
@@ -4895,6 +4897,7 @@ dependencies = [
 name = "test-criterion-0-6"
 version = "0.0.0"
 dependencies = [
+ "criterion 0.6.0",
  "hotpath",
  "tokio",
 ]
@@ -4903,6 +4906,7 @@ dependencies = [
 name = "test-criterion-0-7"
 version = "0.0.0"
 dependencies = [
+ "criterion 0.7.0",
  "hotpath",
  "tokio",
 ]

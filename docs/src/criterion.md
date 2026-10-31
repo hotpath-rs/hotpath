@@ -6,13 +6,14 @@ Supported versions: Criterion `0.5`, `0.6`, `0.7` and `0.8`, each behind its own
 
 ## Setup
 
-Enable the `criterion-0-8` feature (or `criterion-0-5`, `criterion-0-6`, `criterion-0-7` for those versions) on a `hotpath` dev-dependency and forward hotpath's profiling features:
+Add `hotpath` as a dev-dependency with the `criterion-0-8` feature (or `criterion-0-5`, `criterion-0-6`, `criterion-0-7` for those versions), next to your regular `hotpath` dependency and your `criterion` dev-dependency, and forward hotpath's profiling features:
 
 ```toml
 [dependencies]
 hotpath = "{{HOTPATH_VERSION}}"
 
 [dev-dependencies]
+criterion = "0.8"
 hotpath = { version = "{{HOTPATH_VERSION}}", features = ["criterion-0-8"] }
 
 [features]
@@ -22,7 +23,7 @@ hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
 hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 ```
 
-Both entries name the same crate. The `[dependencies]` one is what `#[hotpath::measure]` in your library code uses, and without profiling features it is a no-op. The Criterion feature only applies to benchmark, test and example builds, so Criterion never reaches a `cargo build` of your application. A project that only uses hotpath from its benchmarks can drop the `[dependencies]` entry.
+Both `hotpath` entries name the same crate. The `[dependencies]` one is what `#[hotpath::measure]` in your library code uses, and without profiling features it is a no-op. The `[dev-dependencies]` one adds the Criterion adapter to benchmark, test and example builds only, so Criterion never reaches a `cargo build` of your application. Criterion still runs the benchmarks, and its features (executors, reports) stay on your own `criterion` dependency. A project that only uses hotpath from its benchmarks can drop the `[dependencies]` entry.
 
 In each benchmark file, import from `hotpath::criterion` instead of `criterion`. It provides `Criterion`, `BenchmarkId`, `criterion_group!` and `criterion_main!`, and re-exports the Criterion types they take: `BatchSize`, `Throughput`, `SamplingMode`, `PlotConfiguration`, `AxisScale`, `PlottingBackend` and the `measurement` and `async_executor` modules. hotpath's `BenchmarkId` has the same constructors, and lets the report name the benchmark it ran:
 
@@ -61,24 +62,14 @@ A helper taking Criterion's `AsyncBencher` switches to `hotpath::criterion::Asyn
 
 ### Async benchmarks
 
-Async benchmarks keep using `b.to_async(executor)` with any Criterion `AsyncExecutor` (`hotpath::criterion::async_executor::AsyncExecutor`): a Tokio `Runtime` or `Handle`, `FuturesExecutor`, `SmolExecutor` or your own implementation. The built-in executors are behind Criterion feature flags. For Tokio, enable hotpath's `criterion-tokio` feature next to the version feature, and the benchmarks need no `criterion` dependency of their own:
+Async benchmarks keep using `b.to_async(executor)` with any Criterion `AsyncExecutor` (`hotpath::criterion::async_executor::AsyncExecutor`): a Tokio `Runtime` or `Handle`, `FuturesExecutor`, `SmolExecutor` or your own implementation. The built-in executors are behind Criterion feature flags, so enable the executor's feature on a `criterion` dependency as before, e.g. for Tokio:
 
 ```toml
 [dev-dependencies]
-hotpath = { version = "{{HOTPATH_VERSION}}", features = ["criterion-0-8", "criterion-tokio"] }
+criterion = { version = "0.8", features = ["async_tokio"] }
 ```
 
-`criterion-tokio` turns on Criterion's `async_tokio` feature only on the Criterion version the adapter uses, so benchmarks without it never build Tokio support. For another executor, enable its feature on a `criterion` dependency of the same version, e.g. `criterion = { version = "0.8", features = ["async_futures"] }` (or `version = "0.5"` with `criterion-0-5`), so it lands on the same Criterion crate the adapter uses.
-
-hotpath depends on Criterion with `default-features = false`, to keep its dependencies small. A project with no `criterion` dependency of its own therefore builds Criterion without its default features:
-
-| Criterion feature | Without it |
-| --- | --- |
-| `rayon` | Criterion's statistical analysis runs on one thread, so `cargo bench` takes longer |
-| `plotters` | no Plotters backend for charts: with `html_reports`, charts need gnuplot installed |
-| `cargo_bench_support` | no effect in Criterion 0.5 to 0.8 |
-
-`html_reports` is not a default feature, so it needs enabling on a `criterion` dependency either way. hotpath's own reports are unaffected. Existing Criterion projects that rely on these features should keep their `criterion` dependency, whose features merge onto the Criterion crate the adapter uses; new integrations can go without one.
+With an older version feature, use that version here (for example `version = "0.5"` with `criterion-0-5`), so the executor feature lands on the same Criterion crate the adapter uses.
 
 Only the imports change:
 
@@ -98,7 +89,7 @@ criterion_main!(benches);
 
 `iter`, `iter_batched`, `iter_batched_ref` and `iter_custom` are supported. Each method consumes the async bencher, so call one method on each `to_async(...)` result, as `b.to_async(&rt).iter(...)` does.
 
-Without `HOTPATH_CRITERION_ITERATIONS` the wrappers forward to Criterion unchanged: `cargo bench` and `cargo test --benches` behave exactly as before, as long as the project keeps its own `criterion` dependency (see the default features above). Build those runs without hotpath's profiling features: with them on, measured functions and the tracking allocator still do their bookkeeping when no report is being written, which biases Criterion's own timings. Without them the wrappers and `CountingAllocator` are plain pass-throughs.
+Without `HOTPATH_CRITERION_ITERATIONS` the wrappers forward to Criterion unchanged: `cargo bench` and `cargo test --benches` behave exactly as before. Build those runs without hotpath's profiling features: with them on, measured functions and the tracking allocator still do their bookkeeping when no report is being written, which biases Criterion's own timings. Without them the wrappers and `CountingAllocator` are plain pass-throughs.
 
 ## Running one benchmark
 
