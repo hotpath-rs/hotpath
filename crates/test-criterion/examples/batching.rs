@@ -12,9 +12,8 @@ use std::pin::{pin, Pin};
 use std::sync::Mutex;
 use std::task::{Context, Poll, Waker};
 
-use criterion::async_executor::AsyncExecutor;
-use criterion::BatchSize;
-use hotpath::criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use hotpath::criterion::async_executor::AsyncExecutor;
+use hotpath::criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 
 static TRACE: Mutex<String> = Mutex::new(String::new());
 

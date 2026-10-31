@@ -6,8 +6,7 @@
 
 use std::hint::black_box;
 
-use criterion::BatchSize;
-use hotpath::criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use hotpath::criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 
 #[hotpath::measure]
 fn encode(values: &[u32]) -> Vec<u8> {
