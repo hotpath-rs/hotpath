@@ -10,18 +10,11 @@ use crate::tid::current_tid;
 /// `build.rs`). It cannot be a runtime `LazyLock`: it sizes the
 /// const-initialized thread-local frame stack, and sizing it lazily would
 /// allocate inside the allocator.
-pub(crate) const MAX_DEPTH: usize = parse_depth(env!("HOTPATH_ALLOC_MAX_DEPTH"));
-
-const fn parse_depth(raw: &str) -> usize {
-    let bytes = raw.as_bytes();
-    let mut value = 0;
-    let mut i = 0;
-    while i < bytes.len() {
-        value = value * 10 + (bytes[i] - b'0') as usize;
-        i += 1;
-    }
-    value
-}
+pub(crate) const MAX_DEPTH: usize = match usize::from_str_radix(env!("HOTPATH_ALLOC_MAX_DEPTH"), 10)
+{
+    Ok(depth) => depth,
+    Err(_) => panic!("HOTPATH_ALLOC_MAX_DEPTH is validated in build.rs"),
+};
 
 /// Fixed registry capacity; slots are intentionally never reclaimed so that
 /// exited threads stay reportable. After this many unique allocating threads,
