@@ -6,10 +6,14 @@ Supported versions: Criterion `0.5`, `0.6`, `0.7` and `0.8`, each behind its own
 
 ## Setup
 
-Enable the `criterion-0-8` feature (or `criterion-0-5`, `criterion-0-6`, `criterion-0-7` for those versions) and forward hotpath's profiling features:
+Add `hotpath` as a dev-dependency with the `criterion-0-8` feature (or `criterion-0-5`, `criterion-0-6`, `criterion-0-7` for those versions), next to your regular `hotpath` dependency and your `criterion` dev-dependency, and forward hotpath's profiling features:
 
 ```toml
 [dependencies]
+hotpath = "{{HOTPATH_VERSION}}"
+
+[dev-dependencies]
+criterion = "0.8"
 hotpath = { version = "{{HOTPATH_VERSION}}", features = ["criterion-0-8"] }
 
 [features]
@@ -18,6 +22,8 @@ hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
 hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
 hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 ```
+
+Both `hotpath` entries name the same crate. The `[dependencies]` one is what `#[hotpath::measure]` in your library code uses, and without profiling features it is a no-op. The `[dev-dependencies]` one adds the Criterion adapter to benchmark, test and example builds only, so Criterion never reaches a `cargo build` of your application. Criterion still runs the benchmarks, and its features (executors, reports) stay on your own `criterion` dependency. A project that only uses hotpath from its benchmarks can drop the `[dependencies]` entry.
 
 In each benchmark file, import from `hotpath::criterion` instead of `criterion`. It provides `Criterion`, `BenchmarkId`, `criterion_group!` and `criterion_main!`, and re-exports the Criterion types they take: `BatchSize`, `Throughput`, `SamplingMode`, `PlotConfiguration`, `AxisScale`, `PlottingBackend` and the `measurement` and `async_executor` modules. hotpath's `BenchmarkId` has the same constructors, and lets the report name the benchmark it ran:
 
