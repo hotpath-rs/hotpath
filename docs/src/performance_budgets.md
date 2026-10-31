@@ -140,7 +140,7 @@ Every rule takes:
 
 **Every rule checks that its entry ran.** Without a `min`, the count must be at least 1, so a `match` with a typo or a renamed function breaks the budget instead of passing silently. Write `calls = { min = 0 }` for an entry that may not run.
 
-`ignore`, `judged`, `min_percent_change`, `min_calls` and `min_percent_total` do not apply to budgets: a rule names its entry explicitly. A resource takes up to 64 rules.
+`ignore` (the resource's or a section's), `judged`, `min_percent_change`, `min_calls` and `min_percent_total` do not apply to budgets: a rule names its entry explicitly, so it still bounds an entry a section ignores. A resource takes up to 64 rules.
 
 ### Units
 

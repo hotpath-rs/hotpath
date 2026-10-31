@@ -258,7 +258,7 @@ On Linux a thread name is cut to 15 bytes, so `tokio-runtime-worker` shows up as
 
 ### Section keys
 
-Every section takes the same five keys:
+Every section takes the same six keys:
 
 | Key | Meaning |
 |---|---|
@@ -267,6 +267,7 @@ Every section takes the same five keys:
 | `min_percent_change` | The smallest change, in percent and in either direction, that counts, from `0` to `1000`. |
 | `metrics` | The metrics that are judged. A row regresses when any of them crosses `min_percent_change` in its worse direction. |
 | `min_calls` | Rows with fewer calls than this on both sides are not judged. |
+| `ignore` | Patterns of entries that this section alone does not judge, on top of the resource's `ignore`. Empty by default. |
 
 Percentiles are written the way hotpath names them (`p95`, `p99.9`), and a report has only the ones it was profiled with (`p95` by default, set with `percentiles` on [`#[hotpath::main]`](functions.md)).
 
@@ -276,10 +277,26 @@ The resource tables (`[functions]`, `[sql]`, `[http]`, `[server]`, `[mutexes]`, 
 
 | Key | Meaning |
 |---|---|
-| `ignore` | Patterns of entries that are never judged. `*` matches any run of characters, and a pattern must match the whole name. |
+| `ignore` | Patterns of entries that no section of the resource judges. `*` matches any run of characters, and a pattern must match the whole name. Up to 64 patterns. |
 | `min_percent_total` | Rows below this share of the run, in percent, are skipped as noise. Only `functions`, `sql`, `http` and `server` have it. |
 
 `[threads]` takes `names` instead of `ignore`, see [Threads](#threads).
+
+### Ignoring an entry in one section
+
+The resource's `ignore` drops an entry from every section of the resource. To drop it from one section only, list it in that section's `ignore`. For example, a function whose allocations depend on thread scheduling while its instruction counts are stable:
+
+```toml
+[functions.icount]
+judged = true
+
+[functions.alloc]
+judged = true
+min_percent_change = 2
+ignore = ["my_crate::mailbox::recv"]
+```
+
+The patterns match the same names as the resource's `ignore` and take up to 64 entries. [Budgets](performance_budgets.md) still apply to an entry a section ignores, so a zero-allocation budget on it keeps working. `[threads.alloc]` does not take `ignore`: leave the thread out of `names` instead.
 
 ## Pull request feedback
 
