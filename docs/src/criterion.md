@@ -56,14 +56,16 @@ A helper taking Criterion's `AsyncBencher` switches to `hotpath::criterion::Asyn
 
 ### Async benchmarks
 
-Async benchmarks keep using `b.to_async(executor)` with any Criterion `AsyncExecutor` (`hotpath::criterion::async_executor::AsyncExecutor`): a Tokio `Runtime` or `Handle`, `FuturesExecutor`, `SmolExecutor` or your own implementation. The built-in executors are behind Criterion feature flags, so enable the executor's feature on a `criterion` dependency as before, e.g. for Tokio:
+Async benchmarks keep using `b.to_async(executor)` with any Criterion `AsyncExecutor` (`hotpath::criterion::async_executor::AsyncExecutor`): a Tokio `Runtime` or `Handle`, `FuturesExecutor`, `SmolExecutor` or your own implementation. The built-in executors are behind Criterion feature flags. For Tokio, enable hotpath's `criterion-tokio` feature next to the version feature, and the benchmarks need no `criterion` dependency of their own:
 
 ```toml
-[dev-dependencies]
-criterion = { version = "0.8", features = ["async_tokio"] }
+[dependencies]
+hotpath = { version = "{{HOTPATH_VERSION}}", features = ["criterion-0-8", "criterion-tokio"] }
 ```
 
-With an older version feature, use that version here (for example `version = "0.5"` with `criterion-0-5`), so the executor feature lands on the same Criterion crate the adapter uses.
+`criterion-tokio` turns on Criterion's `async_tokio` feature only on the Criterion version the adapter uses, so benchmarks without it never build Tokio support. For another executor, enable its feature on a `criterion` dependency of the same version, e.g. `criterion = { version = "0.8", features = ["async_futures"] }` (or `version = "0.5"` with `criterion-0-5`), so it lands on the same Criterion crate the adapter uses.
+
+hotpath depends on Criterion without its default features. A project with no `criterion` dependency of its own therefore runs `cargo bench` without Criterion's HTML reports and plots; keep a plain `criterion` dependency of the same version if you use them.
 
 Only the imports change:
 
