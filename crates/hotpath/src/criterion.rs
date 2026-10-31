@@ -25,12 +25,22 @@ use std::time::Duration;
 
 use ::criterion::async_executor::AsyncExecutor;
 use ::criterion::measurement::{Measurement, WallTime};
-use ::criterion::{BatchSize, PlotConfiguration, SamplingMode, Throughput};
 
 use crate::shared::{CRITERION_BENCHMARK_KEY, CRITERION_ITERATIONS_KEY};
 
 #[doc(hidden)]
 pub use ::criterion as __criterion;
+
+// Criterion's own types the wrappers take or return, so benchmarks need no
+// direct `criterion` imports (or version match) for them.
+pub use ::criterion::{
+    async_executor, measurement, AxisScale, BatchSize, PlotConfiguration, PlottingBackend,
+    SamplingMode, Throughput,
+};
+
+/// The plain [`criterion::Criterion`] that configures a group, as in
+/// `criterion_group!(name = benches; config = Config::default().sample_size(10); targets = ...)`.
+pub type Config<M = WallTime> = ::criterion::Criterion<M>;
 
 const BENCH_LABEL: &str = "hotpath::criterion::bench";
 

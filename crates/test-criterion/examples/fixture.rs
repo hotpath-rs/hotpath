@@ -9,8 +9,9 @@ use std::hint::black_box;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-use criterion::BatchSize;
-use hotpath::criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use hotpath::criterion::{
+    criterion_group, criterion_main, BatchSize, BenchmarkId, Config, Criterion,
+};
 
 const WORK_BYTES: usize = 512;
 const ROUTINE_BYTES: usize = 64;
@@ -229,7 +230,7 @@ fn bench_inputs(c: &mut Criterion) {
 
 criterion_group! {
     name = benches;
-    config = criterion::Criterion::default()
+    config = Config::default()
         .sample_size(10)
         .warm_up_time(Duration::from_millis(50))
         .measurement_time(Duration::from_millis(200));

@@ -12,9 +12,6 @@ Enable the `criterion-0-8` feature and forward hotpath's profiling features:
 [dependencies]
 hotpath = { version = "{{HOTPATH_VERSION}}", features = ["criterion-0-8"] }
 
-[dev-dependencies]
-criterion = "0.8"
-
 [features]
 hotpath = ["hotpath/hotpath"]
 hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
@@ -22,11 +19,10 @@ hotpath-callgrind = ["hotpath", "hotpath/hotpath-callgrind"]
 hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
 ```
 
-In each benchmark file, import `Criterion`, `BenchmarkId`, `criterion_group!` and `criterion_main!` from `hotpath::criterion` instead of `criterion`. Everything else (`BatchSize`, `Throughput`, ...) still comes from `criterion`. hotpath's `BenchmarkId` has the same constructors, and lets the report name the benchmark it ran:
+In each benchmark file, import from `hotpath::criterion` instead of `criterion`. It provides `Criterion`, `BenchmarkId`, `criterion_group!` and `criterion_main!`, and re-exports the Criterion types they take: `BatchSize`, `Throughput`, `SamplingMode`, `PlotConfiguration`, `AxisScale`, `PlottingBackend` and the `measurement` and `async_executor` modules. hotpath's `BenchmarkId` has the same constructors, and lets the report name the benchmark it ran:
 
 ```rust
-use criterion::BatchSize;
-use hotpath::criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use hotpath::criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 
 fn bench_codec(c: &mut Criterion) {
     let mut group = c.benchmark_group("codec");
@@ -41,13 +37,13 @@ criterion_group!(benches, bench_codec);
 criterion_main!(benches);
 ```
 
-The `config = ...` form of `criterion_group!` takes a plain `criterion::Criterion`, so write `config = criterion::Criterion::default().sample_size(10)`.
+The `config = ...` form of `criterion_group!` takes a plain `criterion::Criterion`, re-exported as `hotpath::criterion::Config`: write `config = Config::default().sample_size(10)`.
 
 `criterion_main!` installs hotpath's tracking allocator, as `#[hotpath::main]` does. If the benchmark declares its own `#[global_allocator]`, remove it and pass the allocator instead: `criterion_main!(allocator = tikv_jemallocator::Jemalloc; benches)`. If the benchmarked library already installs one (it uses `#[hotpath::main]` or declares `hotpath::CountingAllocator`), pass `allocator = none;`.
 
 ### Async benchmarks
 
-Async benchmarks keep using `b.to_async(executor)` with any Criterion `AsyncExecutor`: a Tokio `Runtime` or `Handle`, `FuturesExecutor`, `SmolExecutor` or your own implementation. Enable the executor's feature on your `criterion` dependency as before, e.g. for Tokio:
+Async benchmarks keep using `b.to_async(executor)` with any Criterion `AsyncExecutor` (`hotpath::criterion::async_executor::AsyncExecutor`): a Tokio `Runtime` or `Handle`, `FuturesExecutor`, `SmolExecutor` or your own implementation. The built-in executors are behind Criterion feature flags, so enable the executor's feature on a `criterion` dependency as before, e.g. for Tokio:
 
 ```toml
 [dev-dependencies]
