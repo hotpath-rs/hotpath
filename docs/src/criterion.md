@@ -2,7 +2,7 @@
 
 Existing [Criterion.rs](https://crates.io/crates/criterion) benchmarks can produce hotpath reports, with function timing, allocations and [Callgrind instruction counts](callgrind.md), without rewriting them. Each run executes one benchmark a **fixed number of times** and writes one report, so native and Callgrind runs of the same build do identical work and can be [merged](callgrind.md#timing-and-instruction-counts-in-one-report) and uploaded to [hotpath-cloud](cloud.md).
 
-Supported versions: Criterion `0.5`, `0.6`, `0.7` and `0.8`, each behind its own feature (`criterion-0-5`, `criterion-0-6`, `criterion-0-7`, `criterion-0-8`). All expose the same API described here. Enable the one matching the Criterion version your benchmarks use; if a build enables several (for example workspace crates on different versions), the adapter targets the newest.
+Supported versions: Criterion `0.5`, `0.6`, `0.7` and `0.8`, each behind its own feature (`criterion-0-5`, `criterion-0-6`, `criterion-0-7`, `criterion-0-8`). All expose the same API described here. Enable the one matching the Criterion version your benchmarks use. If multiple Criterion adapter features are enabled simultaneously, the newest version takes precedence. Workspaces using different Criterion versions should build benchmark packages separately with `cargo bench -p`.
 
 ## Setup
 
