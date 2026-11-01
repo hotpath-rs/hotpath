@@ -10,7 +10,7 @@ jobs:
   build:
     name: test ${{ matrix.rust }}
     runs-on: macos-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
