@@ -149,10 +149,13 @@ fn expand_out_file(template: &str, pid: u32) -> String {
 /// `.2`, ... in the same order.
 static DUMPS: AtomicU32 = AtomicU32::new(0);
 
-/// Sessions started under Valgrind. Bumped after START (which resets every
-/// thread to collecting) and before ZERO, so a collector that sees a new
-/// value knows its state is "collecting" and one toggle turns it off.
-/// Stays 0 natively, so [`CollectorExclusion::refresh`] never toggles there.
+/// Session state under Valgrind: odd while a session is live, even
+/// otherwise. It moves to the next odd value right after START (which resets
+/// every thread to collecting) and to the next even value right after STOP,
+/// so a collector that sees a new odd value knows it is collecting and one
+/// toggle turns it off. One atomic, so a worker never pairs a stale session
+/// number with a fresh "live" state. Only the guard thread writes it (one
+/// guard at a time). Stays 0 natively, so collectors never toggle there.
 static SESSION: AtomicU32 = AtomicU32::new(0);
 
 /// Called at guard creation.
@@ -160,7 +163,9 @@ pub(crate) fn start_session() {
     if active() {
         LazyLock::force(&OUT_FILE);
         request::start_instrumentation();
-        SESSION.fetch_add(1, Ordering::Release);
+        // Next odd value; skips one if a previous session never finished.
+        let state = SESSION.load(Ordering::Relaxed);
+        SESSION.store(state + 1 + (state & 1), Ordering::Release);
         request::zero_stats();
     }
 }
@@ -184,12 +189,14 @@ impl CollectorExclusion {
         this
     }
 
-    /// Call before each sweep: one relaxed-cost load natively.
+    /// Call before each sweep. Natively it is one atomic load.
     #[inline]
     pub(crate) fn refresh(&mut self) {
-        let session = SESSION.load(Ordering::Acquire);
-        if session != self.seen {
-            self.seen = session;
+        let state = SESSION.load(Ordering::Acquire);
+        // Between sessions (even) there is nothing to exclude, and the next
+        // START resets this thread anyway.
+        if state & 1 == 1 && state != self.seen {
+            self.seen = state;
             request::toggle_collect();
         }
     }
@@ -213,6 +220,9 @@ pub(crate) fn finish_session() -> Option<Result<IcountReport, String>> {
     let tag = format!("hotpath-{}-{dump_no}", std::process::id());
     let tag_c = std::ffi::CString::new(tag.as_str()).expect("tag has no NUL");
     request::dump_and_stop(&tag_c);
+    // STOP reset every thread; the session is over (next even value).
+    let state = SESSION.load(Ordering::Relaxed);
+    SESSION.store(state + (state & 1), Ordering::Release);
 
     let mut path = OUT_FILE.clone().into_os_string();
     path.push(format!(".{dump_no}"));
