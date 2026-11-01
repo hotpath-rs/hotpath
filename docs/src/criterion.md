@@ -1,4 +1,4 @@
-# Profiling Rust Criterion benchmarks: timing, allocations and instruction counts
+# Profiling Rust Criterion benchmarks: timing, allocations and CPU instructions
 
 Existing [Criterion.rs](https://crates.io/crates/criterion) benchmarks can produce hotpath reports, with function timing, allocations and [Callgrind instruction counts](callgrind.md), without rewriting them. Each run executes one benchmark a **fixed number of times** and writes one report, so native and Callgrind runs of the same build do identical work and can be [merged](callgrind.md#timing-and-instruction-counts-in-one-report) and uploaded to [hotpath-cloud](cloud.md).
 
