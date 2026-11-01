@@ -97,7 +97,11 @@ pub(crate) fn init_threads_monitoring() {
 
 #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
 fn collector_loop(state: ThreadsStateRef, interval: Duration) {
+    #[cfg(feature = "hotpath-callgrind-meta")]
+    let mut exclusion = crate::functions::callgrind::CollectorExclusion::new();
     loop {
+        #[cfg(feature = "hotpath-callgrind-meta")]
+        exclusion.refresh();
         match collector::collect_thread_metrics() {
             Ok(raw_metrics) => {
                 let mut state_guard = match state.write() {

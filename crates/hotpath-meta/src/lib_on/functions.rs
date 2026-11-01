@@ -88,7 +88,7 @@ pub(crate) fn init_focus_filter() {
     LazyLock::force(&FOCUS_FILTER);
 }
 
-#[inline]
+#[inline(always)]
 fn is_focused(name: &str) -> bool {
     match &*FOCUS_FILTER {
         None => true,

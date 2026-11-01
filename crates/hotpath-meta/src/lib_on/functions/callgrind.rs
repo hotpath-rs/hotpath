@@ -10,8 +10,10 @@
 //! `Ir` to measured functions by marker (after the `before_shutdown`
 //! callback, so its measured calls count too, and after every collector
 //! worker's final sweep, so the total does not depend on how far behind the
-//! workers were). Natively the markers are one extra call per measured
-//! invocation and nothing else happens.
+//! workers were). Every background worker (collectors and samplers) turns
+//! Callgrind collection off for itself in each session, so the total counts
+//! application threads only. Natively the markers are one extra call per
+//! measured invocation and nothing else happens.
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -146,11 +148,56 @@ fn expand_out_file(template: &str, pid: u32) -> String {
 /// `.2`, ... in the same order.
 static DUMPS: AtomicU32 = AtomicU32::new(0);
 
+/// Session state under Valgrind: odd while a session is live, even
+/// otherwise. It moves to the next odd value right after START (which resets
+/// every thread to collecting) and to the next even value right after STOP,
+/// so a collector that sees a new odd value knows it is collecting and one
+/// toggle turns it off. One atomic, so a worker never pairs a stale session
+/// number with a fresh "live" state. Only the guard thread writes it (one
+/// guard at a time). Stays 0 natively, so collectors never toggle there.
+static SESSION: AtomicU32 = AtomicU32::new(0);
+
 /// Called at guard creation.
 pub(crate) fn start_session() {
     if active() {
         LazyLock::force(&OUT_FILE);
-        request::start_session();
+        request::start_instrumentation();
+        // Next odd value; skips one if a previous session never finished.
+        let state = SESSION.load(Ordering::Relaxed);
+        SESSION.store(state + 1 + (state & 1), Ordering::Release);
+        request::zero_stats();
+    }
+}
+
+/// Keeps the owning collector thread out of the session's instruction
+/// counts. Toggling is per thread and relative, and every START/STOP resets
+/// all threads, so the worker re-toggles once per session it observes. Not
+/// `Send`: the state it tracks belongs to the thread that created it.
+pub(crate) struct CollectorExclusion {
+    seen: u32,
+    _thread: std::marker::PhantomData<*const ()>,
+}
+
+impl CollectorExclusion {
+    pub(crate) fn new() -> Self {
+        let mut this = Self {
+            seen: 0,
+            _thread: std::marker::PhantomData,
+        };
+        this.refresh();
+        this
+    }
+
+    /// Call before each sweep. Natively it is one atomic load.
+    #[inline]
+    pub(crate) fn refresh(&mut self) {
+        let state = SESSION.load(Ordering::Acquire);
+        // Between sessions (even) there is nothing to exclude, and the next
+        // START resets this thread anyway.
+        if state & 1 == 1 && state != self.seen {
+            self.seen = state;
+            request::toggle_collect();
+        }
     }
 }
 
@@ -171,6 +218,9 @@ pub(crate) fn finish_session() -> Option<Result<IcountReport, String>> {
     let tag = format!("hotpath-{}-{dump_no}", std::process::id());
     let tag_c = std::ffi::CString::new(tag.as_str()).expect("tag has no NUL");
     request::dump_and_stop(&tag_c);
+    // STOP reset every thread; the session is over (next even value).
+    let state = SESSION.load(Ordering::Relaxed);
+    SESSION.store(state + (state & 1), Ordering::Release);
 
     let mut path = OUT_FILE.clone().into_os_string();
     path.push(format!(".{dump_no}"));

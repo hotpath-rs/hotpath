@@ -199,7 +199,11 @@ pub(crate) fn init_debug_state() {
         std::thread::Builder::new()
             .name("hp-debug".into())
             .spawn(move || {
+                #[cfg(feature = "hotpath-callgrind")]
+                let mut exclusion = crate::functions::callgrind::CollectorExclusion::new();
                 while let Ok(event) = event_rx.recv() {
+                    #[cfg(feature = "hotpath-callgrind")]
+                    exclusion.refresh();
                     match event {
                         DebugEvent::Dbg { .. } => {
                             let mut stats = dbg_clone.write().unwrap();

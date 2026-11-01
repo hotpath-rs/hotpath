@@ -29,7 +29,11 @@ pub fn init_runtime_monitoring(handle: &Handle) {
 }
 
 fn runtime_loop(handle: Handle, interval: Duration) {
+    #[cfg(feature = "hotpath-callgrind")]
+    let mut exclusion = crate::functions::callgrind::CollectorExclusion::new();
     loop {
+        #[cfg(feature = "hotpath-callgrind")]
+        exclusion.refresh();
         let metrics = handle.metrics();
         let snapshot = snapshot_from_metrics(&metrics);
 
