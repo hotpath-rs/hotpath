@@ -79,7 +79,7 @@ jobs:
             --callgrind-out-file="$HOTPATH_META_CALLGRIND_OUT_FILE" \
             ${{ steps.build.outputs.bin }} --bench --test --exact drain/lockstep
           test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
-          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .user_metadata.criterion_benchmark == "drain/lockstep"' \
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .meta.criterion.benchmark == "drain/lockstep"' \
             "$HOTPATH_META_OUTPUT_PATH" > /dev/null
 
   report:
@@ -136,7 +136,7 @@ jobs:
             --callgrind-out-file="$HOTPATH_META_CALLGRIND_OUT_FILE" \
             ${{ steps.build.outputs.bin }} --bench --test --exact drain/lockstep
           test -s report.json
-          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .user_metadata.criterion_benchmark == "drain/lockstep"' \
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .meta.criterion.benchmark == "drain/lockstep"' \
             "$HOTPATH_META_OUTPUT_PATH" > /dev/null
       - uses: actions/upload-artifact@v4
         with:

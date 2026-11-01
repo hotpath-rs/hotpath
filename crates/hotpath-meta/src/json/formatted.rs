@@ -1141,6 +1141,22 @@ pub struct JsonMeta {
     /// through [`JsonRun::resolve`] (via [`JsonReport::run`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run: Option<JsonRun>,
+    /// The Criterion benchmark the run measured; present only in reports the
+    /// `hotpath_meta::criterion` adapter wrote.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub criterion: Option<JsonCriterion>,
+}
+
+/// The Criterion benchmark behind a report, written by the
+/// `hotpath_meta::criterion` adapter.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JsonCriterion {
+    /// Full benchmark id, as `--exact` matches it, e.g. `codec/decode/1024`.
+    pub benchmark: String,
+    /// Routine executions, from `HOTPATH_META_CRITERION_ITERATIONS`.
+    pub iterations: u64,
+    /// Criterion version the adapter was built against, e.g. `0.8`.
+    pub version: String,
 }
 
 /// How a report's measurements were produced: which of its elapsed figures

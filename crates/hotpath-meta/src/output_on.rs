@@ -76,17 +76,52 @@ pub(crate) fn write_user_metadata_table<W: Write>(
     writer: &mut W,
     metadata: &BTreeMap<String, String>,
 ) {
-    if metadata.is_empty() {
+    write_pairs_table(
+        writer,
+        "user_metadata",
+        "Custom report metadata.",
+        metadata.iter().map(|(k, v)| (k.as_str(), v.clone())),
+    );
+}
+
+pub(crate) fn write_criterion_table<W: Write>(
+    writer: &mut W,
+    criterion: Option<&crate::json::JsonCriterion>,
+) {
+    let Some(c) = criterion else {
+        return;
+    };
+    write_pairs_table(
+        writer,
+        "criterion",
+        "Criterion benchmark this report measured.",
+        [
+            ("benchmark", c.benchmark.clone()),
+            ("iterations", c.iterations.to_string()),
+            ("version", c.version.clone()),
+        ],
+    );
+}
+
+/// A two-column key/value table; nothing when `pairs` is empty.
+fn write_pairs_table<'a, W: Write>(
+    writer: &mut W,
+    section_name: &str,
+    description: &str,
+    pairs: impl IntoIterator<Item = (&'a str, String)>,
+) {
+    let mut pairs = pairs.into_iter().peekable();
+    if pairs.peek().is_none() {
         return;
     }
 
     let mut table = Table::new();
     table.add_row(vec![Cell::header("Key"), Cell::header("Value")]);
-    for (key, value) in metadata {
-        table.add_row(vec![Cell::new(key), Cell::new(value)]);
+    for (key, value) in pairs {
+        table.add_row(vec![Cell::new(key), Cell::new(&value)]);
     }
 
-    write_section_header(writer, "user_metadata", "Custom report metadata.");
+    write_section_header(writer, section_name, description);
     let _ = writeln!(writer);
     let _ = table.print(writer, use_colors());
     let _ = writeln!(writer);

@@ -16,7 +16,6 @@
 //! Unwrapped Criterion APIs (`iter_with_setup`, ...) fail to compile instead
 //! of running a different number of iterations.
 
-use std::collections::HashMap;
 use std::future::Future;
 use std::hint::black_box;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -32,8 +31,6 @@ use crate::criterion::__criterion as criterion;
 use criterion::async_executor::AsyncExecutor;
 use criterion::measurement::{Measurement, WallTime};
 
-use crate::shared::{CRITERION_BENCHMARK_KEY, CRITERION_ITERATIONS_KEY};
-
 // Criterion's own types the wrappers take or return, so benchmarks need no
 // direct `criterion` imports (or version match) for them.
 pub use criterion::{
@@ -46,6 +43,10 @@ pub use criterion::{
 pub type Config<M = WallTime> = criterion::Criterion<M>;
 
 const BENCH_LABEL: &str = "hotpath_meta::criterion::bench";
+
+/// The version `__criterion` re-exports.
+#[cfg(feature = "hotpath-meta")]
+const CRITERION_VERSION: &str = "0.8";
 
 /// `HOTPATH_META_CRITERION_ITERATIONS`: routine executions per benchmark.
 static ITERATIONS: LazyLock<Option<u64>> = LazyLock::new(|| {
@@ -68,6 +69,8 @@ struct Session {
 }
 
 impl Session {
+    // `id` only names the benchmark in a report, which needs the profiler.
+    #[cfg_attr(not(feature = "hotpath-meta"), allow(unused_variables))]
     fn start(id: &str) -> Option<Session> {
         let iterations = (*ITERATIONS)?;
         assert!(
@@ -76,13 +79,15 @@ impl Session {
              one started: run Criterion in test mode with a filter matching one benchmark, \
              e.g. `cargo bench --bench <name> -- --test --exact <group/id>`"
         );
-        let metadata = HashMap::from([
-            (CRITERION_BENCHMARK_KEY.to_string(), id.to_string()),
-            (CRITERION_ITERATIONS_KEY.to_string(), iterations.to_string()),
-        ]);
-        let guard = crate::HotpathGuardBuilder::new(BENCH_LABEL)
-            .user_metadata(metadata)
-            .build();
+        let builder = crate::HotpathGuardBuilder::new(BENCH_LABEL);
+        // Without the profiler there is no report to describe.
+        #[cfg(feature = "hotpath-meta")]
+        let builder = builder.criterion(crate::json::JsonCriterion {
+            benchmark: id.to_string(),
+            iterations,
+            version: CRITERION_VERSION.to_string(),
+        });
+        let guard = builder.build();
         Some(Session {
             iterations,
             _guard: guard,
