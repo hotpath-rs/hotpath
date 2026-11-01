@@ -6,7 +6,9 @@ Wall-clock benchmarks are noisy, especially in GitHub Actions CI. CPU frequency 
 
 Instruction counts are highly reproducible for deterministic workloads, making them useful for detecting performance regressions in CI. They don't require hardware performance counters, so they work on standard GitHub-hosted runners. Instruction counts are not a direct replacement for timings, although for most CPU-bound workloads the two are closely correlated. 
 
-**Platform support:** x86_64 Linux only. On other platforms, the feature compiles but falls back to the standard timing report.
+**Platform support:** x86_64 and aarch64 Linux. On other platforms, the feature compiles but falls back to the standard timing report. Instruction counts are comparable only within one architecture: the same code executes a different number of instructions on x86_64 and aarch64.
+
+On aarch64, released Valgrind versions (up to at least 3.28.0) misattribute inclusive instruction counts: their arm64 decoder treats every plain `B` branch as a call, so Callgrind reports fake recursion and inflated totals. Use the patched build from [hotpath-rs/valgrind](https://github.com/hotpath-rs/valgrind/releases), an unofficial fork not affiliated with the Valgrind project, until the fix is upstream.
 
 ## Running under Callgrind
 
@@ -26,6 +28,8 @@ and run the program under Callgrind, for example through Cargo's target runner:
 CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" \
   cargo run --release --features=hotpath-callgrind
 ```
+
+On aarch64 Linux, the variable is `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER`.
 
 Under Valgrind, hotpath does not report timing, to avoid confusing it with real durations: Callgrind's instrumentation slows execution down substantially, potentially by tens of times or more, so measured times are meaningless. The `icount` (instruction count) report replaces the timing report:
 

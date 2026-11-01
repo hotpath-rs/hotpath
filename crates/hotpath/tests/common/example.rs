@@ -69,9 +69,15 @@ impl Example {
     /// Runs the example under Callgrind, dumping to `out_file`. Drops the
     /// helper's `HOTPATH_METRICS_SERVER_ON` so the server stays off there.
     pub(crate) fn callgrind(self, out_file: &str) -> Self {
+        // Cargo's runner variable for the host target, e.g.
+        // `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER`.
+        let runner = format!(
+            "CARGO_TARGET_{}_UNKNOWN_LINUX_GNU_RUNNER",
+            std::env::consts::ARCH.to_uppercase()
+        );
         self.env_remove("HOTPATH_METRICS_SERVER_ON")
             .env(
-                "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER",
+                &runner,
                 format!("valgrind -q --tool=callgrind --callgrind-out-file={out_file}"),
             )
             .env("HOTPATH_CALLGRIND_OUT_FILE", out_file)
