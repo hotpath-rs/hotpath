@@ -8,7 +8,7 @@ Instruction counts are highly reproducible for deterministic workloads, making t
 
 **Platform support:** x86_64 and aarch64 Linux. On other platforms, the feature compiles but falls back to the standard timing report. Instruction counts are comparable only within one architecture: the same code executes a different number of instructions on x86_64 and aarch64.
 
-On aarch64, released Valgrind versions (up to at least 3.28.0) misattribute inclusive instruction counts: their arm64 decoder treats every plain `B` branch as a call, so Callgrind reports fake recursion and inflated totals. Use the patched build from [hotpath-rs/valgrind](https://github.com/hotpath-rs/valgrind/releases), an unofficial fork not affiliated with the Valgrind project, until the fix is upstream.
+On aarch64, released Valgrind versions (up to at least 3.28.0) misattribute inclusive instruction counts: their arm64 decoder treats every plain `B` branch as a call, so Callgrind reports fake recursion and inflated totals. Use the patched build from [hotpath-rs/valgrind](https://github.com/hotpath-rs/valgrind/releases), an unofficial fork not affiliated with the Valgrind project, until the fix is upstream. In GitHub Actions, [hotpath-rs/setup-valgrind](https://github.com/hotpath-rs/setup-valgrind) installs it.
 
 ## Running under Callgrind
 
