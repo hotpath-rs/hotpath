@@ -89,7 +89,7 @@ pub(crate) fn init_focus_filter() {
 }
 
 #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
-#[inline]
+#[inline(always)]
 fn is_focused(name: &str) -> bool {
     match &*FOCUS_FILTER {
         None => true,
