@@ -146,6 +146,8 @@ cargo run -p hotpath-drain --example throughput --release --features hotpath-all
 HOTPATH_META_CRITERION_ITERATIONS=5 cargo bench -p test-drain-criterion --bench drain --features hotpath-alloc-meta -- --test --exact drain/lockstep
 ```
 
+CI runs every hotpath-cloud benchmark on ARM64 runners (`ubuntu-26.04-arm`) under the patched Valgrind that `hotpath-rs/setup-valgrind` installs. Instruction counts only compare within one architecture, so reproduce a CI count on aarch64 Linux.
+
 ### Samply traces 
 
 Analyze [Samply](https://github.com/mstange/samply) traces by running the instrumented benchmarks:
