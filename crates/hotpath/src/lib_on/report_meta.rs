@@ -9,7 +9,10 @@ use time::OffsetDateTime;
 
 use crate::json::policy_file::find_git_root;
 
-pub(crate) fn build_meta(run: crate::json::JsonRun) -> crate::json::JsonMeta {
+pub(crate) fn build_meta(
+    run: crate::json::JsonRun,
+    criterion: Option<crate::json::JsonCriterion>,
+) -> crate::json::JsonMeta {
     let source_root = source_root();
 
     // Fail loudly on upload runs: broken source links would otherwise only
@@ -63,6 +66,7 @@ pub(crate) fn build_meta(run: crate::json::JsonRun) -> crate::json::JsonMeta {
         benchmark,
         policy,
         run: Some(run),
+        criterion,
     }
 }
 
@@ -369,6 +373,7 @@ mod tests {
                 benchmark: None,
                 policy: None,
                 run: None,
+                criterion: None,
             };
             let value: serde_json::Value = serde_json::to_value(&meta).unwrap();
             // Sorted: the `cloud` feature turns on `serde_json/preserve_order`.
@@ -402,6 +407,7 @@ mod tests {
                     path: "hotpath/ci-policy.toml".to_string(),
                 }),
                 run: Some(JsonRun::Merged),
+                criterion: None,
             };
             let sent = meta.policy.clone();
             let json = serde_json::to_string(&meta).unwrap();
