@@ -93,7 +93,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: arm64-${{ matrix.benchmark }}
-      - uses: ./.github/actions/install-valgrind-hotpath
+      # Probe: official Valgrind 3.28.0, unmodified, from the same release
+      # as the patched build, so each report diffs against the patched
+      # baseline across the two Valgrind versions.
+      - name: Install official Valgrind 3.28.0
+        run: |
+          file="$RUNNER_TEMP/valgrind-3.28.0-linux-arm64.tar.zst"
+          curl -fsSL --retry 3 -o "$file" \
+            https://github.com/hotpath-rs/valgrind/releases/download/VALGRIND_3_28_0_HOTPATH_2/valgrind-3.28.0-linux-arm64.tar.zst
+          echo "b5e1a5719d4757df1cb343438214795d1d4a53efe763cbcca8ab068fbfa20d22  $file" | sha256sum -c -
+          sudo tar --zstd -xf "$file" -C /opt
+          echo /opt/valgrind/bin >> "$GITHUB_PATH"
+          test "$(/opt/valgrind/bin/valgrind --version)" = valgrind-3.28.0
       - name: Build ${{ matrix.benchmark }} benchmark
         id: build
         run: ${{ matrix.build }}
@@ -101,7 +112,7 @@ jobs:
       # report is merged into the Callgrind run's.
       - name: Run ${{ matrix.benchmark }} benchmark natively
         env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath2
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
         run: ${{ steps.build.outputs.bin }} ${{ matrix.args }}
       # The uploader reports its own outcome: one `::notice::` / `::warning::`
@@ -110,7 +121,7 @@ jobs:
       # skipped one; the `jq` check fails a report that is not a merged one.
       - name: Run ${{ matrix.benchmark }} benchmark under Callgrind and upload the merged report
         env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath2
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0
           HOTPATH_META_UPLOAD: fail-on-error
           HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
