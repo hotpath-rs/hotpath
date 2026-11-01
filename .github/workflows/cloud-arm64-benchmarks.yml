@@ -11,8 +11,8 @@ on:
 # with the same policies, to compare ARM64 run-to-run variance with x86_64.
 #
 # Released Valgrind misattributes inclusive instruction counts on aarch64, so
-# this uses the patched build from hotpath-rs/valgrind
-# (`.github/actions/install-valgrind-hotpath`).
+# this uses the patched build from hotpath-rs/valgrind, installed by
+# hotpath-rs/setup-valgrind.
 #
 # Pushes and same-repository pull requests upload in process with the job's
 # OIDC token. Fork pull requests are skipped: they have no token, and the relay
@@ -21,8 +21,8 @@ jobs:
   upload:
     name: cloud ${{ matrix.benchmark }} benchmark (arm64)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    # Pinned like the x86_64 jobs: the image here, the Valgrind build in the
-    # install action.
+    # Pinned like the x86_64 jobs: the image here, the Valgrind build in
+    # the setup-valgrind step.
     runs-on: ubuntu-26.04-arm
     timeout-minutes: ${{ matrix.timeout }}
     permissions:
@@ -93,7 +93,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: arm64-${{ matrix.benchmark }}
-      - uses: ./.github/actions/install-valgrind-hotpath
+      - uses: hotpath-rs/setup-valgrind@e1c12b506ae734664763825284659df81f67ef14 # main
+        with:
+          version: 3.28.0.hotpath-rs
       - name: Build ${{ matrix.benchmark }} benchmark
         id: build
         run: ${{ matrix.build }}
@@ -101,7 +103,7 @@ jobs:
       # report is merged into the Callgrind run's.
       - name: Run ${{ matrix.benchmark }} benchmark natively
         env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath2
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
         run: ${{ steps.build.outputs.bin }} ${{ matrix.args }}
       # The uploader reports its own outcome: one `::notice::` / `::warning::`
@@ -110,7 +112,7 @@ jobs:
       # skipped one; the `jq` check fails a report that is not a merged one.
       - name: Run ${{ matrix.benchmark }} benchmark under Callgrind and upload the merged report
         env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath2
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs
           HOTPATH_META_UPLOAD: fail-on-error
           HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
