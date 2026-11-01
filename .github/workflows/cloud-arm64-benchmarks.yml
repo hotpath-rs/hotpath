@@ -93,7 +93,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: arm64-${{ matrix.benchmark }}
-      - uses: hotpath-rs/setup-valgrind@e1c12b506ae734664763825284659df81f67ef14 # main
+      - uses: hotpath-rs/setup-valgrind@v1.0.0
         with:
           version: 3.28.0.hotpath-rs
       - name: Build ${{ matrix.benchmark }} benchmark
