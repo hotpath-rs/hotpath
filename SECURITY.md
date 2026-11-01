@@ -2,7 +2,9 @@
 
 ## Supported Versions
 
-Only the latest stable release of hotpath published on [crates.io](https://crates.io/crates/hotpath) is actively supported. Older versions do not receive guaranteed security fixes or backports, so please keep your dependency up to date.
+Security fixes are provided for the `main` branch and the latest stable releases of crates maintained in this repository.
+
+Older versions generally do not receive security backports. Users of older releases should upgrade to the latest version to receive fixes.
 
 ## Reporting a Vulnerability
 
