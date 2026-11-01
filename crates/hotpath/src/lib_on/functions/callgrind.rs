@@ -8,8 +8,10 @@
 //! counters at guard creation, and the guard drop writes a dump through a
 //! client request, stops instrumenting and attributes the dump's inclusive
 //! `Ir` to measured functions by marker (after the `before_shutdown`
-//! callback, so its measured calls count too). Natively the markers are one extra
-//! call per measured invocation and nothing else happens.
+//! callback, so its measured calls count too, and after every collector
+//! worker's final sweep, so the total does not depend on how far behind the
+//! workers were). Natively the markers are one extra call per measured
+//! invocation and nothing else happens.
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -161,7 +163,7 @@ pub(crate) struct IcountReport {
     pub(crate) tool: Option<String>,
 }
 
-/// Called first thing at guard drop. `None` when not under Valgrind.
+/// Called at guard drop once the workers are drained. `None` when not under Valgrind.
 #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
 pub(crate) fn finish_session() -> Option<Result<IcountReport, String>> {
     if !active() {

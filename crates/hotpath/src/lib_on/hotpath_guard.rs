@@ -1113,15 +1113,6 @@ impl Drop for HotpathGuard {
             f();
         }
 
-        // After the callback (its measured calls are counted), before any
-        // report building.
-        #[cfg(feature = "hotpath-callgrind")]
-        let icount_report = crate::functions::callgrind::finish_session();
-        #[cfg(feature = "hotpath-callgrind")]
-        let counting_icount = icount_report.is_some();
-        #[cfg(not(feature = "hotpath-callgrind"))]
-        let counting_icount = false;
-
         let wrapper_guard = self.wrapper_guard.take().unwrap();
         drop(wrapper_guard);
 
@@ -1167,6 +1158,15 @@ impl Drop for HotpathGuard {
         let http_data = report::shutdown_http();
         let server_data = report::shutdown_server();
         let io_data = report::shutdown_io();
+
+        // After every worker's final sweep, so the total never depends on how
+        // far behind the workers were; before any report building.
+        #[cfg(feature = "hotpath-callgrind")]
+        let icount_report = crate::functions::callgrind::finish_session();
+        #[cfg(feature = "hotpath-callgrind")]
+        let counting_icount = icount_report.is_some();
+        #[cfg(not(feature = "hotpath-callgrind"))]
+        let counting_icount = false;
 
         let sections: Vec<Section> = match &self.sections_mode {
             SectionsMode::Explicit(list) => list.clone(),
