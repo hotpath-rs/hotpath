@@ -3,10 +3,14 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-/// Valgrind on x86_64 Linux. Locally the Valgrind tests skip without it;
+/// Valgrind on x86_64 or aarch64 Linux. Locally the Valgrind tests skip without it;
 /// on CI (`CI` set) a missing Valgrind fails them.
 pub(crate) fn valgrind_available() -> bool {
-    let supported = cfg!(all(target_arch = "x86_64", target_os = "linux"))
+    let target = cfg!(all(
+        any(target_arch = "x86_64", target_arch = "aarch64"),
+        target_os = "linux"
+    ));
+    let supported = target
         && Command::new("valgrind")
             .arg("--version")
             .output()
@@ -16,7 +20,7 @@ pub(crate) fn valgrind_available() -> bool {
             std::env::var_os("CI").is_none(),
             "valgrind is required on CI"
         );
-        eprintln!("skipping: needs valgrind on x86_64 Linux");
+        eprintln!("skipping: needs valgrind on x86_64 or aarch64 Linux");
     }
     supported
 }
