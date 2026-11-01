@@ -293,6 +293,9 @@ fn get_futures_state() -> &'static FuturesState {
                 let flush_interval = std::time::Duration::from_millis(*DRAIN_INTERVAL_MS);
                 let mut swept: Vec<FutureEvent> = Vec::new();
 
+                #[cfg(feature = "hotpath-callgrind-meta")]
+                let mut exclusion = crate::functions::callgrind::CollectorExclusion::new();
+
                 // Single consumer of the per-thread event queues: capped sweep on
                 // every tick, then one uncapped drain when shutdown is signalled
                 // (producers are already stopped by then, so nothing is left behind).
@@ -301,6 +304,8 @@ fn get_futures_state() -> &'static FuturesState {
                         shutdown_rx.recv_timeout(flush_interval),
                         Err(RecvTimeoutError::Timeout)
                     );
+                    #[cfg(feature = "hotpath-callgrind-meta")]
+                    exclusion.refresh();
 
                     if shutdown {
                         EVENT_QUEUES.drain_all(&mut swept);

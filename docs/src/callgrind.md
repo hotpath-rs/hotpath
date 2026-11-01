@@ -82,7 +82,7 @@ In [hotpath-cloud](#cloud-ci), merged mode is the recommended way to benchmark i
 - **Inclusive**: a function's count includes instructions executed by functions it calls, like timing totals. Recursive invocations contribute to their enclosing calls, so the `Total` of a recursive function, which sums inclusive counts across all its invocations, counts the same instructions multiple times.
 - **Async functions** count the instructions executed while their body is polled. Work in tasks spawned with `tokio::spawn` runs elsewhere and is not part of the caller's count.
 - **Calls** come from hotpath's own counters, `Avg` is total divided by calls.
-- `% Total` is relative to all instructions the program executed between guard creation and drop. This includes hotpath's own collection work, which is always counted in full, so the total does not change with how far behind the collector was when the program finished.
+- `% Total` is relative to all instructions the program executed between guard creation and drop. hotpath's background threads (collectors and samplers) are excluded, so the total counts the instructions of application threads, including the instrumentation overhead executed on them.
 - `measure_block!` blocks are not counted, nor are measured functions that a `macro_rules!` generates from one source position (a warning names them), nor sync `#[track_caller]` functions (counting them would break `Location::caller()`).
 
 Counts are reproducible for deterministic workloads. Randomized hashing (`HashMap` with the default `RandomState`) and concurrent workloads can produce different counts between runs. Valgrind serializes thread execution, so counts from multi-threaded code may not represent native scheduling behavior.

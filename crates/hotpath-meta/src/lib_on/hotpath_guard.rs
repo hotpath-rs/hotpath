@@ -622,9 +622,13 @@ impl HotpathGuard {
                 let _query_idx = select.recv(&query_rx);
                 let flush_interval = std::time::Duration::from_millis(*DRAIN_INTERVAL_MS);
                 let mut swept: Vec<Measurement> = Vec::new();
+                #[cfg(feature = "hotpath-callgrind-meta")]
+                let mut exclusion = crate::functions::callgrind::CollectorExclusion::new();
 
                 loop {
                     let _ = select.ready_timeout(flush_interval);
+                    #[cfg(feature = "hotpath-callgrind-meta")]
+                    exclusion.refresh();
 
                     // Uncapped drain on shutdown: producers are already stopped,
                     // there is no next tick to pick up capped-sweep leftovers.

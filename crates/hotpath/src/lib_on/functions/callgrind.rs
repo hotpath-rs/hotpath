@@ -10,8 +10,10 @@
 //! `Ir` to measured functions by marker (after the `before_shutdown`
 //! callback, so its measured calls count too, and after every collector
 //! worker's final sweep, so the total does not depend on how far behind the
-//! workers were). Natively the markers are one extra call per measured
-//! invocation and nothing else happens.
+//! workers were). Every background worker (collectors and samplers) turns
+//! Callgrind collection off for itself in each session, so the total counts
+//! application threads only. Natively the markers are one extra call per
+//! measured invocation and nothing else happens.
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -147,11 +149,49 @@ fn expand_out_file(template: &str, pid: u32) -> String {
 /// `.2`, ... in the same order.
 static DUMPS: AtomicU32 = AtomicU32::new(0);
 
+/// Sessions started under Valgrind. Bumped after START (which resets every
+/// thread to collecting) and before ZERO, so a collector that sees a new
+/// value knows its state is "collecting" and one toggle turns it off.
+/// Stays 0 natively, so [`CollectorExclusion::refresh`] never toggles there.
+static SESSION: AtomicU32 = AtomicU32::new(0);
+
 /// Called at guard creation.
 pub(crate) fn start_session() {
     if active() {
         LazyLock::force(&OUT_FILE);
-        request::start_session();
+        request::start_instrumentation();
+        SESSION.fetch_add(1, Ordering::Release);
+        request::zero_stats();
+    }
+}
+
+/// Keeps the owning collector thread out of the session's instruction
+/// counts. Toggling is per thread and relative, and every START/STOP resets
+/// all threads, so the worker re-toggles once per session it observes. Not
+/// `Send`: the state it tracks belongs to the thread that created it.
+pub(crate) struct CollectorExclusion {
+    seen: u32,
+    _thread: std::marker::PhantomData<*const ()>,
+}
+
+impl CollectorExclusion {
+    pub(crate) fn new() -> Self {
+        let mut this = Self {
+            seen: 0,
+            _thread: std::marker::PhantomData,
+        };
+        this.refresh();
+        this
+    }
+
+    /// Call before each sweep: one relaxed-cost load natively.
+    #[inline]
+    pub(crate) fn refresh(&mut self) {
+        let session = SESSION.load(Ordering::Acquire);
+        if session != self.seen {
+            self.seen = session;
+            request::toggle_collect();
+        }
     }
 }
 

@@ -424,6 +424,9 @@ pub(crate) fn init_rw_locks_state() -> &'static RwLocksState {
                 let flush_interval = std::time::Duration::from_millis(*DRAIN_INTERVAL_MS);
                 let mut swept: Vec<RwLockEvent> = Vec::new();
 
+                #[cfg(feature = "hotpath-callgrind")]
+                let mut exclusion = crate::functions::callgrind::CollectorExclusion::new();
+
                 // Single consumer of the per-thread event queues: capped sweep on
                 // every tick, then one uncapped drain when shutdown is signalled
                 // (producers are already stopped by then, so nothing is left behind).
@@ -432,6 +435,8 @@ pub(crate) fn init_rw_locks_state() -> &'static RwLocksState {
                         shutdown_rx.recv_timeout(flush_interval),
                         Err(RecvTimeoutError::Timeout)
                     );
+                    #[cfg(feature = "hotpath-callgrind")]
+                    exclusion.refresh();
 
                     if shutdown {
                         EVENT_QUEUES.drain_all(&mut swept);
