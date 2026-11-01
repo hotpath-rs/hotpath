@@ -16,7 +16,8 @@ jobs:
         rust:
           - 1.89
           - stable
-          - nightly
+          # TODO: unpin once rustc fixes the E0391 "needs async drop" cycle (sqlx-core 0.8, sea-orm) from nightly-2026-11-01
+          - nightly-2026-10-31
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -99,7 +100,8 @@ jobs:
         rust:
           - 1.89
           - stable
-          - nightly
+          # TODO: unpin once rustc fixes the E0391 "needs async drop" cycle (sqlx-core 0.8, sea-orm) from nightly-2026-11-01
+          - nightly-2026-10-31
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -173,7 +175,8 @@ jobs:
         rust:
           - 1.89
           - stable
-          - nightly
+          # TODO: unpin once rustc fixes the E0391 "needs async drop" cycle (sqlx-core 0.8, sea-orm) from nightly-2026-11-01
+          - nightly-2026-10-31
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -253,7 +256,8 @@ jobs:
         rust:
           - 1.89
           - stable
-          - nightly
+          # TODO: unpin once rustc fixes the E0391 "needs async drop" cycle (sqlx-core 0.8, sea-orm) from nightly-2026-11-01
+          - nightly-2026-10-31
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
