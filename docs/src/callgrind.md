@@ -49,6 +49,19 @@ The same build run natively prints the usual timing report, so one binary serves
 
 Callgrind writes its counts to `callgrind.out.<pid>` files in the working directory. If you pass a custom `--callgrind-out-file`, set `HOTPATH_CALLGRIND_OUT_FILE` to the same value (`%p` and `%q{VAR}` are expanded like Valgrind does).
 
+## Callgrind options
+
+Callgrind has two separate switches, and two similarly named options set where they start:
+
+- **Instrumentation** (`--instr-atstart`, default `yes`) decides whether Callgrind simulates the program at all. It is what makes Callgrind slow. hotpath turns it on at guard creation and off at guard drop.
+- **Collection** (`--collect-atstart`, default `yes`) is a per-thread flag that decides whether a thread's instructions are added to the counts while instrumentation is on. Whenever instrumentation is switched on or off, Callgrind resets every thread's flag to the `--collect-atstart` value.
+
+hotpath counts only what runs between guard creation and drop. At guard creation it discards everything counted so far (program startup, dynamic loading, guard setup). At guard drop it writes its dump and stops instrumenting, so report building and uploading are not counted either.
+
+**`--instr-atstart=no` is optional and recommended.** It changes speed, not counts: the program runs uninstrumented, much faster than under full simulation, until the guard turns instrumentation on. Without it, Callgrind simulates startup in full and hotpath discards those counts at guard creation, so both runs report the same numbers. The CI examples in these docs pass it.
+
+**Do not pass `--collect-atstart=no` or `--toggle-collect`.** hotpath relies on application threads collecting by default, and turns collection off only for its own background threads by flipping their flag once per session. With `--collect-atstart=no`, application threads never collect, so measured functions get no instructions, and the flip turns hotpath's background threads on instead, leaving a total made of profiler overhead. `--toggle-collect=<function>` flips the same per-thread flags on entry to and exit from matching functions, which breaks the counts in the same way.
+
 ## Timing and instruction counts in one report
 
 A Callgrind run has no timing, and a native run has no instruction counts. **Merged** mode (native timing + Callgrind instruction counts in one report) runs the same build twice and combines the two: run it natively with a JSON report first, then under Callgrind with `HOTPATH_MERGE_REPORT` naming that report:
