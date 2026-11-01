@@ -5,7 +5,7 @@ mod common;
 pub mod tests {
     use std::process::Output;
 
-    use hotpath::json::{JsonFunctionsList, JsonReport};
+    use hotpath::json::{JsonCriterion, JsonFunctionsList, JsonReport};
 
     use crate::common::callgrind::{valgrind_available, RunDir};
     use crate::common::example::{assert_success, Example};
@@ -24,6 +24,17 @@ pub mod tests {
         "test-criterion-0-6",
         "test-criterion-0-5",
     ];
+
+    /// The Criterion version each of [`PACKAGES`] builds against.
+    fn criterion_version(package: &str) -> &'static str {
+        match package {
+            "test-criterion" => "0.8",
+            "test-criterion-0-7" => "0.7",
+            "test-criterion-0-6" => "0.6",
+            "test-criterion-0-5" => "0.5",
+            other => panic!("unknown package {other}"),
+        }
+    }
 
     /// Every case once per package.
     fn each_package<T: Copy, const N: usize>(
@@ -106,6 +117,7 @@ pub mod tests {
             .json()
             .env_remove("HOTPATH_UPLOAD")
             .env_remove("GITHUB_ACTIONS")
+            .env_remove("HOTPATH_USER_METADATA")
             .env("HOTPATH_REPORT", "functions-timing,functions-alloc")
             .output();
         assert_success(&output);
@@ -113,6 +125,31 @@ pub mod tests {
             counts(&output),
             parse_report(&String::from_utf8_lossy(&output.stdout)),
         )
+    }
+
+    // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath -- --exact top_input/9
+    #[test]
+    fn test_table_report_names_the_criterion_benchmark() {
+        let output = fixed("test-criterion", "hotpath", "top_input/9")
+            .env("HOTPATH_OUTPUT_FORMAT", "table")
+            .output();
+        assert_success(&output);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let rows: Vec<&str> = stdout
+            .split_once("criterion - Criterion benchmark this report measured.")
+            .unwrap_or_else(|| panic!("no criterion table:\n{stdout}"))
+            .1
+            .lines()
+            .skip(1)
+            .take_while(|line| !line.is_empty())
+            .collect();
+        for row in [
+            "| benchmark  | top_input/9 |",
+            "| iterations | 1000        |",
+            "| version    | 0.8         |",
+        ] {
+            assert!(rows.contains(&row), "{row} missing:\n{stdout}");
+        }
     }
 
     // HOTPATH_CRITERION_ITERATIONS=1000 cargo run -p test-criterion --example fixture --features hotpath,hotpath-alloc -- --exact work/iter_batched_per_iteration
@@ -178,15 +215,16 @@ pub mod tests {
                 },
                 "{package} {benchmark}"
             );
-            let metadata = report.user_metadata.as_ref().expect("user metadata");
             assert_eq!(
-                metadata.get("criterion_iterations").map(String::as_str),
-                Some("1000")
+                report.meta.criterion,
+                Some(JsonCriterion {
+                    benchmark: benchmark.to_string(),
+                    iterations: ITERATIONS,
+                    version: criterion_version(package).to_string(),
+                }),
+                "{package} {benchmark}"
             );
-            assert_eq!(
-                metadata.get("criterion_benchmark").map(String::as_str),
-                Some(benchmark)
-            );
+            assert_eq!(report.user_metadata, None, "{package} {benchmark}");
 
             let routine = routine_row(benchmark);
             let timing = report.functions_timing.as_ref().expect("timing section");
@@ -508,11 +546,7 @@ pub mod tests {
             assert_eq!(merged.meta.run, Some(hotpath::json::JsonRun::Merged));
             assert_eq!(merged.meta.benchmark.as_deref(), Some("criterion-fixture"));
             assert_eq!(
-                merged
-                    .user_metadata
-                    .as_ref()
-                    .and_then(|m| m.get("criterion_benchmark"))
-                    .map(String::as_str),
+                merged.meta.criterion.as_ref().map(|c| c.benchmark.as_str()),
                 Some(benchmark)
             );
             let timing = merged.functions_timing.as_ref().expect("native timing");

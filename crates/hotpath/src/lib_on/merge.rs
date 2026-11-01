@@ -20,7 +20,6 @@ use std::sync::LazyLock;
 
 use crate::json::cloud_api::MAX_REPORT_BYTES;
 use crate::json::{JsonReport, JsonRun};
-use crate::shared::{CRITERION_BENCHMARK_KEY, CRITERION_ITERATIONS_KEY};
 
 /// `HOTPATH_MERGE_REPORT`: path of the native run's JSON report. Blank or
 /// unset requests no merge; relative paths resolve against the cwd.
@@ -301,9 +300,9 @@ fn check_identity(native: &JsonReport, own: &JsonReport) -> Result<(), MergeErro
     let ci = |m: &crate::json::JsonMeta| m.ci.clone();
     let pr = |m: &crate::json::JsonMeta| m.ci.as_ref().and_then(|c| c.pull_request.clone());
     let (ng, og, nc, oc, np, op) = (git(n), git(o), ci(n), ci(o), pr(n), pr(o));
-    let user = |r: &JsonReport, key: &str| r.user_metadata.as_ref()?.get(key).cloned();
+    let (ncr, ocr) = (n.criterion.as_ref(), o.criterion.as_ref());
 
-    let fields: [(&'static str, Option<String>, Option<String>); 22] = [
+    let fields: [(&'static str, Option<String>, Option<String>); 23] = [
         ("benchmark", n.benchmark.clone(), o.benchmark.clone()),
         ("rustc", s(&n.rustc), s(&o.rustc)),
         ("os", s(&n.os), s(&o.os)),
@@ -390,13 +389,18 @@ fn check_identity(native: &JsonReport, own: &JsonReport) -> Result<(), MergeErro
         ),
         (
             "Criterion benchmark",
-            user(native, CRITERION_BENCHMARK_KEY),
-            user(own, CRITERION_BENCHMARK_KEY),
+            ncr.map(|c| c.benchmark.clone()),
+            ocr.map(|c| c.benchmark.clone()),
         ),
         (
             "Criterion iteration count",
-            user(native, CRITERION_ITERATIONS_KEY),
-            user(own, CRITERION_ITERATIONS_KEY),
+            ncr.map(|c| c.iterations.to_string()),
+            ocr.map(|c| c.iterations.to_string()),
+        ),
+        (
+            "Criterion version",
+            ncr.map(|c| c.version.clone()),
+            ocr.map(|c| c.version.clone()),
         ),
     ];
     for (field, native, own) in fields {
@@ -410,8 +414,8 @@ fn check_identity(native: &JsonReport, own: &JsonReport) -> Result<(), MergeErro
 #[cfg(test)]
 mod tests {
     use crate::json::{
-        JsonCiInfo, JsonFunctionEntry, JsonFunctionsList, JsonGitInfo, JsonMeta, JsonPolicy,
-        JsonPullRequest, JsonReport, JsonRun,
+        JsonCiInfo, JsonCriterion, JsonFunctionEntry, JsonFunctionsList, JsonGitInfo, JsonMeta,
+        JsonPolicy, JsonPullRequest, JsonReport, JsonRun,
     };
     use crate::lib_on::merge::{merge, read_native, IcountRun, MergeError};
     use crate::output::ProfilingMode;
@@ -474,6 +478,7 @@ mod tests {
                 path: "hotpath/policy.toml".to_string(),
             }),
             run: Some(run),
+            criterion: None,
         }
     }
 
@@ -598,38 +603,40 @@ mod tests {
 
     #[test]
     fn criterion_workload_must_match() {
-        fn with(mut r: JsonReport, pairs: &[(&str, &str)]) -> JsonReport {
-            let mut metadata = std::collections::BTreeMap::from([("runner".into(), "ci".into())]);
-            metadata.extend(pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())));
-            r.user_metadata = Some(metadata);
+        fn with(mut r: JsonReport, criterion: Option<(&str, u64, &str)>) -> JsonReport {
+            r.meta.criterion = criterion.map(|(benchmark, iterations, version)| JsonCriterion {
+                benchmark: benchmark.to_string(),
+                iterations,
+                version: version.to_string(),
+            });
             r
         }
-        const ID: &str = "criterion_benchmark";
-        const N: &str = "criterion_iterations";
-        let a = [(ID, "codec/decode/1024"), (N, "1000")];
+        let a = Some(("codec/decode/1024", 1000, "0.8"));
 
-        let merged = merge(with(native(), &a), with(own(), &a), IcountRun::Counted);
-        assert!(merged.is_ok(), "same benchmark and count merge");
+        let merged = merge(with(native(), a), with(own(), a), IcountRun::Counted);
+        assert!(merged.is_ok(), "same benchmark, count and version merge");
+        assert_eq!(
+            merged.unwrap().meta.criterion,
+            with(native(), a).meta.criterion
+        );
 
         let cases = [
             (
-                [(ID, "codec/decode/1024"), (N, "500")],
+                ("codec/decode/1024", 500, "0.8"),
                 "Criterion iteration count",
             ),
-            (
-                [(ID, "codec/decode/16"), (N, "1000")],
-                "Criterion benchmark",
-            ),
+            (("codec/decode/16", 1000, "0.8"), "Criterion benchmark"),
+            (("codec/decode/1024", 1000, "0.7"), "Criterion version"),
         ];
         for (other, expected) in cases {
-            match err(with(native(), &a), with(own(), &other)) {
+            match err(with(native(), a), with(own(), Some(other))) {
                 MergeError::Mismatch { field, .. } => assert_eq!(field, expected),
                 other => panic!("{expected}: {other}"),
             }
         }
 
         // Criterion on one side only, either way round.
-        for (n, o) in [(&a[..], &[][..]), (&[][..], &a[..])] {
+        for (n, o) in [(a, None), (None, a)] {
             match err(with(native(), n), with(own(), o)) {
                 MergeError::Mismatch { field, native, own } => {
                     assert_eq!(field, "Criterion benchmark");
@@ -639,12 +646,10 @@ mod tests {
             }
         }
 
-        // Neither is a Criterion run: unchanged, other metadata is not compared.
-        let mut plain = with(own(), &[]);
-        let metadata = plain.user_metadata.as_mut().unwrap();
-        metadata.insert("runner".into(), "local".into());
-        assert!(merge(with(native(), &[]), plain, IcountRun::Counted).is_ok());
-        assert!(merge(native(), own(), IcountRun::Counted).is_ok());
+        // Neither is a Criterion run: user metadata is not compared.
+        let mut plain = own();
+        plain.user_metadata = Some([("runner".into(), "local".into())].into());
+        assert!(merge(native(), plain, IcountRun::Counted).is_ok());
     }
 
     #[test]

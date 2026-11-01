@@ -178,7 +178,8 @@ use crate::metrics_server::METRICS_SERVER_PORT;
 use crate::output::{FunctionLog, FunctionLogsList};
 use crate::output_on::{
     display_functions_table_to, display_no_measurements_message_to, resolve_output_path,
-    write_report_footer, write_report_header, write_user_metadata_table, OutputDestination,
+    write_criterion_table, write_report_footer, write_report_header, write_user_metadata_table,
+    OutputDestination,
 };
 
 #[cfg(feature = "hotpath-prometheus")]
@@ -252,6 +253,7 @@ pub struct HotpathGuardBuilder {
     before_shutdown: Option<Box<dyn FnOnce() + Send + Sync>>,
     time_sampling: crate::lib_on::sampling::TimeSamplingConfig,
     user_metadata: HashMap<String, String>,
+    criterion: Option<crate::json::JsonCriterion>,
 }
 
 impl HotpathGuardBuilder {
@@ -295,6 +297,7 @@ impl HotpathGuardBuilder {
             before_shutdown: None,
             time_sampling: crate::lib_on::sampling::TimeSamplingConfig::default(),
             user_metadata: HashMap::new(),
+            criterion: None,
         }
     }
 
@@ -508,6 +511,18 @@ impl HotpathGuardBuilder {
         self
     }
 
+    /// The Criterion benchmark this guard profiles, written to `meta.criterion`.
+    #[cfg(any(
+        feature = "criterion-0-5",
+        feature = "criterion-0-6",
+        feature = "criterion-0-7",
+        feature = "criterion-0-8"
+    ))]
+    pub(crate) fn criterion(mut self, criterion: crate::json::JsonCriterion) -> Self {
+        self.criterion = Some(criterion);
+        self
+    }
+
     fn resolve_sections_mode(&self) -> SectionsMode {
         if let Some(env_mode) = SectionsMode::from_env() {
             return env_mode;
@@ -565,6 +580,7 @@ impl HotpathGuardBuilder {
             self.io_limit,
             self.threads_limit,
             user_metadata,
+            self.criterion,
         )
     }
 
@@ -624,6 +640,7 @@ pub struct HotpathGuard {
     io_limit: usize,
     threads_limit: usize,
     user_metadata: BTreeMap<String, String>,
+    criterion: Option<crate::json::JsonCriterion>,
     #[cfg(feature = "hotpath-meta")]
     _meta_guard: Option<hotpath_meta::HotpathGuard>,
 }
@@ -649,6 +666,7 @@ impl HotpathGuard {
         io_limit: usize,
         threads_limit: usize,
         user_metadata: BTreeMap<String, String>,
+        criterion: Option<crate::json::JsonCriterion>,
     ) -> Self {
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
 
@@ -1007,6 +1025,7 @@ impl HotpathGuard {
             io_limit,
             threads_limit,
             user_metadata,
+            criterion,
             #[cfg(feature = "hotpath-meta")]
             _meta_guard,
         }
@@ -1320,11 +1339,14 @@ impl Drop for HotpathGuard {
                     .filter(|s| !s.is_empty()),
                 user_metadata: (!self.user_metadata.is_empty()).then(|| self.user_metadata.clone()),
                 time_sampling: crate::lib_on::sampling::active_rates(),
-                ..JsonReport::new(crate::lib_on::report_meta::build_meta(if counting_icount {
-                    crate::json::JsonRun::Callgrind
-                } else {
-                    crate::json::JsonRun::Native
-                }))
+                ..JsonReport::new(crate::lib_on::report_meta::build_meta(
+                    if counting_icount {
+                        crate::json::JsonRun::Callgrind
+                    } else {
+                        crate::json::JsonRun::Native
+                    },
+                    self.criterion.clone(),
+                ))
             };
 
             // A cloud report lists every entry (`0` is unlimited): the server
@@ -1624,6 +1646,7 @@ impl Drop for HotpathGuard {
                 if let Some(err) = crate::metrics_server::get_metrics_server_error() {
                     let _ = writeln!(writer, "[hotpath - error] {}", err);
                 }
+                write_criterion_table(&mut writer, self.criterion.as_ref());
                 write_user_metadata_table(&mut writer, &self.user_metadata);
             }
 
