@@ -508,12 +508,21 @@ pub mod tests {
                 assert_eq!(e.calls, ITERATIONS, "{package} {benchmark} {name}");
                 e.total.parse().unwrap()
             };
-            // A leaf measured function is exact.
-            assert_eq!(
-                total(&first, WORK),
-                total(&second, WORK),
-                "{package} {benchmark}"
-            );
+            // A leaf measured function is exact on x86_64. On aarch64 its
+            // allocation runs glibc's exclusive-load/store retry loops, whose
+            // instruction counts move with the interleaving of hotpath's own
+            // threads under Valgrind, so it drifts by a few hundredths of a
+            // percent.
+            let (a, b) = (total(&first, WORK), total(&second, WORK));
+            if cfg!(target_arch = "aarch64") {
+                let drift = a.abs_diff(b) as f64 / a as f64;
+                assert!(
+                    drift < 1e-3,
+                    "{package} {benchmark}: work instructions {a} vs {b}"
+                );
+            } else {
+                assert_eq!(a, b, "{package} {benchmark}");
+            }
             // The routine also counts hotpath's own queueing, so it drifts slightly.
             let routine = routine_row(benchmark);
             let (a, b) = (total(&first, routine), total(&second, routine));
