@@ -87,7 +87,7 @@ Its trade-offs are a small per-call [overhead](profiling_overhead.md) and no sta
 
 The two fit together: `hotpath::criterion` profiles existing Criterion benchmarks directly, so a Criterion benchmark can be the workload of hotpath's native and Callgrind runs. Converting one usually takes small import and dependency changes, not a rewrite, and plain `cargo bench`, with Criterion's statistical analysis, keeps working unchanged whenever `HOTPATH_CRITERION_ITERATIONS` is unset. For unbiased Criterion timings, build those runs without hotpath's profiling features: with them on, instrumentation overhead still applies. Keep your existing Criterion benchmarks, and use hotpath to understand what happens inside them; the next question has the details.
 
-[Gungraun](https://github.com/gungraun/gungraun) (formerly Iai-Callgrind) is a dedicated Callgrind-based benchmark harness you would adopt instead of Criterion, while hotpath keeps your existing Criterion benchmarks and adds per-function instruction counts next to timing and allocations.
+[Gungraun](https://github.com/gungraun/gungraun) (formerly Iai-Callgrind) is an alternative, dedicated Callgrind benchmarking framework, while hotpath integrates instruction profiling into existing Criterion benchmarks.
 
 ## Can I use hotpath with my existing Criterion benchmarks?
 
