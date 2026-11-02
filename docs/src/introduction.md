@@ -42,7 +42,7 @@
       <span class="terminal-command">ssh demo.hotpath.rs</span>
     </button>
     <p class="ssh-demo-label">Or let your AI coding agent set up profiling:</p>
-    <button type="button" class="agent-pill copy-tooltip" data-tooltip="Copies a setup prompt for your AI coding agent" data-tooltip-copied="Copied! Paste into your AI coding agent." data-copy="Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup" onclick="hotpathCopy(this)">
+    <button type="button" class="agent-pill copy-tooltip" data-ferris data-tooltip="Copies a setup prompt for your AI coding agent" data-tooltip-copied="Copied! Paste into your AI coding agent." data-copy="Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup" onclick="hotpathCopy(this)">
       <svg class="agent-pill-copy" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
       <span>Set up hotpath-rs with AI</span>
       <span class="agent-logos">
@@ -61,7 +61,7 @@ function hotpathCopy(button) {
   var status = button.querySelector('[role="status"]');
   navigator.clipboard.writeText(text).then(function () {
     button.classList.add('copied');
-    if (button.classList.contains('agent-pill')) ferrisHappyJump();
+    if (button.hasAttribute('data-ferris')) ferrisHappyJump();
     if (status) status.textContent = button.dataset.tooltipCopied;
     button.addEventListener('mouseleave', function () {
       button.classList.remove('copied');
@@ -78,7 +78,7 @@ function ferrisHappyJump() {
 (function () {
   var ferris = document.querySelector('.ferris-hero');
   if (!ferris) return;
-  var pill = document.querySelector('.agent-pill');
+  var pill = document.querySelector('.agent-pill[data-ferris]');
   var glints = ferris.querySelectorAll('.ferris-glint');
   // Measure from the static anchors, the glints themselves move.
   var anchors = ferris.querySelectorAll('.ferris-eye-anchor');
@@ -240,6 +240,19 @@ The quickest way to set up hotpath is to let your own AI coding agent do it. Pas
 ```text
 Set up hotpath-rs profiling in this Rust project using the instructions at https://hotpath.rs/agent/setup
 ```
+
+<div id="agent-pill-setup"></div>
+<script>
+// Same pill as the hero one, without the Ferris interactions.
+(function () {
+  var source = document.querySelector('.agent-pill[data-ferris]');
+  var slot = document.getElementById('agent-pill-setup');
+  if (!source || !slot) return;
+  var pill = source.cloneNode(true);
+  pill.removeAttribute('data-ferris');
+  slot.replaceWith(pill);
+})();
+</script>
 
 The agent inspects your project, including workspaces and any existing hotpath setup, adds the feature-gated dependency, instruments `main` and a small starting set of hot functions, channels and locks, and verifies that everything compiles with profiling enabled and disabled. When the project has a workload that exits, it runs it and shows you the first report. It then explains how to run profiling and the live TUI. It finally asks once whether to optionally set up [hotpath-cloud](cloud.md) to benchmark pull requests in CI.
 
