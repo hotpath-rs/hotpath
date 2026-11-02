@@ -49,9 +49,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # Released Valgrind misattributes inclusive instruction counts on arm64;
       # this build fixes it (unofficial fork, hotpath-rs/valgrind).
-      - uses: hotpath-rs/setup-valgrind@v1.0.0
+      - uses: hotpath-rs/setup-valgrind@v1.1.0
         with:
-          version: 3.28.0.hotpath-rs
+          version: 3.28.0.hotpath-rs-2
       - name: Build drain criterion benchmark
         id: build
         run: |
@@ -65,7 +65,7 @@ jobs:
       # report is merged into the Callgrind run's.
       - name: Run drain criterion benchmark natively
         env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs-2
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
         run: ${{ steps.build.outputs.bin }} --bench --test --exact drain/lockstep
       # The uploader reports its own outcome: one `::notice::` / `::warning::`
@@ -74,7 +74,7 @@ jobs:
       # skipped one; the `jq` check fails a report that is not a merged one.
       - name: Run drain criterion benchmark under Callgrind and upload the merged report
         env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs-2
           HOTPATH_META_UPLOAD: fail-on-error
           HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
@@ -118,9 +118,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # Released Valgrind misattributes inclusive instruction counts on arm64;
       # this build fixes it (unofficial fork, hotpath-rs/valgrind).
-      - uses: hotpath-rs/setup-valgrind@v1.0.0
+      - uses: hotpath-rs/setup-valgrind@v1.1.0
         with:
-          version: 3.28.0.hotpath-rs
+          version: 3.28.0.hotpath-rs-2
       - name: Build drain criterion benchmark
         id: build
         run: |
@@ -132,14 +132,14 @@ jobs:
           echo "bin=$bin" >> "$GITHUB_OUTPUT"
       - name: Run drain criterion benchmark natively
         env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs-2
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
         run: ${{ steps.build.outputs.bin }} --bench --test --exact drain/lockstep
       # A failed merge fails the job before the artifact upload, so the relay
       # never posts a report that is not merged.
       - name: Run drain criterion benchmark under Callgrind and write the merged report
         env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs-2
           HOTPATH_META_OUTPUT_PATH: report.json
           HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
           HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
