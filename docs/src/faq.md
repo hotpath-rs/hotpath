@@ -96,7 +96,7 @@ Yes. hotpath's Criterion adapter supports Criterion `0.5`, `0.6`, `0.7` and `0.8
 - Switch the imports and macros of a benchmark file to `hotpath::criterion` (`Criterion`, `BenchmarkId`, `criterion_group!`, `criterion_main!`); what the benchmark measures stays the same.
 - Setting `HOTPATH_CRITERION_ITERATIONS` turns on fixed-iteration profiling: the selected benchmark's routine runs exactly that many times and writes one hotpath report. Each run selects one benchmark, in Criterion's test mode. With `HOTPATH_CRITERION_ITERATIONS` unset, Criterion runs normally. For unbiased Criterion timing measurements, build without hotpath's profiling features.
 - A native run reports timing and allocations, a run under Callgrind reports instruction counts, and the two merge into one report for [hotpath-cloud](ci_integration.md).
-- The report records the benchmark id, the iteration count and the Criterion version in `meta.criterion`. That needs hotpath `0.31.0` or newer; releases older than `0.31.0` record the id and count as `user_metadata.criterion_benchmark` and `user_metadata.criterion_iterations`.
+- The report records the benchmark id, the iteration count and the Criterion version in `meta.criterion`. It needs hotpath `0.31.0` or newer.
 
 [Criterion benchmarks](criterion.md) has the setup, the supported `iter*` methods and the native and Callgrind commands.
 

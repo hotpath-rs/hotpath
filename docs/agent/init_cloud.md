@@ -173,7 +173,7 @@ For a Criterion benchmark, adapt every job that builds and runs it the same way,
   Pass `bin` to the run steps as a step output (`echo "bin=$bin" >> "$GITHUB_OUTPUT"`). In native mode, use the same build step in place of `cargo run`.
 - Run the binary with `--bench --test --exact <id>` in every run step, natively and under Callgrind.
 - Add `HOTPATH_CRITERION_ITERATIONS` with the count from step 2 to the job-level `env`, so every run executes the same iterations.
-- In merged mode, add `and .meta.criterion.benchmark == "<id>"` to the `jq` check when the project's hotpath is `0.31.0` or newer; with an older release, which records the id as `user_metadata.criterion_benchmark`, add `and .user_metadata.criterion_benchmark == "<id>"` instead, and tell the user to switch the check when they upgrade. The native workflow has no such check; do not add one.
+- In merged mode, add `and .meta.criterion.benchmark == "<id>"` to the `jq` check; `meta.criterion` needs hotpath `0.31.0` or newer, so upgrade an older version as the version rules under "Documentation" say. The native workflow has no such check; do not add one.
 
 #### Same repository
 
