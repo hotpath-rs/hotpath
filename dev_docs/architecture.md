@@ -26,7 +26,7 @@ Each subsystem spawns a worker thread named `hp-<subsystem>` from its `lib_on/<s
 
 Gotchas:
 - A client-request dump is `<out-file>.<n>`, not the bare out file (that one is the exit dump).
-- aarch64 needs the patched Valgrind from hotpath-rs/valgrind (installed in CI by `hotpath-rs/setup-valgrind`): released versions decode `B` as a call and inflate inclusive counts.
+- aarch64 needs the patched Valgrind from hotpath-rs/valgrind (installed in CI by `hotpath-rs/setup-valgrind`): released versions decode `B` as a call and leave frames open after PLT calls, inflating inclusive counts.
 - Markers need a per-site constant in their body, or LLVM merges identical ones into one symbol.
 
 ## CPU sampling (`hotpath-cpu`, macOS and Linux)

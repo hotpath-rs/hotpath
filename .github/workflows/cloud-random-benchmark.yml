@@ -29,6 +29,12 @@ jobs:
       - name: Record rustc version
         id: rustc
         run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Record runner CPU and image
+        id: host
+        # Commas would split the user metadata, so they are stripped.
+        run: |
+          echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
+          echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
       # The uploader reports its own outcome: one `::notice::` / `::warning::`
       # / `::error::` annotation plus a step summary block, and with
@@ -40,7 +46,7 @@ jobs:
           HOTPATH_UPLOAD: fail-on-error
           HOTPATH_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
           HOTPATH_BENCHMARK: random
-          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
           HOTPATH_EXCLUDE_WRAPPER: "true"
           HOTPATH_OUTPUT_FORMAT: none
         run: |
@@ -73,11 +79,17 @@ jobs:
       - name: Record rustc version
         id: rustc
         run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Record runner CPU and image
+        id: host
+        # Commas would split the user metadata, so they are stripped.
+        run: |
+          echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
+          echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
       - name: Run random benchmark and write report
         env:
           HOTPATH_BENCHMARK: random
-          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
           HOTPATH_EXCLUDE_WRAPPER: "true"
           HOTPATH_OUTPUT_FORMAT: json
           HOTPATH_OUTPUT_PATH: report.json

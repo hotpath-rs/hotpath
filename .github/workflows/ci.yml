@@ -417,9 +417,9 @@ jobs:
       # Released Valgrind misattributes inclusive counts on aarch64.
       - name: Install hotpath valgrind
         if: matrix.arch == 'aarch64'
-        uses: hotpath-rs/setup-valgrind@v1.0.0
+        uses: hotpath-rs/setup-valgrind@v1.1.0
         with:
-          version: 3.28.0.hotpath-rs
+          version: 3.28.0.hotpath-rs-2
       - name: Run functions_icount tests
         run: |
           cargo test --features hotpath --test functions_icount -- --nocapture --test-threads=1
