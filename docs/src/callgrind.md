@@ -8,7 +8,7 @@ Instruction counts are highly reproducible for deterministic workloads, making t
 
 **Platform support:** x86_64 and aarch64 Linux. On other platforms, the feature compiles but falls back to the standard timing report. Instruction counts are comparable only within one architecture: the same code executes a different number of instructions on x86_64 and aarch64.
 
-On aarch64, released Valgrind builds count wrong and a patched build is required, see [ARM64 Linux](#arm64-linux).
+On aarch64, a Valgrind bug makes it count instructions incorrectly, so a patched build is required, see [ARM64 Linux](#arm64-linux).
 
 ## Running under Callgrind
 
@@ -37,7 +37,7 @@ Ubuntu's own Valgrind package counts correctly; pin its version so counts stay c
 
 ### ARM64 Linux
 
-Valgrind releases up to `3.28.0` misattribute inclusive instruction counts on aarch64: their decoder treats every unconditional `B` branch as a call, so Callgrind reports fake recursion and inflated inclusive totals. A stock Valgrind still produces a report, but its numbers are wrong. Use the patched build from [hotpath-rs/valgrind](https://github.com/hotpath-rs/valgrind/releases), an unofficial fork not affiliated with the Valgrind project, until the fix is upstream. In GitHub Actions, [hotpath-rs/setup-valgrind](https://github.com/hotpath-rs/setup-valgrind) installs it; pin the action and the version:
+Because of a bug, Valgrind counts instructions incorrectly on ARM64. Use the patched build from [hotpath-rs/valgrind](https://github.com/hotpath-rs/valgrind/releases), an unofficial fork not affiliated with the Valgrind project, until the fix is upstream. In GitHub Actions, [hotpath-rs/setup-valgrind](https://github.com/hotpath-rs/setup-valgrind) installs it; pin the action and the version:
 
 ```yaml
     runs-on: ubuntu-26.04-arm
@@ -47,7 +47,7 @@ Valgrind releases up to `3.28.0` misattribute inclusive instruction counts on aa
           version: 3.28.0.hotpath-rs
 ```
 
-A report produced with it names the build in `functions_icount.tool`: `callgrind-3.28.0.hotpath-rs`. hotpath.rs accepts instruction counts from an ARM64 Linux report (`meta.os` of `linux-aarch64`) only when that field is exactly on its allowlist, today only `callgrind-3.28.0.hotpath-rs`, not any other version, patched or not. A report with another value is refused at upload, before any comparison, with `Callgrind version <version> is not supported on ARM64 because of a known instruction-counting bug (Valgrind decodes unconditional B branches as calls): install the patched Valgrind build with https://github.com/hotpath-rs/setup-valgrind (see https://hotpath.rs/callgrind)`; a report whose instruction counts name no Valgrind version is refused too. ARM64 reports without instruction counts (native runs) and x86_64 reports are not checked. hotpath detects Valgrind on aarch64 only from `0.31.0` on: with older releases, a run under Callgrind reports as a native run, with no instruction counts, and a merge fails with `merge failed: this run is not under valgrind --tool=callgrind`. [CI integration](./ci_integration.md#arm64-runners) has the full workflow changes for ARM64 runners.
+hotpath.rs accepts ARM64 instruction counts only from this build (`functions_icount.tool` of `callgrind-3.28.0.hotpath-rs`) and refuses others at upload. ARM64 support needs hotpath `0.31.0` or newer. [CI integration](./ci_integration.md#arm64-runners) has the full workflow changes for ARM64 runners.
 
 Under Valgrind, hotpath does not report timing, to avoid confusing it with real durations: Callgrind's instrumentation slows execution down substantially, potentially by tens of times or more, so measured times are meaningless. The `icount` (instruction count) report replaces the timing report:
 
