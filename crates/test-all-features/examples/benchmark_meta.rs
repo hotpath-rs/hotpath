@@ -26,24 +26,24 @@ use diesel::prelude::*;
 use diesel::sql_types::Integer;
 use futures::StreamExt;
 
-const SYNC_RUNS: u64 = 1_250_000;
-const ALLOC_RUNS: u64 = 625_000;
-const ASYNC_RUNS: u64 = 375_000;
-const BLOCK_RUNS: u64 = 625_000;
-const FUTURE_RUNS: u64 = 375_000;
-const STREAM_ITEMS: u64 = 1_250_000;
-const CHANNEL_MSGS: u64 = 375_000;
-const CHANNEL_INSTANCES: u64 = 50_000;
-const LOCK_RUNS: u64 = 625_000;
-const IO_RUNS: u64 = 375_000;
-const DEBUG_RUNS: u64 = 62_500;
+const SYNC_RUNS: u64 = 250_000;
+const ALLOC_RUNS: u64 = 125_000;
+const ASYNC_RUNS: u64 = 75_000;
+const BLOCK_RUNS: u64 = 125_000;
+const FUTURE_RUNS: u64 = 75_000;
+const STREAM_ITEMS: u64 = 250_000;
+const CHANNEL_MSGS: u64 = 75_000;
+const CHANNEL_INSTANCES: u64 = 10_000;
+const LOCK_RUNS: u64 = 125_000;
+const IO_RUNS: u64 = 75_000;
+const DEBUG_RUNS: u64 = 12_500;
 const THREAD_COUNT: usize = 4;
-const THREAD_RUNS: u64 = 250_000;
-const WEB_REQUESTS: u64 = 2_000;
+const THREAD_RUNS: u64 = 50_000;
+const WEB_REQUESTS: u64 = 400;
 const WEB_ITEMS: i32 = 100;
 const METRICS_REQUESTS: u64 = 120;
 #[cfg(feature = "hotpath-prometheus")]
-const PROMETHEUS_REQUESTS: u64 = 1_000;
+const PROMETHEUS_REQUESTS: u64 = 100;
 
 #[hotpath::measure]
 fn sync_noop(v: u64) -> u64 {
