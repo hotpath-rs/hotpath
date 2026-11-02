@@ -88,7 +88,6 @@ jobs:
   report:
     name: cloud drain criterion benchmark (fork pull request)
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
-    # Pinned like the upload job.
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 20
     permissions:
