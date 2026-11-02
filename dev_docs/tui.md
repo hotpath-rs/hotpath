@@ -28,6 +28,7 @@ Everything lives under `crates/hotpath/bin/hotpath/cmd/console/`:
 - `views/` - one module per tab/subtab
 - `http_worker.rs` - polls the metrics server endpoints
 - `demo.rs` - the `demo` feature traffic generator
+- `exit_hint.rs` - GitHub star hint printed after the TUI exits, rate limited via a state file in `~/.hotpath-rs`
 
 The TUI is a pure client of the metrics HTTP server - any data question ("what does the SQL subtab show?") resolves to the corresponding `Route` in `src/json.rs` plus the view module rendering it.
 

@@ -111,6 +111,7 @@ Requires the `hotpath-prometheus` feature, see [Prometheus & Grafana](prometheus
 | `HOTPATH_METRICS_PORT` | Port that the TUI console connects to for metrics data. (default: `6770`) |
 | `HOTPATH_METRICS_AUTH_TOKEN` | Token the TUI console sends in the `Authorization` header; must match the value the profiled app was started with. Can also be passed as `--metrics-auth-token`. (default: unset) |
 | `HOTPATH_DISABLE_SAMPLY_LOAD` | Set to `true` or `1` to disable the `samply load` shortcut on the CPU subtab; the `'f'` keybinding and its hint are hidden. (default: `false`) |
+| `HOTPATH_DISABLE_TUI_HINTS` | Set to `true` or `1` to disable the hints occasionally printed after exiting the TUI console. Hints are never shown in CI or when stdout is not a terminal. (default: `false`) |
 
 ## Other
 
