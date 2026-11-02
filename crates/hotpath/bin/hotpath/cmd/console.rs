@@ -3,10 +3,13 @@ mod constants;
 #[cfg(feature = "hotpath")]
 pub mod demo;
 mod events;
+mod exit_hint;
 mod http_worker;
 mod input;
 mod views;
 mod widgets;
+
+use std::time::Instant;
 
 use app::App;
 use clap::Parser;
@@ -65,10 +68,17 @@ impl ConsoleArgs {
         let mut terminal = ratatui::init();
         enable_mouse_capture();
 
+        let started = Instant::now();
         let app_result = app.run(&mut terminal);
 
         disable_mouse_capture();
         ratatui::restore();
+
+        exit_hint::maybe_print(exit_hint::Session {
+            duration: started.elapsed(),
+            ended_cleanly: app_result.is_ok(),
+            received_data: app.last_successful_fetch.is_some(),
+        });
 
         app_result.map_err(|e| eyre::eyre!("TUI error: {}", e))
     }
