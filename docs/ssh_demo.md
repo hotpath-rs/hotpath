@@ -70,6 +70,8 @@ WantedBy=multi-user.target
 PORT=$((RANDOM % 16384 + 49152))
 export HOTPATH_METRICS_PORT="$PORT"
 export HOTPATH_DISABLE_SAMPLY_LOAD=1
+export HOTPATH_DISABLE_HINTS=1
+export HOTPATH_DISABLE_TUI_HINTS=1
 export HOTPATH_SAMPLY_WRAPPER_BIN="/root/.cargo/bin/samply"
 export HOTPATH_SAMPLY_BIN="/root/.cargo/bin/hotpath-samply"
 exec /usr/local/bin/hotpath console --metrics-port "$PORT"
