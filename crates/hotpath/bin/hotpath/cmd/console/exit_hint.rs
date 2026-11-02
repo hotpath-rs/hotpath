@@ -13,7 +13,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 const MIN_SESSION: Duration = Duration::from_secs(120);
 /// Percentage of otherwise eligible sessions that show the hint.
 const CHANCE_PERCENT: u64 = 20;
-const COOLDOWN: Duration = Duration::from_secs(30 * 24 * 60 * 60);
+/// Minimum gap between two impressions; only an actual impression restarts it.
+const COOLDOWN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 const MAX_IMPRESSIONS: u32 = 3;
 
 const MESSAGE: &str = concat!(
@@ -103,14 +104,15 @@ struct Env {
     ci: bool,
 }
 
-/// Returns the state to persist if the hint should be shown. `roll` yields a
-/// value in `0..100` and is called at most once, only after every
-/// deterministic check passed.
+/// Returns the state to persist if the hint should be shown. The cheap
+/// session/environment checks run first; only then is `load` called to read
+/// the persisted state, and only after that passes is `roll` (a value in
+/// `0..100`) called. Both closures run at most once.
 fn decide(
     session: Session,
     env: Env,
-    state: State,
     now: u64,
+    load: impl FnOnce() -> State,
     roll: impl FnOnce() -> u64,
 ) -> Option<State> {
     let eligible = !env.disabled
@@ -118,9 +120,12 @@ fn decide(
         && !env.ci
         && session.ended_cleanly
         && session.received_data
-        && session.duration >= MIN_SESSION
-        && state.allows(now);
-    (eligible && roll() < CHANCE_PERCENT).then(|| state.after_impression(now))
+        && session.duration >= MIN_SESSION;
+    if !eligible {
+        return None;
+    }
+    let state = load();
+    (state.allows(now) && roll() < CHANCE_PERCENT).then(|| state.after_impression(now))
 }
 
 /// Called exactly once, after `ratatui::restore()`. Never fails.
@@ -136,8 +141,7 @@ pub(crate) fn maybe_print(session: Session) {
     let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) else {
         return;
     };
-    let state = load(&path);
-    let Some(next) = decide(session, env, state, now.as_secs(), random_percent) else {
+    let Some(next) = decide(session, env, now.as_secs(), || load(&path), random_percent) else {
         return;
     };
     // Persist first: if the impression cannot be recorded, stay silent rather
@@ -245,26 +249,22 @@ mod tests {
     #[test]
     fn eligible_session_follows_the_random_roll() {
         assert_eq!(
-            decide(session(), env(), State::default(), NOW, || HIT),
+            decide(session(), env(), NOW, State::default, || HIT),
             Some(shown(NOW, 1))
         );
         assert_eq!(
-            decide(session(), env(), State::default(), NOW, || CHANCE_PERCENT
-                - 1),
+            decide(session(), env(), NOW, State::default, || CHANCE_PERCENT - 1),
             Some(shown(NOW, 1))
         );
         assert_eq!(
-            decide(session(), env(), State::default(), NOW, || CHANCE_PERCENT),
+            decide(session(), env(), NOW, State::default, || CHANCE_PERCENT),
             None
         );
-        assert_eq!(
-            decide(session(), env(), State::default(), NOW, || MISS),
-            None
-        );
+        assert_eq!(decide(session(), env(), NOW, State::default, || MISS), None);
     }
 
     #[test]
-    fn ineligible_sessions_never_roll() {
+    fn ineligible_sessions_skip_state_and_roll() {
         let short = Session {
             duration: MIN_SESSION - std::time::Duration::from_millis(1),
             ..session()
@@ -295,32 +295,56 @@ mod tests {
             (session(), disabled),
         ];
         for (session, env) in cases {
+            let loaded = Cell::new(false);
             let rolled = Cell::new(false);
-            let decision = decide(session, env, State::default(), NOW, || {
-                rolled.set(true);
-                HIT
-            });
+            let decision = decide(
+                session,
+                env,
+                NOW,
+                || {
+                    loaded.set(true);
+                    State::default()
+                },
+                || {
+                    rolled.set(true);
+                    HIT
+                },
+            );
             assert_eq!(decision, None, "{session:?} {env:?}");
+            assert!(!loaded.get(), "loaded state for {session:?} {env:?}");
             assert!(!rolled.get(), "rolled for {session:?} {env:?}");
         }
     }
 
     #[test]
-    fn cooldown_is_thirty_days() {
-        assert_eq!(COOLDOWN.as_secs(), 30 * DAY);
-        let last = NOW - 30 * DAY;
+    fn cooldown_is_seven_days() {
+        assert_eq!(COOLDOWN.as_secs(), 7 * DAY);
+        let last = NOW - 7 * DAY;
         assert_eq!(
-            decide(session(), env(), shown(last + 1, 1), NOW, || HIT),
+            decide(session(), env(), NOW, || shown(last + 1, 1), || HIT),
             None
         );
         assert_eq!(
-            decide(session(), env(), shown(last, 1), NOW, || HIT),
+            decide(session(), env(), NOW, || shown(last, 1), || HIT),
             Some(shown(NOW, 2))
         );
         // A timestamp from the future (clock moved back) keeps the cooldown active.
         assert_eq!(
-            decide(session(), env(), shown(NOW + DAY, 1), NOW, || HIT),
+            decide(session(), env(), NOW, || shown(NOW + DAY, 1), || HIT),
             None
+        );
+    }
+
+    #[test]
+    fn only_an_impression_restarts_the_cooldown() {
+        let state = shown(NOW - 7 * DAY, 1);
+        // A failed roll yields nothing to persist, so the stored state is untouched.
+        assert_eq!(decide(session(), env(), NOW, || state, || MISS), None);
+        // The next eligible session is still past the cooldown and, on a
+        // successful roll, records the impression.
+        assert_eq!(
+            decide(session(), env(), NOW + 60, || state, || HIT),
+            Some(shown(NOW + 60, 2))
         );
     }
 
@@ -331,8 +355,8 @@ mod tests {
             decide(
                 session(),
                 env(),
-                shown(long_ago, MAX_IMPRESSIONS - 1),
                 NOW,
+                || shown(long_ago, MAX_IMPRESSIONS - 1),
                 || HIT
             ),
             Some(shown(NOW, MAX_IMPRESSIONS))
@@ -341,8 +365,8 @@ mod tests {
             decide(
                 session(),
                 env(),
-                shown(long_ago, MAX_IMPRESSIONS),
                 NOW,
+                || shown(long_ago, MAX_IMPRESSIONS),
                 || HIT
             ),
             None
@@ -351,10 +375,10 @@ mod tests {
 
     #[test]
     fn shown_at_most_once_per_session() {
-        let first = decide(session(), env(), State::default(), NOW, || HIT)
+        let first = decide(session(), env(), NOW, State::default, || HIT)
             .expect("first evaluation shows the hint");
         // Re-evaluating with the recorded state at the same instant is blocked.
-        assert_eq!(decide(session(), env(), first, NOW, || HIT), None);
+        assert_eq!(decide(session(), env(), NOW, || first, || HIT), None);
     }
 
     #[test]
