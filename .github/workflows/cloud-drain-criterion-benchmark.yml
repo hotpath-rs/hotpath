@@ -18,10 +18,6 @@ jobs:
   upload:
     name: cloud drain criterion benchmark (upload)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    # Instruction counts depend on the Valgrind build (`tool`). A report with
-    # a different one is still compared, but under an environment-mismatch
-    # alert that cannot fail the check, so the image and the Valgrind build are
-    # pinned to keep the verdicts trustworthy: an upgrade is a deliberate bump.
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 20
     permissions:

@@ -22,10 +22,6 @@ jobs:
   upload:
     name: cloud drain benchmark (push)
     if: github.event_name == 'push'
-    # Instruction counts depend on the Valgrind build (`tool`). A report with
-    # a different one is still compared, but under an environment-mismatch
-    # alert that cannot fail the check, so the image and the package are
-    # pinned to keep the verdicts trustworthy: an upgrade is a deliberate bump.
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
@@ -87,10 +83,6 @@ jobs:
   report:
     name: cloud drain benchmark (pull request)
     if: github.event_name == 'pull_request'
-    # Instruction counts depend on the Valgrind build (`tool`). A report with
-    # a different one is still compared, but under an environment-mismatch
-    # alert that cannot fail the check, so the image and the package are
-    # pinned to keep the verdicts trustworthy: an upgrade is a deliberate bump.
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
