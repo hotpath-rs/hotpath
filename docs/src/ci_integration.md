@@ -43,7 +43,7 @@ There are two ways to wire the workflow, depending on where pull requests come f
 
 The fork setup also handles pull requests from the same repository, so a project that accepts both needs only that one.
 
-Both setups run the benchmark in **merged** mode (native timing + Callgrind instruction counts in one report), the recommended mode on Linux runners, x86_64 and ARM64 (ARM64 needs a patched Valgrind, see [ARM64 runners](#arm64-runners)). One build runs twice: natively, for timing, allocations and every other section, then under Valgrind's [Callgrind](callgrind.md), which adds instruction counts and uploads one merged report. Timing on shared runners is too noisy to judge small changes, while instruction counts are reproducible for a deterministic workload, so the counts are judged and the timing is shown next to them. Where Valgrind cannot run the benchmark, use [native mode](#native); [Profiling modes](#profiling-modes) compares the modes.
+Both setups run the benchmark in **merged** mode (native timing + Callgrind instruction counts in one report), the recommended mode on Linux runners, x86_64 and ARM64 (ARM64 is highly experimental and needs a patched Valgrind, see [ARM64 runners](#arm64-runners)). One build runs twice: natively, for timing, allocations and every other section, then under Valgrind's [Callgrind](callgrind.md), which adds instruction counts and uploads one merged report. Timing on shared runners is too noisy to judge small changes, while instruction counts are reproducible for a deterministic workload, so the counts are judged and the timing is shown next to them. Where Valgrind cannot run the benchmark, use [native mode](#native); [Profiling modes](#profiling-modes) compares the modes.
 
 ## Pull requests from the same repository
 
@@ -356,7 +356,7 @@ The push job takes the variables of the [same-repository setup](#environment-var
 
 Merged mode needs:
 
-- a Linux runner, x86_64 or ARM64; on ARM64, the patched Valgrind and hotpath `0.31.0` or newer, see [ARM64 runners](#arm64-runners);
+- a Linux runner, x86_64 or ARM64; on ARM64 (highly experimental), the patched Valgrind and hotpath `0.31.0` or newer, see [ARM64 runners](#arm64-runners);
 - a CPU-bound workload: its time goes into computation, not into network, disk, sleeps, timers or a database service, and it is not dominated by many threads racing each other (Valgrind serializes threads, so their interleaving moves the counts);
 - the code to judge in functions with `#[hotpath::measure]` (or `measure_all`): `measure_block!` blocks are not counted;
 - a `[profile.release]` that keeps symbols (no `strip = true` or `"symbols"`);
@@ -369,17 +369,19 @@ The workflows of both setups above. The judged instruction counts are configured
 
 ### ARM64 runners
 
+> **Warning: ARM64 support is highly experimental.** Instruction counts on ARM64 come from hotpath's own Valgrind fork, a proof of concept that is likely to return invalid results. Treat ARM64 counts as an experiment, not as a basis for decisions, and run Callgrind on x86_64 Linux for counts you rely on.
+
 The workflows above run on x86_64 (`ubuntu-26.04`), where Ubuntu's Valgrind package counts correctly. Merged mode also runs on ARM64 Linux runners, with these changes to every job that runs the benchmark (the same-repository job, and both the `upload` and `report` jobs of the fork setup):
 
 ```yaml
     runs-on: ubuntu-26.04-arm
     env:
-      HOTPATH_USER_METADATA: runner=Linux-ARM64,toolchain=1.99.0,profile=release,valgrind=3.28.0.hotpath-rs
+      HOTPATH_USER_METADATA: runner=Linux-ARM64,toolchain=1.99.0,profile=release,valgrind=3.28.0.hotpath-rs-2
     steps:
       # replaces the `Install valgrind` apt step
-      - uses: hotpath-rs/setup-valgrind@v1.0.0
+      - uses: hotpath-rs/setup-valgrind@v1.1.0
         with:
-          version: 3.28.0.hotpath-rs
+          version: 3.28.0.hotpath-rs-2
 ```
 
 Everything else stays as in the x86_64 workflows: one build, the native run, the Callgrind run with `HOTPATH_MERGE_REPORT`, the `test -s` and `jq` checks. Why the Valgrind step changes: because of a bug, Valgrind counts instructions incorrectly on ARM64, so [Callgrind](callgrind.md#arm64-linux) there needs the patched build from [hotpath-rs/valgrind](https://github.com/hotpath-rs/valgrind), installed by [hotpath-rs/setup-valgrind](https://github.com/hotpath-rs/setup-valgrind). hotpath.rs refuses ARM64 instruction counts from any other build, so changing only `runs-on` gives a rejected upload (see [troubleshooting](#troubleshooting)).
@@ -522,6 +524,6 @@ An alternative for several scenarios of one program is a single benchmark workfl
 | `merge failed: the native report has no timing to merge ...` | The native run had function timing off: a sampling rate of `0`, or timing left out of `HOTPATH_REPORT`. |
 | `upload failed: the report is ... bytes, over the 5 MiB ... limit of hotpath.rs` | The report is too large to upload, and is never cut to fit. Measure fewer functions or split the benchmark. The relay reports the same limit as an `::error::`. |
 | The `jq` check fails although the upload succeeded | The stored report is not merged: `HOTPATH_MERGE_REPORT` is missing on the Callgrind step, or the native run wrote no timing. |
-| `upload failed: Callgrind version ... is not supported on ARM64 because of a known instruction-counting bug ... (HTTP 400)`, or relay: `hotpath.rs rejected the report (HTTP 400): ...` with that sentence | The job runs on an ARM64 runner with a Valgrind build other than `3.28.0.hotpath-rs` (for example Ubuntu's package, after changing only `runs-on`). hotpath.rs refuses the report before comparing it. Replace the apt step with `hotpath-rs/setup-valgrind` as in [ARM64 runners](#arm64-runners), in every job that runs the benchmark. |
+| `upload failed: Callgrind version ... is not supported on ARM64 because of a known instruction-counting bug ... (HTTP 400)`, or relay: `hotpath.rs rejected the report (HTTP 400): ...` with that sentence | The job runs on an ARM64 runner with a Valgrind build other than the patched `hotpath-rs` builds (for example Ubuntu's package, after changing only `runs-on`). hotpath.rs refuses the report before comparing it. Replace the apt step with `hotpath-rs/setup-valgrind` as in [ARM64 runners](#arm64-runners), in every job that runs the benchmark. |
 | `upload failed: functions_icount.tool is missing: instruction counts on linux-aarch64 are only accepted from a Callgrind build without the known ARM64 instruction-counting bug ... (HTTP 400)` | An ARM64 report carries instruction counts without the Valgrind version that produced them, so hotpath.rs cannot tell it was the patched build and refuses it. Produce the report with a current `hotpath` release under the patched Valgrind, see [ARM64 runners](#arm64-runners). |
 | The comment reads `functions_icount: environment mismatch (...); compared anyway, changes may come from the environment and never fail the check` | The two reports come from a different Valgrind version, `rustc` or OS (or one side records no Valgrind version). The counts were compared and judged anyway, but the alert marks the result as unreliable and the section's regressions cannot fail the check. Pin all three; after a deliberate bump (or a move between architectures), the next push to the default branch uploads a comparable baseline and the alert goes away. |

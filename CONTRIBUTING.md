@@ -191,7 +191,7 @@ separate private repository and is not part of this repo.
 
 ## CI checks
 
-CI runs on `ubuntu-latest` against Rust `1.89`, `stable`, and `nightly`. The Callgrind tests (`callgrind-linux` job in `.github/workflows/ci.yml`) run as a matrix over x86_64 (`ubuntu-26.04`, Ubuntu's pinned `valgrind` package) and aarch64 (`ubuntu-26.04-arm`, the patched `3.28.0.hotpath-rs` build from `hotpath-rs/setup-valgrind`). You can run the same checks locally:
+CI runs on `ubuntu-latest` against Rust `1.89`, `stable`, and `nightly`. The Callgrind tests (`callgrind-linux` job in `.github/workflows/ci.yml`) run as a matrix over x86_64 (`ubuntu-26.04`, Ubuntu's pinned `valgrind` package) and aarch64 (`ubuntu-26.04-arm`, the patched `3.28.0.hotpath-rs-2` build from `hotpath-rs/setup-valgrind`, experimental). You can run the same checks locally:
 
 ### Compilation checks
 

@@ -8,7 +8,7 @@ Instruction counts are highly reproducible for deterministic workloads, making t
 
 **Platform support:** x86_64 and aarch64 Linux. On other platforms, the feature compiles but falls back to the standard timing report. Instruction counts are comparable only within one architecture: the same code executes a different number of instructions on x86_64 and aarch64.
 
-On aarch64, a Valgrind bug makes it count instructions incorrectly, so a patched build is required, see [ARM64 Linux](#arm64-linux).
+On aarch64, a Valgrind bug makes it count instructions incorrectly, so a patched build is required, see [ARM64 Linux](#arm64-linux). ARM64 support is highly experimental and likely to return invalid counts: use x86_64 for counts you rely on.
 
 ## Running under Callgrind
 
@@ -37,17 +37,19 @@ Ubuntu's own Valgrind package counts correctly; pin its version so counts stay c
 
 ### ARM64 Linux
 
+> **Warning: ARM64 support is highly experimental.** Instruction counts on ARM64 come from hotpath's own Valgrind fork, a proof of concept that is likely to return invalid results. Treat ARM64 counts as an experiment, not as a basis for decisions, and run Callgrind on x86_64 Linux for counts you rely on.
+
 Because of a bug, Valgrind counts instructions incorrectly on ARM64. Use the patched build from [hotpath-rs/valgrind](https://github.com/hotpath-rs/valgrind/releases), an unofficial fork not affiliated with the Valgrind project, until the fix is upstream. In GitHub Actions, [hotpath-rs/setup-valgrind](https://github.com/hotpath-rs/setup-valgrind) installs it; pin the action and the version:
 
 ```yaml
     runs-on: ubuntu-26.04-arm
     steps:
-      - uses: hotpath-rs/setup-valgrind@v1.0.0
+      - uses: hotpath-rs/setup-valgrind@v1.1.0
         with:
-          version: 3.28.0.hotpath-rs
+          version: 3.28.0.hotpath-rs-2
 ```
 
-hotpath.rs accepts ARM64 instruction counts only from this build (`functions_icount.tool` of `callgrind-3.28.0.hotpath-rs`) and refuses others at upload. ARM64 support needs hotpath `0.31.0` or newer. [CI integration](./ci_integration.md#arm64-runners) has the full workflow changes for ARM64 runners.
+hotpath.rs accepts ARM64 instruction counts only from the fork's builds (a `functions_icount.tool` such as `callgrind-3.28.0.hotpath-rs-2`) and refuses others at upload. ARM64 support needs hotpath `0.31.0` or newer. [CI integration](./ci_integration.md#arm64-runners) has the full workflow changes for ARM64 runners.
 
 Under Valgrind, hotpath does not report timing, to avoid confusing it with real durations: Callgrind's instrumentation slows execution down substantially, potentially by tens of times or more, so measured times are meaningless. The `icount` (instruction count) report replaces the timing report:
 
@@ -124,7 +126,7 @@ Counts are reproducible for deterministic workloads, closely but not guaranteed 
 
 ## Comparing runs
 
-Counts depend on the Valgrind version, the Rust toolchain and the target, so compare counts produced by the same three. The JSON report records the Valgrind build in the section's `tool` field (e.g. `callgrind-3.26.0`, or `callgrind-3.28.0.hotpath-rs` for the patched ARM64 build) and the toolchain and OS in `meta`. hotpath.rs compares two reports that differ in any of them anyway, but marks the section with an `environment mismatch` alert on the comment and every view, and its regressions never fail the pull request check, since the changes may come from the environment and not the code; pinning all three in CI, as the [CI integration](./ci_integration.md#profiling-modes) workflows do, is what makes a verdict trustworthy. x86_64 and ARM64 counts are never comparable: a benchmark moved between architectures is compared with its old baseline under that alert until the default branch uploads a new one. Pin the rest of the runtime environment and dependencies too: libc versions, compiler flags and CPU-specific code paths can all change counts. Counts may differ between local and CI environments, even for the same commit.
+Counts depend on the Valgrind version, the Rust toolchain and the target, so compare counts produced by the same three. The JSON report records the Valgrind build in the section's `tool` field (e.g. `callgrind-3.26.0`, or `callgrind-3.28.0.hotpath-rs-2` for the patched ARM64 build) and the toolchain and OS in `meta`. hotpath.rs compares two reports that differ in any of them anyway, but marks the section with an `environment mismatch` alert on the comment and every view, and its regressions never fail the pull request check, since the changes may come from the environment and not the code; pinning all three in CI, as the [CI integration](./ci_integration.md#profiling-modes) workflows do, is what makes a verdict trustworthy. x86_64 and ARM64 counts are never comparable: a benchmark moved between architectures is compared with its old baseline under that alert until the default branch uploads a new one. Pin the rest of the runtime environment and dependencies too: libc versions, compiler flags and CPU-specific code paths can all change counts. Counts may differ between local and CI environments, even for the same commit.
 
 ## Cloud CI
 
