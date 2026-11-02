@@ -15,7 +15,7 @@ const MIN_SESSION: Duration = Duration::from_secs(120);
 const CHANCE_PERCENT: u64 = 20;
 /// Minimum gap between two impressions; only an actual impression restarts it.
 const COOLDOWN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
-const MAX_IMPRESSIONS: u32 = 3;
+const MAX_IMPRESSIONS: u32 = 5;
 
 const MESSAGE: &str = concat!(
     "Enjoying hotpath? A GitHub star helps others discover it:\n",
@@ -349,7 +349,8 @@ mod tests {
     }
 
     #[test]
-    fn stops_after_three_impressions() {
+    fn stops_after_five_impressions() {
+        assert_eq!(MAX_IMPRESSIONS, 5);
         let long_ago = NOW - 365 * DAY;
         assert_eq!(
             decide(
