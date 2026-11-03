@@ -12,6 +12,10 @@ jobs:
     name: test ${{ matrix.rust }}
     runs-on: windows-latest
     timeout-minutes: 18
+    env:
+      # Line tables keep file:line in backtraces at a fraction of the
+      # size of full debug info, so more caches fit in the repo limit.
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +30,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.rust }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Build default features
         run: cargo build
       - name: Build with hotpath feature
