@@ -23,9 +23,6 @@ jobs:
   upload:
     name: cloud meta benchmark (push)
     if: github.event_name == 'push'
-    # Instruction counts depend on the Valgrind build, and reports only compare
-    # within one (`tool`), so the image and the package are pinned: an upgrade
-    # is a deliberate bump, not a silent gap in verdicts.
     runs-on: ubuntu-26.04
     # Callgrind runs the whole benchmark tens of times slower than natively.
     timeout-minutes: 60
@@ -90,9 +87,6 @@ jobs:
   report:
     name: cloud meta benchmark (pull request)
     if: github.event_name == 'pull_request'
-    # Instruction counts depend on the Valgrind build, and reports only compare
-    # within one (`tool`), so the image and the package are pinned: an upgrade
-    # is a deliberate bump, not a silent gap in verdicts.
     runs-on: ubuntu-26.04
     # Callgrind runs the whole benchmark tens of times slower than natively.
     timeout-minutes: 60
