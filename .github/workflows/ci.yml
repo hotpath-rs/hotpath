@@ -11,8 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      # Line tables keep file:line in backtraces at a fraction of the
-      # size of full debug info, so more caches fit in the repo limit.
       CARGO_PROFILE_DEV_DEBUG: line-tables-only
     strategy:
       fail-fast: false
@@ -101,8 +99,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      # Line tables keep file:line in backtraces at a fraction of the
-      # size of full debug info, so more caches fit in the repo limit.
       CARGO_PROFILE_DEV_DEBUG: line-tables-only
     strategy:
       fail-fast: false
@@ -182,8 +178,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      # Line tables keep file:line in backtraces at a fraction of the
-      # size of full debug info, so more caches fit in the repo limit.
       CARGO_PROFILE_DEV_DEBUG: line-tables-only
     strategy:
       fail-fast: false
@@ -245,8 +239,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 18
     env:
-      # Line tables keep file:line in backtraces at a fraction of the
-      # size of full debug info, so more caches fit in the repo limit.
       CARGO_PROFILE_DEV_DEBUG: line-tables-only
     # Images are copied to GHCR by mirror-ci-images.yml (weekly, or run it manually)
     services:
