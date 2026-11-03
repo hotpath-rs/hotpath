@@ -37,8 +37,6 @@ jobs:
           echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
         with:
-          # Shared by both jobs: they build the same binary, and only the push job
-          # runs on main, where caches are saved.
           shared-key: cloud-random-benchmark
           save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
@@ -93,8 +91,6 @@ jobs:
           echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
         with:
-          # Shared by both jobs: they build the same binary, and only the push job
-          # runs on main, where caches are saved.
           shared-key: cloud-random-benchmark
           save-if: ${{ github.ref == 'refs/heads/main' }}
           cache-on-failure: true
