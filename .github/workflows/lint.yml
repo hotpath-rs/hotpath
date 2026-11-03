@@ -18,6 +18,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: lint
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - uses: taiki-e/install-action@cargo-audit
       - uses: taiki-e/install-action@cargo-hack
       - name: Fmt

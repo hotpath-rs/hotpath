@@ -22,5 +22,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: miri
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Run miri
         run: cargo +nightly miri test -p hotpath-drain

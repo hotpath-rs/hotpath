@@ -10,6 +10,8 @@ jobs:
     name: checks ${{ matrix.rust }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +28,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.rust }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Check no features
         run: |
           cargo check
@@ -94,6 +98,8 @@ jobs:
     name: core tests ${{ matrix.rust }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     strategy:
       fail-fast: false
       matrix:
@@ -110,6 +116,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.rust }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Run guards tests
         run: |
           cargo test --features hotpath --test guards -- --nocapture --test-threads=1
@@ -169,6 +177,8 @@ jobs:
     name: channels & locks tests ${{ matrix.rust }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     strategy:
       fail-fast: false
       matrix:
@@ -185,6 +195,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.rust }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Run channels crossbeam tests
         run: |
           cargo test --features hotpath --test channels_crossbeam -- --nocapture --test-threads=1
@@ -226,6 +238,8 @@ jobs:
     name: integration tests ${{ matrix.rust }}
     runs-on: ubuntu-latest
     timeout-minutes: 18
+    env:
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     # Images are copied to GHCR by mirror-ci-images.yml (weekly, or run it manually)
     services:
       postgres:
@@ -266,6 +280,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.rust }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Run prometheus tests
         run: |
           cargo test --features hotpath-prometheus --test prometheus_metrics -- --nocapture --test-threads=1
@@ -335,6 +351,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: macos-cpu
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Download samply binary from release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -363,6 +381,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: linux-cpu
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Enable perf_event access
         run: |
           echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid
@@ -408,6 +428,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: linux-callgrind-${{ matrix.arch }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Install valgrind
         if: matrix.arch == 'x86_64'
         run: |
