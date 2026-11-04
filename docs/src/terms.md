@@ -6,7 +6,7 @@ hotpath-cloud collects a minimum amount of user data needed to work correctly. D
 
 Individual users' personally identifiable data stored on our servers consists of their GitHub identifier, login, email address and avatar, together with the GitHub authorization tokens used to check which repositories they can access.
 
-Reports of a repository marked as public on the dashboard are readable by anyone with the link, without logging in. Reports of any other repository are readable only by GitHub users with push access to it.
+Reports of a repository marked as public on the dashboard are readable by anyone with the link, without logging in. Reports of any other private repository are readable only by GitHub users who can read the repository, and reports of any other public repository only by GitHub users with push access to it.
 
 Network access logs with IP addresses of the website visitors are stored for maintenance purposes. They are permanently removed after 30 days.
 
@@ -18,7 +18,7 @@ We use Ahrefs Web Analytics to collect anonymized website visits data on the doc
 
 The service is hosted on Amazon Web Services in the United States (us-east-1), behind Cloudflare.
 
-We process your account data because it is necessary to provide the service to you, and access logs based on our legitimate interest in operating and securing the service.
+We process your account and connection data because it is necessary to provide the service to you, and access logs based on our legitimate interest in operating and securing the service.
 
 You have the right to access, correct, delete or receive a copy of your personal data, and to restrict or object to its processing. You may also lodge a complaint with a competent data protection authority.
 
@@ -30,6 +30,18 @@ PabloWeb Paweł Urbanek\
 Okopowa 109/27\
 91-849, Łódź, Poland\
 VAT EU PL7282665486
+
+### Connected applications
+
+You can connect applications that support the Model Context Protocol (MCP), such as ChatGPT or Claude, to hotpath-cloud. A connection is made only when you approve it on the hotpath.rs consent page, which names the application and what it may do. A connected application can then use the hotpath MCP tools to read the performance reports, diffs and policies of the repositories you can read yourself, under the same access rules as the dashboard. It cannot change anything.
+
+Connected applications receive only credentials issued by hotpath. Your GitHub authorization tokens are never shared with them. Data is sent to an application only in answer to a request it makes, and is then handled under that application's own privacy policy.
+
+For each connection we store the application's identifier and name, the granted permission, when the connection was created and last used, and cryptographic hashes of its authorization codes and access and refresh tokens. While you approve a connection we also briefly store the pending authorization request: the application, the address to return to and its security parameters. These records are linked to your account, so they are personal data even though the credentials are stored only as hashes. We keep them to authorize and manage your connections securely.
+
+You can see and revoke your connections on the dashboard. Revoking a connection takes effect immediately and deletes its tokens, but it does not erase data the application has already received; for that, contact the application's provider.
+
+Authorization requests, codes and tokens are short-lived and deleted automatically once they expire. A connection in regular use stays authorized until you revoke it. One unused for 90 days, with no valid tokens left, is deleted.
 
 ## Terms of Service
 
