@@ -162,14 +162,15 @@ Pin the Rust toolchain to an exact version in every job that builds the benchmar
 
 For a Criterion benchmark, adapt every job that builds and runs it the same way, in both profiling modes and both setups:
 
-- Run the benchmark with `cargo bench` in every step, never its binary directly: Cargo finds the binary, whose file name carries a hash. Put the Cargo arguments in one job-level `env` entry, so every step uses the same build:
+- Prefer `cargo bench` for Criterion benchmarks: it finds the benchmark binary, whose file name carries a hash, reuses one build for every run and starts the binary under the runner you set. Put the Cargo arguments in one job-level `env` entry, so every step uses the same build:
 
   ```yaml
   env:
     BENCH_ARGS: -p <crate> --bench <name> --features <features>
   ```
 
-  Build with `cargo bench $BENCH_ARGS --no-run` in place of the `cargo build` line (in native mode, in place of `cargo run`), and run with `cargo bench $BENCH_ARGS -- --test --exact <id>` in place of each binary path. `cargo bench` builds with the `bench` profile, which inherits `release`.
+  Build with `cargo bench $BENCH_ARGS --no-run` in place of the `cargo build` line (in native mode, in place of `cargo run`), and run with `cargo bench $BENCH_ARGS -- --test --exact <id>` in place of each binary path. `cargo bench` builds with the `bench` profile (inherits `release`), so write `profile=bench` into `HOTPATH_USER_METADATA`, or the profile `--profile` names.
+- Run the binary directly instead only when `cargo bench` cannot start it the way the benchmark needs: the benchmark reads files relative to a working directory other than its package directory, or the project already needs a Cargo runner of its own (an emulator or wrapper) that Valgrind's would replace. Then build with `cargo bench $BENCH_ARGS --no-run --message-format=json`, take the path from `jq -r 'select(.reason == "compiler-artifact" and (.target.kind | index("bench"))) | .executable'` (the package's other binaries are listed too, so keep the `bench` filter), pass it to the run steps as a step output, and run `<path> --bench --test --exact <id>` natively and after the `valgrind ...` prefix, from the directory the benchmark needs.
 - In the Callgrind step, drop the `valgrind ...` prefix and set Valgrind as Cargo's runner on the step instead, with the same arguments: `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=${{ runner.temp }}/callgrind.out.%p` on x86_64, `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER` with the same value on ARM64. Keep `HOTPATH_CALLGRIND_OUT_FILE` equal to its `--callgrind-out-file`. Use the target-specific variable, never `target.'cfg(...)'.runner`: it takes precedence over a runner the project's own Cargo config sets, which a `cfg` runner silently loses to or conflicts with.
 - Cargo starts the benchmark in its package directory, not the repository root. hotpath finds the git root and the policy file above it, but relative paths resolve there: make every `HOTPATH_OUTPUT_PATH` absolute (`${{ github.workspace }}/report.json` in the forks setup's `report` job, where the artifact upload reads it), and point the `test -s` and `jq` checks at the same path.
 - Add `HOTPATH_CRITERION_ITERATIONS` with the count from step 2 to the job-level `env`, so every run executes the same iterations.
