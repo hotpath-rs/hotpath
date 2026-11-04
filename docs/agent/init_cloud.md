@@ -162,16 +162,16 @@ Pin the Rust toolchain to an exact version in every job that builds the benchmar
 
 For a Criterion benchmark, adapt every job that builds and runs it the same way, in both profiling modes and both setups:
 
-- Build the bench target and take the binary path from Cargo's JSON output, since its file name carries a hash:
+- Run the benchmark with `cargo bench` in every step, never its binary directly: Cargo finds the binary, whose file name carries a hash. Put the Cargo arguments in one job-level `env` entry, so every step uses the same build:
 
-  ```bash
-  bin=$(cargo build -q --release --bench <name> --features <features> --message-format=json \
-    | jq -r 'select(.reason == "compiler-artifact" and (.target.kind | index("bench"))) | .executable')
-  test -x "$bin"
+  ```yaml
+  env:
+    BENCH_ARGS: -p <crate> --bench <name> --features <features>
   ```
 
-  Pass `bin` to the run steps as a step output (`echo "bin=$bin" >> "$GITHUB_OUTPUT"`). In native mode, use the same build step in place of `cargo run`.
-- Run the binary with `--bench --test --exact <id>` in every run step, natively and under Callgrind.
+  Build with `cargo bench $BENCH_ARGS --no-run` in place of the `cargo build` line (in native mode, in place of `cargo run`), and run with `cargo bench $BENCH_ARGS -- --test --exact <id>` in place of each binary path. `cargo bench` builds with the `bench` profile, which inherits `release`.
+- In the Callgrind step, drop the `valgrind ...` prefix and set Valgrind as Cargo's runner on the step instead, with the same arguments: `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=${{ runner.temp }}/callgrind.out.%p` on x86_64, `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER` with the same value on ARM64. Keep `HOTPATH_CALLGRIND_OUT_FILE` equal to its `--callgrind-out-file`. Use the target-specific variable, never `target.'cfg(...)'.runner`: it takes precedence over a runner the project's own Cargo config sets, which a `cfg` runner silently loses to or conflicts with.
+- Cargo starts the benchmark in its package directory, not the repository root. hotpath finds the git root and the policy file above it, but relative paths resolve there: make every `HOTPATH_OUTPUT_PATH` absolute (`${{ github.workspace }}/report.json` in the forks setup's `report` job, where the artifact upload reads it), and point the `test -s` and `jq` checks at the same path.
 - Add `HOTPATH_CRITERION_ITERATIONS` with the count from step 2 to the job-level `env`, so every run executes the same iterations.
 - In merged mode, add `and .meta.criterion.benchmark == "<id>"` to the `jq` check; `meta.criterion` needs hotpath `0.31.0` or newer, so upgrade an older version as the version rules under "Documentation" say. The native workflow has no such check; do not add one.
 
@@ -248,7 +248,7 @@ jq '{benchmark: .meta.benchmark, policy: .meta.policy.path, run: .meta.run}' "$v
 
 For merged mode, add `hotpath-callgrind` to `--features`: run natively, the same build prints the usual timing report.
 
-For a Criterion benchmark, build and run it as step 6 does in place of `cargo run` and `target/release/examples/my_benchmark`: the binary from `--message-format=json`, run with `--bench --test --exact <id>` and `HOTPATH_CRITERION_ITERATIONS` set in every run.
+For a Criterion benchmark, run it as step 6 does in place of `cargo run` and `target/release/examples/my_benchmark`: `cargo bench <args> -- --test --exact <id>` with the same arguments and `HOTPATH_CRITERION_ITERATIONS` set in every run, the Callgrind run with Valgrind as Cargo's runner (`CARGO_TARGET_<TRIPLE>_RUNNER`, the triple from `rustc -vV`) instead of the `valgrind` prefix, and absolute report paths.
 
 The report must name the benchmark and the policy file step 5 picked for it (`hotpath/<benchmark>-policy.toml` when that exists, otherwise `hotpath/policy.toml`). Run the benchmark twice and compare the function allocation totals: if they differ, the workload is not fixed, so fix that before relying on the comments.
 
