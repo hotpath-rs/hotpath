@@ -77,8 +77,6 @@ jobs:
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
           HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
           HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
-          # Cargo starts the benchmark under Valgrind. The target-specific
-          # runner takes precedence over any runner a Cargo config sets.
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=${{ runner.temp }}/callgrind.out.%p
         run: |
           cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
@@ -136,12 +134,9 @@ jobs:
       - name: Run drain criterion benchmark under Callgrind and write the merged report
         env:
           HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=bench,valgrind=3.28.0.hotpath-rs-2
-          # Absolute: Cargo starts the benchmark in the package directory.
           HOTPATH_META_OUTPUT_PATH: ${{ github.workspace }}/report.json
           HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
           HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
-          # Cargo starts the benchmark under Valgrind. The target-specific
-          # runner takes precedence over any runner a Cargo config sets.
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=${{ runner.temp }}/callgrind.out.%p
         run: |
           cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
