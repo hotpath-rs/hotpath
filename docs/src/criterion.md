@@ -139,20 +139,23 @@ lto = false
 strip = "none"
 ```
 
-Build once with it, then run the binary directly (Cargo prints its path):
+Run `cargo bench` twice with the same arguments, so both runs use the one build. The second run sets Valgrind as Cargo's runner, which starts the benchmark binary under Callgrind:
 
 ```bash
-cargo bench --profile hotpath --bench codec --features hotpath-alloc,hotpath-cloud,hotpath-callgrind --no-run
-BIN=target/hotpath/deps/codec-<hash>
-
+BENCH_ARGS="--profile hotpath --bench codec --features hotpath-alloc,hotpath-cloud,hotpath-callgrind"
 export HOTPATH_CRITERION_ITERATIONS=1000 HOTPATH_BENCHMARK=codec-decode HOTPATH_OUTPUT_FORMAT=json
 
-HOTPATH_OUTPUT_PATH=native.json $BIN --bench --test --exact codec/decode
+HOTPATH_OUTPUT_PATH="$PWD/native.json" \
+  cargo bench $BENCH_ARGS -- --test --exact codec/decode
 
-HOTPATH_OUTPUT_PATH=merged.json HOTPATH_MERGE_REPORT=native.json \
-  valgrind -q --tool=callgrind --instr-atstart=no \
-  $BIN --bench --test --exact codec/decode
+HOTPATH_OUTPUT_PATH="$PWD/merged.json" HOTPATH_MERGE_REPORT="$PWD/native.json" \
+  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind --instr-atstart=no" \
+  cargo bench $BENCH_ARGS -- --test --exact codec/decode
 ```
+
+On ARM64 the runner variable is `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER` (the target triple, from `rustc -vV`). The target-specific variable takes precedence over a runner your own Cargo config sets; a `target.'cfg(...)'.runner` would conflict with it or silently lose. Cargo starts the benchmark in its package directory, so the report paths are absolute; hotpath finds the git root and the policy file above that directory.
+
+If the benchmark reads files relative to another working directory, or your project needs a Cargo runner of its own, run the binary directly instead: `cargo bench $BENCH_ARGS --no-run` prints its path (`target/hotpath/deps/codec-<hash>`), and both runs execute that path with `--bench --test --exact codec/decode`, the Callgrind one after `valgrind -q --tool=callgrind --instr-atstart=no`.
 
 `merged.json` holds the native timing and allocations next to the instruction counts of `hotpath::criterion::routine` and every `#[hotpath::measure]` function, ready for upload with `HOTPATH_UPLOAD`. `measure_block!` blocks get no instruction counts, so measure the functions you want counted with `#[hotpath::measure]`.
 
