@@ -23,7 +23,7 @@ Do not commit unless the user asks. If they do and you upgraded hotpath, keep th
 
 | Page | Covers |
 |---|---|
-| https://hotpath.rs/agents_cli | install and authenticate, `repos`, `benchmarks`, `report`, `diff` (flags, JSON answer, how to read it), `validate-policy`, `init`, output and exit codes |
+| https://hotpath.rs/agents_cli | install and authenticate, `repos`, `benchmarks`, `report`, `reports` (history and filters), `diff` (flags, JSON answer, how to read it), `validate-policy`, `init`, output and exit codes |
 | https://hotpath.rs/regression_policy | the policy file: which file a run uses, sections, keys, the pull request comment and check |
 | https://hotpath.rs/performance_budgets | budget rules, units, broken budgets |
 | https://hotpath.rs/ci_integration | the CI workflow that uploads reports, "Profiling modes" (merged, native, Callgrind only), troubleshooting uploads |
@@ -57,7 +57,7 @@ Branch on the exit code, then read the JSON ("Output and exit codes"). Do not pa
 
 4. Exit `0`: done, report the verdict and `dashboard_url` to the user. Exit `1`: read the regressions and broken budgets, fix the code, and repeat from step 1.
 
-`--pr N` or `--id ID` select a report instead of `--commit`; `--advisory` and `--full` widen what `diff` lists.
+`--pr N` or `--id ID` select a report instead of `--commit`; `--advisory` and `--full` widen what `diff` lists. To find earlier reports (a benchmark's history on the default branch, recent regressions, every report of a pull request), page through `hotpath cloud reports`.
 
 Useful extracts:
 

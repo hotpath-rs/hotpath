@@ -11,6 +11,7 @@ use std::sync::LazyLock;
 use std::time::Duration;
 
 use hotpath::json::cloud_api::API_URL;
+use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use serde::de::{DeserializeOwned, IgnoredAny};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -19,6 +20,13 @@ pub(crate) const TOKENS_URL: &str = "https://hotpath.rs/app/tokens";
 const TIMEOUT: Duration = Duration::from_secs(30);
 /// Longest raw (unparseable) response body quoted in a message.
 const MAX_QUOTED_BODY: usize = 200;
+/// Every byte of a query value but RFC 3986's unreserved ones is
+/// percent-encoded: a `+` of a time offset must not reach the server as a space.
+const QUERY_VALUE: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'.')
+    .remove(b'_')
+    .remove(b'~');
 
 /// `HOTPATH_API_TOKEN`, trimmed; `None` when unset or blank.
 static API_TOKEN: LazyLock<Option<String>> = LazyLock::new(|| {
@@ -169,6 +177,19 @@ impl Client {
         }
         Err(CliError::server(status, body.unwrap_or_default()))
     }
+}
+
+/// `path` with `params` as its query string, in order, each value
+/// percent-encoded; `path` alone without any. Keys are the caller's literals.
+pub(crate) fn with_query(path: &str, params: &[(&str, &str)]) -> String {
+    let mut url = path.to_string();
+    for (i, (key, value)) in params.iter().enumerate() {
+        url.push(if i == 0 { '?' } else { '&' });
+        url.push_str(key);
+        url.push('=');
+        url.extend(utf8_percent_encode(value, QUERY_VALUE));
+    }
+    url
 }
 
 /// A 2xx body of `url` parsed as `T`; a body that does not parse is an error,

@@ -83,6 +83,70 @@ hotpath cloud report --repo hotpath-rs/hotpath --benchmark drain --pr 604 --no-p
 
 A report that is not there yet answers `not_found` with exit code 1, so polling `report` until it exits 0 waits for CI's upload.
 
+### reports
+
+Lists a repository's stored reports, newest first. Each entry is one upload with the same fields as `report --no-payload`, so a pull request measured three times lists three reports:
+
+```bash
+hotpath cloud reports --repo hotpath-rs/hotpath --benchmark drain --event push --branch main --limit 2 --pretty
+```
+
+Trimmed answer:
+
+```json
+{
+  "repository": "hotpath-rs/hotpath",
+  "reports": [
+    {
+      "id": "01a1adfe-f27a-7af2-b715-73db19160507",
+      "benchmark": "drain",
+      "event": "push",
+      "commit_sha": "d589d1576e78c5a22a75016c6ef3383fede162c2",
+      "git_ref": "refs/heads/main",
+      "regressed": false,
+      "failed": false,
+      "created_at": "2026-11-05T23:15:29.016432Z",
+      "dashboard_url": "https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a1adfe-f27a-7af2-b715-73db19160507"
+    },
+    {
+      "id": "01a1adfb-0a75-746a-97af-5b4d58bc2977",
+      "benchmark": "drain",
+      "event": "push",
+      "commit_sha": "8c171222afc5094e283fcaabf56b84ff02b81227",
+      "git_ref": "refs/heads/main",
+      "regressed": false,
+      "failed": false,
+      "created_at": "2026-11-05T23:11:13.011209Z",
+      "dashboard_url": "https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a1adfb-0a75-746a-97af-5b4d58bc2977"
+    }
+  ],
+  "next_cursor": "AQGhrfsKdXRql69bTVi8KXc"
+}
+```
+
+Every filter is optional, and filters combine:
+
+| Flag | Lists only reports |
+|---|---|
+| `--benchmark NAME` | of this benchmark; without it, of every benchmark of the repository |
+| `--event push\|pull_request` | uploaded from this CI event |
+| `--pr N` | of the pull request |
+| `--commit SHA` | of a full 40-character commit sha, measured or as the pull request's head; with `--pr`, that pull request's reports at that commit |
+| `--branch NAME` | measured on this branch (`refs/heads/NAME`), given as the bare name; a pull request's head and base branches do not match |
+| `--since DATE` | uploaded at or after `DATE` |
+| `--until DATE` | uploaded before `DATE` |
+| `--verdict VERDICT` | with this stored verdict: `passed` (judged, no regression), `regressed` (judged with a regression, failed reports included), `failed`, `not_judged` |
+
+`DATE` is `YYYY-MM-DD`, read as midnight UTC, or an RFC 3339 time such as `2026-11-01T10:30:00+01:00`.
+
+Each run prints one page of `--limit N` reports (1 to 50, default 20). When more reports match, `next_cursor` is a string: pass it as `--cursor` with the same filters to get the next page. It is `null` on the last page.
+
+```bash
+hotpath cloud reports --repo hotpath-rs/hotpath --benchmark drain --limit 20 --cursor "AQGhrfsKdXRql69bTVi8KXc"
+```
+
+A listing always exits `0`, also when it is empty or lists regressed or failed reports. Use `diff` for an exit code that follows a verdict.
+
 ### diff
 
 Compares a report with its baseline under the policy the report carried, exactly as the pull request comment did. It selects the report with the same flags as `report`:
@@ -162,6 +226,6 @@ Every command prints one JSON document on stdout, compact by default, indented w
 
 | Exit code | Meaning |
 |---|---|
-| `0` | success; for `diff`, the report was judged and nothing regressed |
+| `0` | success, for `reports` whatever verdicts the page lists; for `diff`, the report was judged and nothing regressed |
 | `1` | an error (not found, auth, network, invalid argument value), or for `diff` any answer that is not "judged and fine" |
 | `2` | usage error |

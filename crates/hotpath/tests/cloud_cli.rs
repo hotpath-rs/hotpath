@@ -1,6 +1,6 @@
 #[cfg(all(test, feature = "cloud"))]
 mod tests {
-    //! `hotpath cloud auth|repos|benchmarks|report|diff|validate-policy|init`
+    //! `hotpath cloud auth|repos|benchmarks|report|reports|diff|validate-policy|init`
     //! against a mock hotpath.rs: the bearer request each sends, the 2xx body
     //! it passes through as received (unknown fields and the server's key
     //! order included), the error JSON on stderr (server bodies verbatim, client
@@ -755,6 +755,417 @@ mod tests {
             assert_eq!(stdout(&output), "", "{selector:?}");
         }
         mock.assert();
+    }
+
+    const REPORT_LIST_PATH: &str = "/api/v1/repos/hotpath-rs/hotpath/reports";
+    const CURSOR: &str = "AQGZo8J9LntBnDofLj1MW2o";
+
+    /// A `ReportList` body: `SUMMARY_BODY` (benchmark `ci`, not judged
+    /// regressed), a failed report of benchmark `meta`, a field no client type
+    /// knows, and `next_cursor` as given (a JSON literal).
+    fn report_list_body(next_cursor: &str) -> String {
+        let failed = SUMMARY_BODY
+            .replace(r#""benchmark":"ci""#, r#""benchmark":"meta""#)
+            .replace(r#""regressed":false"#, r#""regressed":true,"failed":true"#);
+        format!(
+            r#"{{"repository":"hotpath-rs/hotpath","reports":[{SUMMARY_BODY},{failed}],"next_cursor":{next_cursor},"new_field":1}}"#
+        )
+    }
+
+    fn reports_args<'a>(filters: &[&'a str]) -> Vec<&'a str> {
+        let mut args = vec!["reports", "--repo", "hotpath-rs/hotpath"];
+        args.extend_from_slice(filters);
+        args
+    }
+
+    /// A 200 mock of the listing whose query matches `query`.
+    fn mock_reports(server: &mut ServerGuard, query: Matcher, body: &str) -> mockito::Mock {
+        server
+            .mock("GET", REPORT_LIST_PATH)
+            .match_query(query)
+            .match_header("authorization", format!("Bearer {TOKEN}").as_str())
+            .with_status(200)
+            .with_header("content-type", "application/json; charset=utf-8")
+            .with_body(body)
+            .create()
+    }
+
+    #[test]
+    fn reports_without_filters_passes_the_page_through_and_exits_0() {
+        // Unknown fields and a failed report: printed as received, exit 0.
+        let body = report_list_body("null");
+        let mut server = Server::new();
+        let mock = mock_reports(&mut server, Matcher::Missing, &body).expect(3);
+
+        let output = hotpath(&server, Some(TOKEN), &reports_args(&[]));
+        assert_eq!(output.status.code(), Some(0), "stderr: {}", stderr(&output));
+        assert_eq!(stderr(&output), "");
+        assert_eq!(stdout(&output), format!("{body}\n"));
+        let printed = json(&stdout(&output));
+        assert_eq!(printed["next_cursor"], serde_json::Value::Null);
+        assert_eq!(printed["reports"][1]["benchmark"], "meta");
+        assert_eq!(printed["reports"][1]["failed"], true);
+
+        let output = hotpath(&server, Some(TOKEN), &reports_args(&["--pretty"]));
+        assert_eq!(output.status.code(), Some(0), "stderr: {}", stderr(&output));
+        let printed = stdout(&output);
+        assert_eq!(json(&printed), json(&body));
+        // The server's key order, the unknown field last.
+        assert!(
+            printed.starts_with("{\n  \"repository\": \"hotpath-rs/hotpath\",\n  \"reports\": ["),
+            "{printed}"
+        );
+        assert!(
+            printed.ends_with("\n  \"next_cursor\": null,\n  \"new_field\": 1\n}\n"),
+            "{printed}"
+        );
+
+        let path = std::env::temp_dir().join("hotpath_cloud_cli_reports_output.json");
+        let _ = std::fs::remove_file(&path);
+        let output = hotpath(
+            &server,
+            Some(TOKEN),
+            &reports_args(&["--output", path.to_str().unwrap()]),
+        );
+        assert_eq!(output.status.code(), Some(0), "stderr: {}", stderr(&output));
+        assert_eq!(stdout(&output), "");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), format!("{body}\n"));
+        let _ = std::fs::remove_file(&path);
+
+        // One request per run, `expect(3)` for the three runs.
+        mock.assert();
+    }
+
+    #[test]
+    fn reports_empty_page_is_exit_0() {
+        let body = r#"{"repository":"hotpath-rs/hotpath","reports":[],"next_cursor":null}"#;
+        let mut server = Server::new();
+        let mock = mock_reports(&mut server, Matcher::Exact("verdict=failed".into()), body);
+
+        let output = hotpath(
+            &server,
+            Some(TOKEN),
+            &reports_args(&["--verdict", "failed"]),
+        );
+        mock.assert();
+        assert_eq!(output.status.code(), Some(0), "stderr: {}", stderr(&output));
+        assert_eq!(stdout(&output), format!("{body}\n"));
+    }
+
+    #[test]
+    fn reports_sends_exactly_the_filters_given_encoded() {
+        let upper_sha = SHA.to_ascii_uppercase();
+        let cases: Vec<(Vec<&str>, String)> = vec![
+            (vec!["--benchmark", "drain"], "benchmark=drain".into()),
+            (vec!["--event", "push"], "event=push".into()),
+            (vec!["--event", "pull_request"], "event=pull_request".into()),
+            (vec!["--pr", "801"], "pr=801".into()),
+            (vec!["--commit", &upper_sha], format!("commit={SHA}")),
+            (vec!["--branch", "main"], "branch=main".into()),
+            (vec!["--branch", "feature/foo"], "branch=feature%2Ffoo".into()),
+            (vec!["--since", "2026-11-01"], "since=2026-11-01".into()),
+            (
+                vec!["--until", "2026-11-06T18:00:00+01:00"],
+                "until=2026-11-06T18%3A00%3A00%2B01%3A00".into(),
+            ),
+            (vec!["--verdict", "passed"], "verdict=passed".into()),
+            (vec!["--verdict", "regressed"], "verdict=regressed".into()),
+            (vec!["--verdict", "not_judged"], "verdict=not_judged".into()),
+            (vec!["--limit", "50"], "limit=50".into()),
+            (vec!["--limit", "1"], "limit=1".into()),
+            (vec!["--cursor", CURSOR], format!("cursor={CURSOR}")),
+            (
+                vec!["--benchmark", "drain", "--event", "push"],
+                "benchmark=drain&event=push".into(),
+            ),
+            (
+                vec!["--branch", "main", "--benchmark", "drain"],
+                "benchmark=drain&branch=main".into(),
+            ),
+            (
+                vec!["--verdict", "regressed", "--event", "pull_request"],
+                "event=pull_request&verdict=regressed".into(),
+            ),
+            // Not exclusive here: the reports of PR 801 at that commit.
+            (
+                vec!["--pr", "801", "--commit", SHA],
+                format!("pr=801&commit={SHA}"),
+            ),
+            (
+                vec![
+                    "--benchmark",
+                    "drain",
+                    "--event",
+                    "push",
+                    "--verdict",
+                    "regressed",
+                    "--since",
+                    "2026-11-01T10:30:00Z",
+                    "--until",
+                    "2026-11-06",
+                    "--limit",
+                    "20",
+                    "--cursor",
+                    CURSOR,
+                ],
+                format!("benchmark=drain&event=push&since=2026-11-01T10%3A30%3A00Z&until=2026-11-06&verdict=regressed&limit=20&cursor={CURSOR}"),
+            ),
+        ];
+        for (filters, query) in cases {
+            let mut server = Server::new();
+            let body = report_list_body("null");
+            let mock = mock_reports(&mut server, Matcher::Exact(query.clone()), &body);
+            let output = hotpath(&server, Some(TOKEN), &reports_args(&filters));
+            assert_eq!(
+                output.status.code(),
+                Some(0),
+                "{filters:?} -> {query}: {}",
+                stderr(&output)
+            );
+            assert_eq!(stdout(&output), format!("{body}\n"), "{filters:?}");
+            mock.assert();
+        }
+    }
+
+    #[test]
+    fn reports_values_decode_back_unchanged() {
+        // What the server reads after decoding: a `+` sent bare would read as
+        // a space, a cursor is passed through whatever it holds.
+        let cursor = "a+b/c=d&limit=1 %2B";
+        let mut server = Server::new();
+        let body = report_list_body(&format!("\"{CURSOR}\""));
+        let mock = mock_reports(
+            &mut server,
+            Matcher::AllOf(vec![
+                Matcher::UrlEncoded("since".into(), "2026-11-01T10:30:00+01:00".into()),
+                Matcher::UrlEncoded("branch".into(), "feature/a+b&c".into()),
+                Matcher::UrlEncoded("cursor".into(), cursor.into()),
+            ]),
+            &body,
+        );
+
+        let output = hotpath(
+            &server,
+            Some(TOKEN),
+            &reports_args(&[
+                "--since",
+                "2026-11-01T10:30:00+01:00",
+                "--branch",
+                "feature/a+b&c",
+                "--cursor",
+                cursor,
+            ]),
+        );
+        mock.assert();
+        assert_eq!(output.status.code(), Some(0), "stderr: {}", stderr(&output));
+        // `next_cursor` reaches the caller as the server sent it.
+        assert_eq!(stdout(&output), format!("{body}\n"));
+        assert_eq!(json(&stdout(&output))["next_cursor"], CURSOR);
+    }
+
+    #[test]
+    fn reports_rejects_bad_values_before_the_token_or_a_request() {
+        let mut server = Server::new();
+        let mock = server
+            .mock("GET", Matcher::Regex("^/api/v1/".into()))
+            .expect(0)
+            .create();
+
+        let long_branch = "b".repeat(256);
+        let pr_over_i32 = (i64::from(i32::MAX) + 1).to_string();
+        let cases: Vec<(Vec<&str>, &str)> = vec![
+            (vec!["reports", "--repo", "nope"], "invalid --repo `nope`"),
+            (vec!["reports", "--repo", "a/.."], "invalid --repo `a/..`"),
+            (
+                reports_args(&["--benchmark", "a/b"]),
+                "invalid --benchmark `a/b`",
+            ),
+            (
+                reports_args(&["--benchmark", ".."]),
+                "invalid --benchmark `..`",
+            ),
+            (reports_args(&["--pr", "0"]), "invalid --pr `0`"),
+            (
+                reports_args(&["--pr", &pr_over_i32]),
+                "invalid --pr `2147483648`",
+            ),
+            (
+                reports_args(&["--commit", "9ab2"]),
+                "invalid --commit `9ab2`",
+            ),
+            (
+                reports_args(&["--branch", "refs/heads/main"]),
+                "invalid --branch `refs/heads/main`",
+            ),
+            (reports_args(&["--branch", ""]), "invalid --branch \"\""),
+            (
+                reports_args(&["--branch", "a\nb"]),
+                "invalid --branch \"a\\nb\"",
+            ),
+            (
+                reports_args(&["--branch", &long_branch]),
+                "invalid --branch",
+            ),
+            (
+                reports_args(&["--since", "2026-11-31"]),
+                "invalid --since `2026-11-31`",
+            ),
+            (
+                reports_args(&["--since", "yesterday"]),
+                "invalid --since `yesterday`",
+            ),
+            (
+                reports_args(&["--until", "2026-11-01 10:30"]),
+                "invalid --until `2026-11-01 10:30`",
+            ),
+            (
+                reports_args(&["--since", "2026-11-06", "--until", "2026-11-06"]),
+                "invalid --since / --until",
+            ),
+            (
+                reports_args(&[
+                    "--since",
+                    "2026-11-06T00:30:00+01:00",
+                    "--until",
+                    "2026-11-05T23:00:00Z",
+                ]),
+                "invalid --since / --until",
+            ),
+            (reports_args(&["--limit", "0"]), "invalid --limit `0`"),
+            (reports_args(&["--limit", "51"]), "invalid --limit `51`"),
+        ];
+        for (args, expected) in cases {
+            let output = hotpath(&server, None, &args);
+            assert_eq!(
+                output.status.code(),
+                Some(1),
+                "{args:?}: {}",
+                stderr(&output)
+            );
+            assert_eq!(stdout(&output), "", "{args:?}");
+            let error = client_error(&output);
+            assert!(error.starts_with(expected), "{args:?}: {error}");
+        }
+        mock.assert();
+    }
+
+    #[test]
+    fn reports_usage_errors_are_exit_2() {
+        let mut server = Server::new();
+        let mock = server
+            .mock("GET", Matcher::Regex("^/api/v1/".into()))
+            .expect(0)
+            .create();
+
+        for args in [
+            vec!["reports"],
+            vec!["reports", "--benchmark", "drain"],
+            reports_args(&["--event", "merge"]),
+            reports_args(&["--verdict", "ok"]),
+            reports_args(&["--verdict", "not-judged"]),
+            reports_args(&["--pr", "-1"]),
+            reports_args(&["--limit", "many"]),
+            reports_args(&["--offset", "20"]),
+        ] {
+            let output = hotpath(&server, Some(TOKEN), &args);
+            assert_eq!(
+                output.status.code(),
+                Some(2),
+                "{args:?}: {}",
+                stderr(&output)
+            );
+            assert_eq!(stdout(&output), "", "{args:?}");
+        }
+        mock.assert();
+    }
+
+    #[test]
+    fn reports_errors_print_the_server_body_verbatim() {
+        let cases: [(u16, &str, String); 4] = [
+            (
+                401,
+                "",
+                r#"{"error":"The token is unknown, expired or revoked. Create one at /app/tokens.","code":"invalid_token"}"#.into(),
+            ),
+            (
+                404,
+                "",
+                error_body(ApiErrorCode::NotFound, "Repository hotpath-rs/hotpath not found."),
+            ),
+            (
+                404,
+                "benchmark=nope",
+                error_body(ApiErrorCode::NotFound, "Benchmark nope not found in hotpath-rs/hotpath."),
+            ),
+            (
+                400,
+                "cursor=bogus",
+                error_body(ApiErrorCode::BadRequest, "cursor is not one this API returned."),
+            ),
+        ];
+        for (status, query, body) in cases {
+            let mut server = Server::new();
+            let matcher = if query.is_empty() {
+                Matcher::Missing
+            } else {
+                Matcher::Exact(query.into())
+            };
+            let mock = server
+                .mock("GET", REPORT_LIST_PATH)
+                .match_query(matcher)
+                .with_status(status.into())
+                .with_header("content-type", "application/json")
+                .with_body(&body)
+                .create();
+            let filters: Vec<&str> = match query.split_once('=') {
+                Some((key, value)) => vec![
+                    if key == "cursor" {
+                        "--cursor"
+                    } else {
+                        "--benchmark"
+                    },
+                    value,
+                ],
+                None => vec![],
+            };
+
+            let output = hotpath(&server, Some(TOKEN), &reports_args(&filters));
+            mock.assert();
+            assert_eq!(output.status.code(), Some(1), "{body}");
+            assert_eq!(stdout(&output), "", "{body}");
+            assert_eq!(stderr(&output), format!("{body}\n"));
+        }
+    }
+
+    #[test]
+    fn reports_bad_body_or_unreachable_server_is_exit_1() {
+        let mut server = Server::new();
+        let mock = mock_reports(&mut server, Matcher::Missing, r#"{"reports":["#);
+        let output = hotpath(&server, Some(TOKEN), &reports_args(&[]));
+        mock.assert();
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(stdout(&output), "");
+        let error = client_error(&output);
+        assert!(error.starts_with("invalid response from "), "{error}");
+
+        // A port nothing listens on: bind, read it back, release it.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://127.0.0.1:{}", listener.local_addr().unwrap().port());
+        drop(listener);
+        let output = Command::new(env!("CARGO_BIN_EXE_hotpath"))
+            .args(["cloud", "reports", "--repo", "hotpath-rs/hotpath"])
+            .env("HOTPATH_API_URL", &url)
+            .env("HOTPATH_API_TOKEN", TOKEN)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(stdout(&output), "");
+        let error = client_error(&output);
+        assert!(
+            error.starts_with(&format!("request to {url} failed: ")),
+            "{error}"
+        );
+        assert!(!error.contains(TOKEN), "{error}");
     }
 
     const DIFF_PATH: &str = "/api/v1/repos/hotpath-rs/hotpath/benchmarks/ci/diff";
