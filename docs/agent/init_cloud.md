@@ -34,7 +34,7 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 
 | Page | Covers |
 |---|---|
-| https://hotpath.rs/ci_integration | setup, "Pull requests from the same repository", "Pull requests from forks" (the benchmark workflow, the relay workflow and its inputs), failing the job, environment variables, "Profiling modes" (merged, native, Callgrind only, switching an existing benchmark to merged), several benchmarks, troubleshooting |
+| https://hotpath.rs/ci_integration | setup, "Pull requests from the same repository", "Pull requests from forks" (the benchmark workflow, the relay workflow and its inputs), failing the job, environment variables, "Profiling modes" (merged, "ARM64 runners", native, Callgrind only), several benchmarks, troubleshooting |
 | https://hotpath.rs/callgrind | the `hotpath-callgrind` feature: merged reports ("Timing and instruction counts in one report"), what is counted, reproducibility limits, comparing runs, build requirements |
 | https://hotpath.rs/regression_policy | the policy file: sections, keys, validation, the pull request comment and check |
 | https://hotpath.rs/performance_budgets | absolute limits in the same policy file |
@@ -49,7 +49,7 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 - Check whether hotpath-cloud is already set up: a workflow that sets `HOTPATH_UPLOAD` or has `hotpath-relay` in a `uses:`. If it is:
   - Unless the user asked for another benchmark, do not set anything up. Report the existing setup instead: each workflow file and its `name:`, each `HOTPATH_BENCHMARK`, its profiling mode (merged when the Callgrind step sets `HOTPATH_MERGE_REPORT`, Callgrind only when the job runs `valgrind --tool=callgrind` without it, native otherwise), whether it uses the relay (each relay file, its `workflows:` and its inputs), the policy files in `hotpath/` and the README badge. Then stop.
   - If the user asked for another benchmark, continue to add only that one, with the setup (same repository or forks) the existing benchmarks use. Its benchmark name, workflow file and workflow `name:` must all differ from the existing ones (steps 2 and 6).
-  - Never change the profiling mode, the benchmark name, the workflow or the policy of an existing benchmark unless the user asks. If the user asks to switch a native or Callgrind-only benchmark to merged mode, check the requirements of step 3 and follow "Switching an existing benchmark to merged" in https://hotpath.rs/ci_integration.
+  - Never change the profiling mode, the benchmark name, the workflow or the policy of an existing benchmark unless the user asks. If the user asks to switch a native or Callgrind-only benchmark to merged mode, check the requirements of step 3 and follow "Profiling modes" in https://hotpath.rs/ci_integration: replace the benchmark's job(s) with the merged workflow of the setup sections (step 6), keeping its benchmark name, workflow `name:` and policy file, and add `[functions.icount]` as step 5 describes.
 - Check whether hotpath is already set up: a `hotpath` dependency, `#[hotpath::main]` (or `HotpathGuardBuilder`) and instrumented functions. If it is not, set it up first by following https://hotpath.rs/agent/setup (skip its "Offer hotpath-cloud" step), then continue here.
 - Pick the setup, unless an existing benchmark already decides it. Check whether the repository is public or private (`gh repo view --json visibility`). A private repository uses the **same repository** setup. For a public repository, ask the user whether pull requests from forks should be benchmarked: if yes, use the **forks** setup, otherwise the **same repository** one, and tell them fork pull requests will then not get a comment.
 
@@ -74,7 +74,7 @@ Docs: https://hotpath.rs/ci_integration ("Profiling modes"), https://hotpath.rs/
 
 Use **merged** when all of these hold, otherwise **native**:
 
-- The benchmark can run on the docs workflow's x86_64 Linux runner: it does not need macOS, Windows or an ARM runner.
+- The benchmark can run on a Linux runner, x86_64 (`ubuntu-26.04`) or ARM64 (`ubuntu-26.04-arm`): it does not need macOS or Windows. Use x86_64 unless the user explicitly asks for ARM64 instruction counts: ARM64 support is highly experimental, its counts come from hotpath's Valgrind fork, a proof of concept likely to return invalid results, so before setting it up tell the user that and that x86_64 is the reliable choice. The two architectures' counts are not comparable, so a benchmark stays on one. ARM64 also needs the patched Valgrind `3.28.0.hotpath-rs-2` (step 6) and hotpath `0.31.0` or newer, the first release that detects Valgrind on aarch64: if the latest release, `{{HOTPATH_RELEASE_TAG}}`, is older than `v0.31.0`, that release is not out yet and merged mode is not available on ARM64, so use an x86_64 runner, or native mode when the benchmark must run on ARM64. Otherwise the project's `hotpath` must be `0.31.0` or newer too, upgraded as the version rules under "Documentation" say.
 - The workload is CPU-bound and deterministic: its time goes into computation, not into network, disk, sleeps, timers or a database service, and it is not dominated by many threads racing each other (Valgrind serializes threads, so their interleaving moves the counts).
 - The code it should judge is in functions with `#[hotpath::measure]` (or `measure_all`); `measure_block!` blocks are not counted.
 - `[profile.release]` does not strip symbols (`strip = true` or `"symbols"`).
@@ -154,24 +154,27 @@ In the forks setup, a pull request is judged under the policy file of its own br
 
 ### 6. Add the workflows
 
-Follow the section of the setup picked in step 1. Never overwrite an existing workflow file: if the file name below is taken, or a workflow with the same `name:` exists, use `hotpath-<benchmark>.yml` and `name: hotpath <benchmark>` instead, and ask the user if that is taken too. The setup sections of https://hotpath.rs/ci_integration show the merged workflows; copy them as is for merged mode, keeping in every job: the pinned runner label, Valgrind package and Rust toolchain (never `ubuntu-latest` or `stable`), one `cargo build` with `--features hotpath-alloc,hotpath-cloud,hotpath-callgrind` and the same binary run twice, the job-level `env` with static values (the benchmark name, `HOTPATH_USER_METADATA`, `HOTPATH_OUTPUT_FORMAT: json`), `HOTPATH_UPLOAD`, `HOTPATH_MERGE_REPORT` and the output paths only on their step, `HOTPATH_CALLGRIND_OUT_FILE` equal to `--callgrind-out-file`, the `jq` check and the longer timeout. For native mode use "Native" under "Profiling modes" instead (in the forks setup, both jobs in that shape).
+Follow the section of the setup picked in step 1. Never overwrite an existing workflow file: if the file name below is taken, or a workflow with the same `name:` exists, use `hotpath-<benchmark>.yml` and `name: hotpath <benchmark>` instead, and ask the user if that is taken too. The setup sections of https://hotpath.rs/ci_integration show the merged workflows; copy them as is for merged mode, keeping in every job: the pinned runner label, Valgrind installation and Rust toolchain (never `ubuntu-latest` or `stable`), one `cargo build` with `--features hotpath-alloc,hotpath-cloud,hotpath-callgrind` and the same binary run twice, the job-level `env` with static values (the benchmark name, `HOTPATH_USER_METADATA`, `HOTPATH_OUTPUT_FORMAT: json`), `HOTPATH_UPLOAD`, `HOTPATH_MERGE_REPORT` and the output paths only on their step, `HOTPATH_CALLGRIND_OUT_FILE` equal to `--callgrind-out-file`, the `jq` check and the longer timeout. For native mode use "Native" under "Profiling modes" instead (in the forks setup, both jobs in that shape).
+
+The Valgrind installation follows the runner's architecture, in every job that runs the benchmark (the same-repository job, and both the `upload` and `report` jobs of the forks setup), never mixed: on x86_64 (`runs-on: ubuntu-26.04`) the pinned apt package of the docs workflow; on ARM64 (`runs-on: ubuntu-26.04-arm`) the `hotpath-rs/setup-valgrind@v1.1.0` step with `version: 3.28.0.hotpath-rs-2` in place of the apt step, as "ARM64 runners" under "Profiling modes" shows. Changing only `runs-on` is wrong: hotpath.rs refuses ARM64 instruction counts from any other Valgrind build. Keep `HOTPATH_USER_METADATA` consistent with the job (`runner=Linux-ARM64` and `valgrind=3.28.0.hotpath-rs-2` on ARM64), the same in every job.
 
 Pin the Rust toolchain to an exact version in every job that builds the benchmark, for both profiling modes and in both jobs of the forks setup: replace `dtolnay/rust-toolchain@stable` with `dtolnay/rust-toolchain@master` and `toolchain: "<x.y.z>"`, and write the same version into `toolchain=` of `HOTPATH_USER_METADATA`. Never leave `stable`, `beta`, `nightly` or a bare `x.y`: a new Rust release changes the numbers, so the first pull request after it would be judged against a baseline built with the older `rustc` and flagged for changes it did not cause. Use the version the repository's `rust-toolchain.toml` or existing CI pins, otherwise the one the docs merged workflow shows. Tell the user to bump it in a separate pull request, whose merge uploads the new baseline.
 
 For a Criterion benchmark, adapt every job that builds and runs it the same way, in both profiling modes and both setups:
 
-- Build the bench target and take the binary path from Cargo's JSON output, since its file name carries a hash:
+- Prefer `cargo bench` for Criterion benchmarks: it finds the benchmark binary, whose file name carries a hash, reuses one build for every run and starts the binary under the runner you set. Put the Cargo arguments in one job-level `env` entry, so every step uses the same build:
 
-  ```bash
-  bin=$(cargo build -q --release --bench <name> --features <features> --message-format=json \
-    | jq -r 'select(.reason == "compiler-artifact" and (.target.kind | index("bench"))) | .executable')
-  test -x "$bin"
+  ```yaml
+  env:
+    BENCH_ARGS: -p <crate> --bench <name> --features <features>
   ```
 
-  Pass `bin` to the run steps as a step output (`echo "bin=$bin" >> "$GITHUB_OUTPUT"`). In native mode, use the same build step in place of `cargo run`.
-- Run the binary with `--bench --test --exact <id>` in every run step, natively and under Callgrind.
+  Build with `cargo bench $BENCH_ARGS --no-run` in place of the `cargo build` line (in native mode, in place of `cargo run`), and run with `cargo bench $BENCH_ARGS -- --test --exact <id>` in place of each binary path. `cargo bench` builds with the `bench` profile (inherits `release`), so write `profile=bench` into `HOTPATH_USER_METADATA`, or the profile `--profile` names.
+- Run the binary directly instead only when `cargo bench` cannot start it the way the benchmark needs: the benchmark reads files relative to a working directory other than its package directory, or the project already needs a Cargo runner of its own (an emulator or wrapper) that Valgrind's would replace. Then build with `cargo bench $BENCH_ARGS --no-run --message-format=json`, take the path from `jq -r 'select(.reason == "compiler-artifact" and (.target.kind | index("bench"))) | .executable'` (the package's other binaries are listed too, so keep the `bench` filter), pass it to the run steps as a step output, and run `<path> --bench --test --exact <id>` natively and after the `valgrind ...` prefix, from the directory the benchmark needs.
+- In the Callgrind step, drop the `valgrind ...` prefix and set Valgrind as Cargo's runner on the step instead, with the same arguments: `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=${{ runner.temp }}/callgrind.out.%p` on x86_64, `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER` with the same value on ARM64. Keep `HOTPATH_CALLGRIND_OUT_FILE` equal to its `--callgrind-out-file`. Use the target-specific variable, never `target.'cfg(...)'.runner`: it takes precedence over a runner the project's own Cargo config sets, which a `cfg` runner silently loses to or conflicts with.
+- Cargo starts the benchmark in its package directory, not the repository root. hotpath finds the git root and the policy file above it, but relative paths resolve there: make every `HOTPATH_OUTPUT_PATH` absolute (`${{ github.workspace }}/report.json` in the forks setup's `report` job, where the artifact upload reads it), and point the `test -s` and `jq` checks at the same path.
 - Add `HOTPATH_CRITERION_ITERATIONS` with the count from step 2 to the job-level `env`, so every run executes the same iterations.
-- In merged mode, add `and .meta.criterion.benchmark == "<id>"` to the `jq` check. The native workflow has no such check; do not add one.
+- In merged mode, add `and .meta.criterion.benchmark == "<id>"` to the `jq` check; `meta.criterion` needs hotpath `0.31.0` or newer, so upgrade an older version as the version rules under "Documentation" say. The native workflow has no such check; do not add one.
 
 #### Same repository
 
@@ -246,11 +249,11 @@ jq '{benchmark: .meta.benchmark, policy: .meta.policy.path, run: .meta.run}' "$v
 
 For merged mode, add `hotpath-callgrind` to `--features`: run natively, the same build prints the usual timing report.
 
-For a Criterion benchmark, build and run it as step 6 does in place of `cargo run` and `target/release/examples/my_benchmark`: the binary from `--message-format=json`, run with `--bench --test --exact <id>` and `HOTPATH_CRITERION_ITERATIONS` set in every run.
+For a Criterion benchmark, run it as step 6 does in place of `cargo run` and `target/release/examples/my_benchmark`: `cargo bench <args> -- --test --exact <id>` with the same arguments and `HOTPATH_CRITERION_ITERATIONS` set in every run, the Callgrind run with Valgrind as Cargo's runner (`CARGO_TARGET_<TRIPLE>_RUNNER`, the triple from `rustc -vV`) instead of the `valgrind` prefix, and absolute report paths.
 
 The report must name the benchmark and the policy file step 5 picked for it (`hotpath/<benchmark>-policy.toml` when that exists, otherwise `hotpath/policy.toml`). Run the benchmark twice and compare the function allocation totals: if they differ, the workload is not fixed, so fix that before relying on the comments.
 
-For merged mode on an x86_64 Linux machine with Valgrind installed, also run the merged pair the way the workflow does: one build, the same binary run natively, then under Callgrind only after the native run succeeded:
+For merged mode on a Linux machine with Valgrind installed (x86_64, or ARM64 with the patched build; `uname -m` tells which), also run the merged pair the way the workflow does: one build, the same binary run natively, then under Callgrind only after the native run succeeded:
 
 ```bash
 set -euo pipefail
@@ -278,13 +281,17 @@ HOTPATH_BENCHMARK=my_benchmark HOTPATH_OUTPUT_FORMAT=json \
 # jq verification (must succeed), then the counts to compare between attempts
 jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0)' \
   "$verify_dir/merged.json" > /dev/null
+# On ARM64, only the patched build is accepted by hotpath.rs (must succeed there)
+if [ "$(uname -m)" = aarch64 ]; then
+  jq -e '.functions_icount.tool | test("^callgrind-.*[.]hotpath-rs")' "$verify_dir/merged.json" > /dev/null
+fi
 jq '{tool: .functions_icount.tool, functions: [.functions_icount.data[] | {name, calls, total}]}' \
   "$verify_dir/merged.json"
 ```
 
-The script stops at the first failing command (the build, either run, or the `jq -e` check) with a nonzero status. `functions_icount.data` must list the measured functions and `tool` the Valgrind version. A `merge failed: ...` line names what the two runs disagree on or why the counts are missing: fix that rather than dropping the merge. Run the script twice, each attempt with its own directory, and compare the printed totals: they should differ by well under the policy's `min_percent_change`. If they differ by more, raise it above the observed spread in the policy file step 5 wrote or copied (ask before editing a file that existed before), or fall back to native when the counts are not reproducible or the run is too slow for CI. Tell the user what you measured.
+The script stops at the first failing command (the build, either run, or a `jq -e` check) with a nonzero status. `functions_icount.data` must list the measured functions and `tool` the Valgrind version. On ARM64 the `tool` check fails when the local Valgrind is not the patched build, since stock Valgrind counts instructions incorrectly on ARM64: do not install the patched build locally; tell the user and rely on CI as below. On an ARM64 machine, `merge failed: this run is not under valgrind --tool=callgrind` from a merged pair means the hotpath release is older than `0.31.0`: it does not detect Valgrind on aarch64 (step 3). A `merge failed: ...` line names what the two runs disagree on or why the counts are missing: fix that rather than dropping the merge. Run the script twice, each attempt with its own directory, and compare the printed totals: they should differ by well under the policy's `min_percent_change`. If they differ by more, raise it above the observed spread in the policy file step 5 wrote or copied (ask before editing a file that existed before), or fall back to native when the counts are not reproducible or the run is too slow for CI. Tell the user what you measured.
 
-Without x86_64 Linux and Valgrind, do not install Valgrind or set up a container for this; tell the user that the merged reports are verified by the first CI runs, and that re-running the default branch's job should give the same instruction counts.
+Without Linux and a suitable Valgrind (on ARM64, the patched build), do not install Valgrind or set up a container for this; tell the user that the merged reports are verified by the first CI runs, and that re-running the default branch's job should give the same instruction counts.
 
 ### 8. Add the README badge
 

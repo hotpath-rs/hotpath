@@ -36,6 +36,10 @@ jobs:
           echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
           echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cloud-random-benchmark
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       # The uploader reports its own outcome: one `::notice::` / `::warning::`
       # / `::error::` annotation plus a step summary block, and with
       # `fail-on-error` a failed upload exits 1. The response file exists only
@@ -86,6 +90,10 @@ jobs:
           echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
           echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cloud-random-benchmark
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Run random benchmark and write report
         env:
           HOTPATH_BENCHMARK: random

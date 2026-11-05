@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.0] - 2026-11-03
+
+### 🚀 Features
+
+- Exclude profiling threads from Callgrind instruction counts
+
+- Add criterion metadata
+
+- Support Callgrind on ARM64 Linux and run benchmarks on ARM runners
+
+- TUI exit prompt
+
+
+### 🐛 Bug Fixes
+
+- Stabilize Callgrind instruction totals by draining collectors first
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Add SECURITY.md
+
+- Raise the macOS CI timeout to 15 minutes
+
+- Run the drain criterion benchmark on ARM
+
+- Trim meta benchmark
+
+- Scale meta policy budget to the trimmed benchmark
+
+- Release 0.31.0
+
+
 ## [0.30.3] - 2026-10-31
 
 ### 🚀 Features

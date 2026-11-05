@@ -22,9 +22,6 @@ jobs:
   upload:
     name: cloud drain benchmark (push)
     if: github.event_name == 'push'
-    # Instruction counts depend on the Valgrind build, and reports only compare
-    # within one (`tool`), so the image and the package are pinned: an upgrade
-    # is a deliberate bump, not a silent gap in verdicts.
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
@@ -47,6 +44,10 @@ jobs:
           echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
           echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cloud-drain-benchmark
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Install valgrind
         run: |
           sudo apt-get update
@@ -86,9 +87,6 @@ jobs:
   report:
     name: cloud drain benchmark (pull request)
     if: github.event_name == 'pull_request'
-    # Instruction counts depend on the Valgrind build, and reports only compare
-    # within one (`tool`), so the image and the package are pinned: an upgrade
-    # is a deliberate bump, not a silent gap in verdicts.
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
@@ -112,6 +110,10 @@ jobs:
           echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
           echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cloud-drain-benchmark
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Install valgrind
         run: |
           sudo apt-get update

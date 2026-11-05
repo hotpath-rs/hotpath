@@ -16,7 +16,7 @@ For very hot code paths, you can lower the cost further with [time sampling](pro
 
 - [Functions](functions.md) - execution time, call counts, percentiles, and memory allocations of sync and async functions.
 - [CPU usage](cpu_profiling.md) - sampling-based CPU profiling powered by samply.
-- [Instruction counts](callgrind.md) - deterministic per-function instruction counts with Valgrind's Callgrind, for low-noise regression checks in CI.
+- [Instruction counts](callgrind.md) - per-function instruction counts with Valgrind's Callgrind, highly repeatable for deterministic workloads, for low-noise regression checks in CI.
 - [Threads](threads.md) - per-thread CPU usage and memory statistics.
 - [Async data flow](data_flow.md) - channel throughput and queue depth, streams, and futures.
 - [Locks](locks.md) - wait and hold times of mutexes and read-write locks.
@@ -66,28 +66,39 @@ To profile production safely, follow these guidelines:
 
 ## How is hotpath-rs different from Criterion.rs?
 
-[Criterion.rs](https://github.com/criterion-rs/criterion.rs) is a statistics-driven benchmarking library for Rust. Criterion.rs focuses on statistically rigorous benchmarking: _"is this faster?"_. hotpath-rs focuses on profiling instrumented application code: _"where does my program spend its time, memory, and queries?"_.
+[Criterion.rs](https://github.com/criterion-rs/criterion.rs) is a statistics-driven benchmarking library for Rust. The two tools answer different questions about the same benchmark: Criterion.rs tells you _how fast_ it runs, and hotpath-rs shows _where_ the CPU instructions, time and allocations go inside it. They work together, and since hotpath can profile Criterion benchmarks directly, you don't have to choose between them.
 
-**Criterion.rs** runs the code you choose in a dedicated benchmark harness (`cargo bench`), many times over, and applies statistical analysis to the results. Its strengths:
+**Criterion.rs** runs the code you choose in a dedicated benchmark harness (`cargo bench`), many times over, and applies statistical analysis to the execution time. Its strengths:
 
 - Precise measurements with warmup, outlier detection, and confidence intervals.
 - Detects whether, and by how much, performance changed since the previous run.
 - Benchmarks anything from a single function to larger workloads, including [async code](https://bheisler.github.io/criterion.rs/book/user_guide/benchmarking_async.html) on Tokio, smol, and other executors.
 - HTML reports and plots, runs on stable Rust, and benchmarks live in `benches/`, so your application code stays untouched.
 
-Criterion.rs measures the workload as a whole. It doesn't automatically provide application-wide telemetry, such as which SQL queries ran, how channel queues grew, or which locks were contended. By default it measures wall-clock time, so results on shared CI runners are affected by CPU frequency scaling, scheduling, and other workloads.
+Criterion.rs measures the workload as a whole: it tells you the benchmark got slower, not which function inside it did, or what it allocated. By default it measures wall-clock time, so results on shared CI runners are affected by CPU frequency scaling, scheduling, and other workloads.
 
-**hotpath-rs** instruments the real program while it runs a real workload. Its strengths:
+**hotpath-rs** instruments the code and reports what happens while a workload runs. Its strengths:
 
-- Profiles many functions at once and shows which of them dominate the total execution time.
+- Profiles many functions at once and shows which of them dominate the total execution time and the allocations.
 - Collects signals beyond timing: memory allocations, [SQL queries](sql_tracing.md), [HTTP calls](http_tracing.md), [lock contention](locks.md), [channel queues](data_flow.md#channels-monitoring), and [I/O](io_tracing.md). Counts like executed queries or allocated bytes usually stay the same between runs of the same workload, even when timings are noisy.
-- Reproducible instruction counts in CI. Under [Valgrind's Callgrind](callgrind.md), the `hotpath-callgrind` feature reports instructions executed per function instead of elapsed time; in CI, a merged report carries both, the native run's timing next to the counts. With a deterministic workload and the same Valgrind version, Rust toolchain, and target, counts repeat closely between runs, so small changes stay visible on shared GitHub Actions runners.
+- Instruction counts in CI. Under [Valgrind's Callgrind](callgrind.md), the `hotpath-callgrind` feature reports the instructions each function executed instead of elapsed time. For a deterministic workload the counts repeat closely between runs (not guaranteed identical), so small changes stay visible on shared GitHub Actions runners. Timing under Callgrind is meaningless, so a [merged report](callgrind.md#timing-and-instruction-counts-in-one-report) takes its timing from a separate native run of the same build and shows it next to the counts.
 
-Its trade-offs are a small per-call [overhead](profiling_overhead.md) and no built-in statistical analysis of timings. Callgrind runs only on x86_64 and aarch64 Linux (aarch64 needs a [patched Valgrind](callgrind.md)) and slows the program down substantially. Instruction counts track CPU work, not time spent waiting on I/O or locks, and fewer instructions don't guarantee faster execution.
+Its trade-offs are a small per-call [overhead](profiling_overhead.md) and no statistical analysis of timings. Callgrind slows the program down substantially and runs on x86_64 and ARM64 Linux only; ARM64 support is highly experimental: it needs a [patched Valgrind](callgrind.md#arm64-linux), because stock Valgrind counts instructions incorrectly there, which is a proof of concept likely to return invalid counts, and hotpath `0.31.0` or newer. Counts measure executed instructions, not elapsed time: fewer instructions don't necessarily mean faster code, time spent waiting on I/O or locks is not counted, and counts from different architectures are not comparable. hotpath's background collector and sampler threads are excluded from the counts, but the instrumentation executed on application threads still adds to them.
 
-If you prefer instruction counts in a dedicated benchmark harness, [Gungraun](https://github.com/gungraun/gungraun) (formerly Iai-Callgrind) is an established Valgrind-based benchmarking framework for Rust.
+The two fit together: `hotpath::criterion` profiles existing Criterion benchmarks directly, so a Criterion benchmark can be the workload of hotpath's native and Callgrind runs. Converting one usually takes small import and dependency changes, not a rewrite, and plain `cargo bench`, with Criterion's statistical analysis, keeps working unchanged whenever `HOTPATH_CRITERION_ITERATIONS` is unset. For unbiased Criterion timings, build those runs without hotpath's profiling features: with them on, instrumentation overhead still applies. Keep your existing Criterion benchmarks, and use hotpath to understand what happens inside them; the next question has the details.
 
-The tools complement each other. Use hotpath-rs to find the bottleneck in the real application, then move the hot code into a Criterion.rs benchmark to iterate on its optimization with precise measurements.
+[Gungraun](https://github.com/gungraun/gungraun) (formerly Iai-Callgrind) is an alternative, dedicated Callgrind benchmarking framework, while hotpath integrates instruction profiling into existing Criterion benchmarks.
+
+## Can I use hotpath with my existing Criterion benchmarks?
+
+Yes. hotpath's Criterion adapter supports Criterion `0.5`, `0.6`, `0.7` and `0.8`, each behind its own cargo feature (`criterion-0-5` to `criterion-0-8`), for sync and async (`to_async`) benchmarks:
+
+- Switch the imports and macros of a benchmark file to `hotpath::criterion` (`Criterion`, `BenchmarkId`, `criterion_group!`, `criterion_main!`); what the benchmark measures stays the same.
+- Setting `HOTPATH_CRITERION_ITERATIONS` turns on fixed-iteration profiling: the selected benchmark's routine runs exactly that many times and writes one hotpath report. Each run selects one benchmark, in Criterion's test mode. With `HOTPATH_CRITERION_ITERATIONS` unset, Criterion runs normally. For unbiased Criterion timing measurements, build without hotpath's profiling features.
+- A native run reports timing and allocations, a run under Callgrind reports instruction counts, and the two merge into one report for [hotpath-cloud](ci_integration.md).
+- The report records the benchmark id, the iteration count and the Criterion version in `meta.criterion`. It needs hotpath `0.31.0` or newer.
+
+[Criterion benchmarks](criterion.md) has the setup, the supported `iter*` methods and the native and Callgrind commands.
 
 ## How is hotpath-rs different from hyperfine?
 

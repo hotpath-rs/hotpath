@@ -97,7 +97,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hotpath = "0.30"
+hotpath = "0.31"
 
 [features]
 hotpath = ["hotpath/hotpath"]
@@ -223,10 +223,6 @@ Read the [complete guide to profiling Rust applications](https://hotpath.rs/blog
 
 ## hotpath-cloud
 
-My long-term goal for hotpath-rs is to become the single place to understand all performance signals in a Rust application. From CPU and memory usage to locks, channels, and async execution, all the way up to SQL queries and HTTP/RPC calls.
+[hotpath-cloud](https://hotpath.rs/cloud) turns profiling data into automated performance reviews for Rust pull requests.
 
-I'm also building a hosted version that makes profiling reports easier to share, compare, and analyze across pull requests, deployments, and teams. Read more: https://hotpath.rs/cloud
-
-## Status
-
-This project is under active development. Core public APIs are stable, but implementation details (JSON report formats, TUI/MCP internals, and advanced config options) may change between releases as the project evolves.
+Detect performance regressions before they ship by comparing CPU instruction counts, memory allocations, execution times, and SQL queries across PRs. Define performance budgets, get actionable feedback directly in GitHub, and investigate regressions using AI coding agents.
