@@ -146,9 +146,12 @@ pub mod tests {
             .env("TEST_SLEEP_SECONDS", "15")
             .spawn();
 
-        // The example serves exactly 3 GET /big requests.
+        // The example serves exactly 3 GET /big requests and sends the
+        // unmatched one last, after every other response: once its series is
+        // exported, so is every earlier request.
         let body = scrape_until(PROMETHEUS_PORT, 80, |body| {
             body.contains("hotpath_server_scoped_requests_total{route=\"GET /big\"} 3")
+                && body.contains("hotpath_server_alloc_bytes_total{route=\"GET <unmatched>\"}")
         });
 
         for family in [
