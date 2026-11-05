@@ -25,10 +25,15 @@ use axum::Router;
 use diesel::prelude::*;
 use diesel::sql_types::Integer;
 use futures::StreamExt;
+#[cfg(feature = "hotpath-meta")]
+use hotpath::hotpath_meta;
 
 const SYNC_RUNS: u64 = 250_000;
 const ALLOC_RUNS: u64 = 125_000;
 const ASYNC_RUNS: u64 = 75_000;
+const NESTING_RUNS: u64 = 2_000;
+/// Bytes every level of the nested async chain keeps across its `.await`.
+const NESTING_PAYLOAD: usize = 64;
 const BLOCK_RUNS: u64 = 125_000;
 const FUTURE_RUNS: u64 = 75_000;
 const STREAM_ITEMS: u64 = 250_000;
@@ -60,6 +65,61 @@ fn sync_alloc(v: u64) -> usize {
 #[hotpath::measure]
 async fn async_noop(v: u64) -> u64 {
     std::hint::black_box(v).wrapping_add(7)
+}
+
+#[hotpath::measure]
+async fn nested_0(buf: [u8; NESTING_PAYLOAD]) -> u8 {
+    std::hint::black_box(buf)[0]
+}
+
+/// One measured `async fn` per level, each awaiting the next one.
+macro_rules! nested_level {
+    ($($name:ident => $inner:ident),* $(,)?) => {$(
+        #[hotpath::measure]
+        async fn $name(buf: [u8; NESTING_PAYLOAD]) -> u8 {
+            $inner(buf).await
+        }
+    )*};
+}
+
+nested_level!(
+    nested_1 => nested_0,
+    nested_2 => nested_1,
+    nested_3 => nested_2,
+    nested_4 => nested_3,
+    nested_5 => nested_4,
+    nested_6 => nested_5,
+    nested_7 => nested_6,
+    nested_8 => nested_7,
+);
+
+/// Boxes `fut` and polls it to completion on the current frame, so the chain
+/// never becomes part of `main`'s future. The box holds exactly the future,
+/// so the driver's allocation equals the future's size.
+fn run_boxed(fut: impl std::future::Future<Output = u8>) -> (u8, usize) {
+    let mut fut = Box::pin(fut);
+    let size = std::mem::size_of_val(&*fut);
+    let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
+    loop {
+        if let std::task::Poll::Ready(v) = fut.as_mut().poll(&mut cx) {
+            return (v, size);
+        }
+    }
+}
+
+#[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
+fn nesting_depth_4(seed: u8) -> (u8, usize) {
+    run_boxed(nested_4([seed; NESTING_PAYLOAD]))
+}
+
+#[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
+fn nesting_depth_6(seed: u8) -> (u8, usize) {
+    run_boxed(nested_6([seed; NESTING_PAYLOAD]))
+}
+
+#[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
+fn nesting_depth_8(seed: u8) -> (u8, usize) {
+    run_boxed(nested_8([seed; NESTING_PAYLOAD]))
 }
 
 struct Accumulator {
@@ -209,6 +269,29 @@ async fn main() {
         std::hint::black_box(total);
     })
     .await;
+
+    // Deep chains of measured async functions: the drivers' allocations are
+    // the boxed futures, so their size per depth shows in the report.
+    phase("async_nesting", NESTING_RUNS * 3, || {
+        let mut total = 0u64;
+        let mut sizes = [0usize; 3];
+        for i in 0..NESTING_RUNS {
+            let seed = i as u8;
+            for (size, (v, s)) in sizes.iter_mut().zip([
+                nesting_depth_4(seed),
+                nesting_depth_6(seed),
+                nesting_depth_8(seed),
+            ]) {
+                total = total.wrapping_add(v as u64);
+                *size = s;
+            }
+        }
+        std::hint::black_box(total);
+        println!(
+            "benchmark_meta: async_nesting future sizes: depth 4 = {} B, depth 6 = {} B, depth 8 = {} B",
+            sizes[0], sizes[1], sizes[2]
+        );
+    });
 
     phase_async("futures", FUTURE_RUNS, async {
         let mut total = 0u64;
