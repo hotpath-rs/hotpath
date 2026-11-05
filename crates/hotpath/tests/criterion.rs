@@ -12,6 +12,8 @@ pub mod tests {
     use crate::common::report::parse_report;
 
     const ITERATIONS: u64 = 1000;
+    /// `sample_size` of the fixture's `criterion_group!` config.
+    const FIXTURE_SAMPLE_SIZE: u64 = 10;
     const ROUTINE: &str = "hotpath::criterion::routine";
     const ASYNC_ROUTINE: &str = "hotpath::criterion::async_routine";
     const BENCH: &str = "hotpath::criterion::bench";
@@ -347,9 +349,13 @@ pub mod tests {
                 !stdout.contains('{'),
                 "no hotpath report expected:\n{stdout}"
             );
+            // Criterion sizes its loop from the wall-clock warm-up estimate, so a
+            // stalled runner can shrink it to one iteration per sample. Every
+            // sample still runs at least once, after at least one warm-up call.
+            let routine_calls = counts(&output).routine_calls;
             assert!(
-                counts(&output).routine_calls > ITERATIONS,
-                "{package} {prefix}"
+                routine_calls > FIXTURE_SAMPLE_SIZE,
+                "{package} {prefix}: {routine_calls} routine calls"
             );
         }
     }
