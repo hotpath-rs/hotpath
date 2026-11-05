@@ -95,7 +95,7 @@ serde_json = { version = "1.0", optional = true }
 tiny_http = { version = "0.12", optional = true }
 tokio = { version = "1.47", features = ["rt"], optional = true }
 ureq = { version = "3", default-features = false, optional = true }
-percent-encoding = { version = "2", optional = true }
+percent-encoding = { version = "2.3.1", optional = true }
 reqwest ={ version = "0.13", default-features = false, optional = true }
 reqwest-012 = { package = "reqwest", version = "0.12", default-features = false, optional = true }
 reqwest-middleware-04 = { package = "reqwest-middleware", version = "0.4", optional = true }
