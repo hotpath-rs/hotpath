@@ -405,7 +405,8 @@ impl Drop for MeasurementGuardSyncWithLog {
 }
 
 #[must_use = "guard is dropped immediately without measuring anything"]
-pub(crate) struct MeasurementGuardAsyncWithLog {
+#[doc(hidden)]
+pub struct MeasurementGuardAsyncWithLog {
     name: &'static str,
     wrapper: bool,
     tid: u64,

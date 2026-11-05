@@ -27,7 +27,9 @@ cfg_if::cfg_if! {
         pub(crate) use alloc::state::{FunctionsState, Measurement};
         pub(crate) use alloc::guard::AsyncAllocBridge;
         pub use alloc::guard::{MeasurementGuardAsync, MeasurementGuardSync};
-        pub(crate) use alloc::guard::{MeasurementGuardAsyncWithLog, MeasurementGuardSyncWithLog};
+        pub(crate) use alloc::guard::MeasurementGuardSyncWithLog;
+        #[doc(hidden)]
+        pub use alloc::guard::MeasurementGuardAsyncWithLog;
     } else {
         pub(crate) mod timing;
         pub(crate) use timing::state::{FunctionsState, Measurement};
@@ -39,7 +41,8 @@ cfg_if::cfg_if! {
         }
         pub use timing::guard::MeasurementGuard as MeasurementGuardAsync;
         pub use timing::guard::MeasurementGuard as MeasurementGuardSync;
-        pub(crate) use timing::guard::MeasurementGuardWithLog as MeasurementGuardAsyncWithLog;
+        #[doc(hidden)]
+        pub use timing::guard::MeasurementGuardWithLog as MeasurementGuardAsyncWithLog;
         pub(crate) use timing::guard::MeasurementGuardWithLog as MeasurementGuardSyncWithLog;
     }
 }
@@ -126,16 +129,6 @@ pub fn build_measurement_guard_block(
     MeasurementGuardSync::new(measurement_name, wrapper, skipped)
 }
 
-#[cfg(not(feature = "hotpath-alloc"))]
-#[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
-pub(crate) fn build_measurement_guard_async(
-    measurement_name: &'static str,
-    wrapper: bool,
-) -> MeasurementGuardAsync {
-    let skipped = !wrapper && !is_focused(measurement_name);
-    MeasurementGuardAsync::new(measurement_name, wrapper, skipped)
-}
-
 #[inline]
 fn make_alloc_bridge(skipped: bool) -> Option<std::sync::Arc<AsyncAllocBridge>> {
     cfg_if::cfg_if! {
@@ -185,16 +178,6 @@ fn build_measurement_guard_sync_with_log(
     MeasurementGuardSyncWithLog::new_caller_scoped(measurement_name, wrapper, skipped)
 }
 
-#[cfg(not(feature = "hotpath-alloc"))]
-#[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
-fn build_measurement_guard_async_with_log(
-    measurement_name: &'static str,
-    wrapper: bool,
-) -> MeasurementGuardAsyncWithLog {
-    let skipped = !wrapper && !is_focused(measurement_name);
-    MeasurementGuardAsyncWithLog::new(measurement_name, wrapper, skipped)
-}
-
 #[inline]
 fn build_measurement_guard_async_with_log_bridge(
     measurement_name: &'static str,
@@ -240,79 +223,72 @@ pub fn measure_sync_log<T: std::fmt::Debug, F: FnOnce() -> T>(
     result
 }
 
-/// Internal helper used by `#[hotpath::measure(log = true)]` for async functions.
-///
-/// `measurement_loc` is the fully-qualified function path used as the metrics key.
-/// `fut` is the already-constructed async body future whose output is logged.
+pin_project_lite::pin_project! {
+    /// Future returned by the `measure_async*` helpers behind `#[hotpath::measure]`.
+    ///
+    /// Hand-written instead of an `async fn` so the measured body is stored exactly once.
+    /// An `async fn measure_async(loc, fut)` keeps its by-value `fut` argument alive across
+    /// the inner `.await`, so every nesting level of measured async functions doubled the
+    /// outer future (and quadrupled it when `await_with_caller_scope` added a second
+    /// `async fn` layer); deep call chains then overflowed the worker stack while the future
+    /// was materialized before `Box::pin`.
+    #[doc(hidden)]
+    pub struct MeasuredFuture<I: Future, G> {
+        #[pin]
+        inner: I,
+        guard: Option<G>,
+    }
+}
+
+/// Completion hook of the measurement guards: plain guards finish by being dropped, log
+/// guards also record the output value.
 #[doc(hidden)]
-#[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure(log = true))]
-pub async fn measure_async_log<T: std::fmt::Debug, Fut>(
-    measurement_loc: &'static str,
-    fut: Fut,
-) -> T
+pub trait AsyncGuardFinish<T> {
+    fn finish(self, output: &T);
+}
+
+impl<T> AsyncGuardFinish<T> for MeasurementGuardAsync {
+    #[inline]
+    fn finish(self, _output: &T) {
+        drop(self);
+    }
+}
+
+impl<T: std::fmt::Debug> AsyncGuardFinish<T> for MeasurementGuardAsyncWithLog {
+    #[inline]
+    fn finish(self, output: &T) {
+        self.finish_with_result(output);
+    }
+}
+
+impl<I, G> Future for MeasuredFuture<I, G>
 where
-    Fut: Future<Output = T>,
+    I: Future,
+    G: AsyncGuardFinish<I::Output>,
 {
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "hotpath-alloc")] {
-            let (guard, alloc_bridge) = build_measurement_guard_async_with_log_bridge(measurement_loc, false);
-            let result = crate::futures::wrapper::InstrumentedFuture::new(
-                fut,
-                measurement_loc,
-                None,
-                alloc_bridge,
-                false,
-                async_caller_scope(measurement_loc),
-            )
-            .await;
-            guard.finish_with_result(&result);
-            result
-        } else {
-            let guard = build_measurement_guard_async_with_log(measurement_loc, false);
-            let result = await_with_caller_scope(measurement_loc, fut).await;
-            guard.finish_with_result(&result);
-            result
+    type Output = I::Output;
+
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let this = self.project();
+        match this.inner.poll(cx) {
+            std::task::Poll::Ready(output) => {
+                // Same order as the former `async fn`: the instrumented body has finished its
+                // bookkeeping (alloc bridge, caller scope) before the guard records the end.
+                if let Some(guard) = this.guard.take() {
+                    guard.finish(&output);
+                }
+                std::task::Poll::Ready(output)
+            }
+            std::task::Poll::Pending => std::task::Poll::Pending,
         }
     }
 }
 
-/// Caller scope for a measured async body: `None` when `HOTPATH_FOCUS`
-/// excludes the function, matching the sync guards' skipped behavior.
 fn async_caller_scope(measurement_loc: &'static str) -> Option<&'static str> {
     is_focused(measurement_loc).then_some(measurement_loc)
-}
-
-/// Runs a measured async body with its function name registered on the
-/// thread-local caller stack around every poll (SQL/HTTP source attribution).
-/// Awaits the future unwrapped when no SQL/HTTP front-end feature is enabled.
-#[cfg(not(feature = "hotpath-alloc"))]
-async fn await_with_caller_scope<T, Fut>(measurement_loc: &'static str, fut: Fut) -> T
-where
-    Fut: Future<Output = T>,
-{
-    cfg_if::cfg_if! {
-        if #[cfg(any(
-            feature = "sqlx",
-            feature = "diesel",
-            feature = "toasty",
-            feature = "reqwest-0-12",
-            feature = "reqwest-0-13",
-            feature = "ureq-3",
-        ))] {
-            crate::futures::wrapper::InstrumentedFuture::new(
-                fut,
-                measurement_loc,
-                None,
-                None,
-                false,
-                async_caller_scope(measurement_loc),
-            )
-            .await
-        } else {
-            let _ = measurement_loc;
-            fut.await
-        }
-    }
 }
 
 /// Internal helper used by `#[hotpath::measure]` for async functions.
@@ -320,27 +296,48 @@ where
 /// `measurement_loc` is the fully-qualified function path used as the metrics key.
 /// `fut` is the async body future measured for timing/allocs only.
 #[doc(hidden)]
-pub async fn measure_async<T, Fut>(measurement_loc: &'static str, fut: Fut) -> T
+pub fn measure_async<T, Fut>(
+    measurement_loc: &'static str,
+    fut: Fut,
+) -> MeasuredFuture<crate::futures::wrapper::InstrumentedFuture<Fut>, MeasurementGuardAsync>
 where
     Fut: Future<Output = T>,
 {
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "hotpath-alloc")] {
-            let (_guard, alloc_bridge) =
-                build_measurement_guard_async_with_bridge(measurement_loc, false);
-            crate::futures::wrapper::InstrumentedFuture::new(
-                fut,
-                measurement_loc,
-                None,
-                alloc_bridge,
-                false,
-                async_caller_scope(measurement_loc),
-            )
-            .await
-        } else {
-            let _guard = build_measurement_guard_async(measurement_loc, false);
-            await_with_caller_scope(measurement_loc, fut).await
-        }
+    let (guard, alloc_bridge) = build_measurement_guard_async_with_bridge(measurement_loc, false);
+    MeasuredFuture {
+        inner: crate::futures::wrapper::InstrumentedFuture::new(
+            fut,
+            measurement_loc,
+            None,
+            alloc_bridge,
+            false,
+            async_caller_scope(measurement_loc),
+        ),
+        guard: Some(guard),
+    }
+}
+
+/// Internal helper used by `#[hotpath::measure(log = true)]` for async functions.
+#[doc(hidden)]
+pub fn measure_async_log<T: std::fmt::Debug, Fut>(
+    measurement_loc: &'static str,
+    fut: Fut,
+) -> MeasuredFuture<crate::futures::wrapper::InstrumentedFuture<Fut>, MeasurementGuardAsyncWithLog>
+where
+    Fut: Future<Output = T>,
+{
+    let (guard, alloc_bridge) =
+        build_measurement_guard_async_with_log_bridge(measurement_loc, false);
+    MeasuredFuture {
+        inner: crate::futures::wrapper::InstrumentedFuture::new(
+            fut,
+            measurement_loc,
+            None,
+            alloc_bridge,
+            false,
+            async_caller_scope(measurement_loc),
+        ),
+        guard: Some(guard),
     }
 }
 
@@ -350,22 +347,27 @@ where
 /// measurement and visible future lifecycle events.
 /// `fut` is the async body future to instrument.
 #[doc(hidden)]
-pub async fn measure_async_future<T, Fut>(measurement_loc: &'static str, fut: Fut) -> T
+pub fn measure_async_future<T, Fut>(
+    measurement_loc: &'static str,
+    fut: Fut,
+) -> MeasuredFuture<crate::futures::wrapper::InstrumentedFuture<Fut>, MeasurementGuardAsync>
 where
     Fut: Future<Output = T>,
 {
     crate::futures::init_futures_state();
 
-    let (_guard, alloc_bridge) = build_measurement_guard_async_with_bridge(measurement_loc, false);
-    crate::futures::wrapper::InstrumentedFuture::new(
-        fut,
-        measurement_loc,
-        None,
-        alloc_bridge,
-        true,
-        async_caller_scope(measurement_loc),
-    )
-    .await
+    let (guard, alloc_bridge) = build_measurement_guard_async_with_bridge(measurement_loc, false);
+    MeasuredFuture {
+        inner: crate::futures::wrapper::InstrumentedFuture::new(
+            fut,
+            measurement_loc,
+            None,
+            alloc_bridge,
+            true,
+            async_caller_scope(measurement_loc),
+        ),
+        guard: Some(guard),
+    }
 }
 
 /// Internal helper used by `#[hotpath::measure(future = true, log = true)]`.
@@ -374,7 +376,10 @@ where
 /// and future lifecycle events.
 /// `fut` is the async body future; its output is recorded in future/function logs.
 #[doc(hidden)]
-pub async fn measure_async_future_log<T, Fut>(measurement_loc: &'static str, fut: Fut) -> T
+pub fn measure_async_future_log<T, Fut>(
+    measurement_loc: &'static str,
+    fut: Fut,
+) -> MeasuredFuture<crate::futures::wrapper::InstrumentedFutureLog<Fut>, MeasurementGuardAsyncWithLog>
 where
     T: std::fmt::Debug,
     Fut: Future<Output = T>,
@@ -383,17 +388,17 @@ where
 
     let (guard, alloc_bridge) =
         build_measurement_guard_async_with_log_bridge(measurement_loc, false);
-    let result = crate::futures::wrapper::InstrumentedFutureLog::new(
-        fut,
-        measurement_loc,
-        None,
-        alloc_bridge,
-        true,
-        async_caller_scope(measurement_loc),
-    )
-    .await;
-    guard.finish_with_result(&result);
-    result
+    MeasuredFuture {
+        inner: crate::futures::wrapper::InstrumentedFutureLog::new(
+            fut,
+            measurement_loc,
+            None,
+            alloc_bridge,
+            true,
+            async_caller_scope(measurement_loc),
+        ),
+        guard: Some(guard),
+    }
 }
 
 pub(crate) static FUNCTIONS_STATE: OnceLock<

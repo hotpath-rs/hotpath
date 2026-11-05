@@ -394,4 +394,56 @@ mod tests {
     fn test_hotpath_is_send_sync() {
         is_send_sync::<HotpathGuard>();
     }
+
+    // `measure_async` used to be an `async fn` taking the body future by value. An `async fn`
+    // keeps its arguments alive for the whole future, so every nested measured call doubled
+    // (or, with the extra caller-scope layer, tripled) the outer future and deep async call
+    // chains overflowed the worker stack. The hand-written `MeasuredFuture` adds a constant per
+    // level; this test pins the linear growth.
+    #[test]
+    fn measured_async_fn_nesting_grows_linearly() {
+        use std::mem::size_of_val;
+
+        #[crate::measure]
+        async fn depth0(buf: [u8; 256]) -> u8 {
+            std::future::ready(buf[0]).await
+        }
+        #[crate::measure]
+        async fn depth1(buf: [u8; 256]) -> u8 {
+            depth0(buf).await
+        }
+        #[crate::measure]
+        async fn depth2(buf: [u8; 256]) -> u8 {
+            depth1(buf).await
+        }
+        #[crate::measure]
+        async fn depth3(buf: [u8; 256]) -> u8 {
+            depth2(buf).await
+        }
+        #[crate::measure]
+        async fn depth4(buf: [u8; 256]) -> u8 {
+            depth3(buf).await
+        }
+
+        let buf = [0u8; 256];
+        let sizes = [
+            size_of_val(&depth0(buf)),
+            size_of_val(&depth1(buf)),
+            size_of_val(&depth2(buf)),
+            size_of_val(&depth3(buf)),
+            size_of_val(&depth4(buf)),
+        ];
+        let first_step = sizes[1] - sizes[0];
+        for level in 2..sizes.len() {
+            let step = sizes[level] - sizes[level - 1];
+            assert!(
+                step <= first_step + 64,
+                "level {level} grew by {step} bytes, first level by {first_step}: {sizes:?}"
+            );
+        }
+        assert!(
+            sizes[4] < 8 * sizes[0],
+            "4 nested measured levels should stay within a small multiple of one: {sizes:?}"
+        );
+    }
 }
