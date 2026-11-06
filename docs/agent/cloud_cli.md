@@ -57,7 +57,7 @@ Branch on the exit code, then read the JSON ("Output and exit codes"). Do not pa
 
 4. Exit `0`: done, report the verdict and `dashboard_url` to the user. Exit `1`: read the regressions and broken budgets, fix the code, and repeat from step 1.
 
-`--pr N` or `--id ID` select a report instead of `--commit`; `--advisory` and `--full` widen what `diff` lists. To find earlier reports (a benchmark's history on the default branch, recent regressions, every report of a pull request), page through `hotpath cloud reports`.
+`--pr N` or `--id ID` select a report instead of `--commit`; `--advisory` and `--full` widen what `diff` lists. To find earlier reports (a benchmark's history on the default branch, recent regressions, every report of a pull request), page through `hotpath cloud reports`; `--metadata KEY=VALUE` narrows it to runs uploaded with that `user_metadata` pair, e.g. one runner or CPU, to compare the same benchmark across machines.
 
 Useful extracts:
 

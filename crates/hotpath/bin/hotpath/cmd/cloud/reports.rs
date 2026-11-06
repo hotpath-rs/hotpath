@@ -4,9 +4,10 @@
 //! here by the server's rules and percent-encoded into the query. A page with
 //! regressed or failed reports is still a successful listing (exit 0).
 
+use std::collections::BTreeMap;
 use std::process::ExitCode;
 
-use clap::{Args, ValueEnum};
+use clap::{ArgAction, Args, ValueEnum};
 use time::format_description::well_known::Rfc3339;
 use time::macros::format_description;
 use time::{Date, OffsetDateTime};
@@ -20,6 +21,11 @@ use crate::cmd::cloud::selector::{validate_commit, validate_pr, Event};
 const MAX_LIMIT: u64 = 50;
 /// The server's longest `branch=`, in bytes.
 const MAX_BRANCH_BYTES: usize = 255;
+/// The server's `metadata=` bounds: at most this many pairs, each key and
+/// value at most as long as an upload's `user_metadata` allows, in bytes.
+const MAX_METADATA_PAIRS: usize = 8;
+const MAX_METADATA_KEY_BYTES: usize = 64;
+const MAX_METADATA_VALUE_BYTES: usize = 200;
 
 #[derive(Args, Debug)]
 pub(crate) struct ReportsArgs {
@@ -69,6 +75,14 @@ pub(crate) struct ReportsArgs {
 
     #[arg(long, value_enum, help = "Only reports with this stored verdict")]
     verdict: Option<VerdictFilter>,
+
+    #[arg(
+        long,
+        value_name = "KEY=VALUE",
+        action = ArgAction::Append,
+        help = "Only reports whose user_metadata has KEY=VALUE (repeatable, all must match)"
+    )]
+    metadata: Vec<String>,
 
     #[arg(
         long,
@@ -153,6 +167,7 @@ fn request_path(args: &ReportsArgs) -> Result<String, CliError> {
             ));
         }
     }
+    let metadata = metadata_filter(&args.metadata)?;
     let limit = args.limit.map(validate_limit).transpose()?;
 
     // The dates go as given, so their offsets reach the server unchanged.
@@ -165,6 +180,7 @@ fn request_path(args: &ReportsArgs) -> Result<String, CliError> {
         ("since", args.since.as_deref()),
         ("until", args.until.as_deref()),
         ("verdict", args.verdict.map(VerdictFilter::as_str)),
+        ("metadata", metadata.as_deref()),
         ("limit", limit.as_deref()),
         ("cursor", args.cursor.as_deref()),
     ]
@@ -191,6 +207,47 @@ fn validate_branch(branch: &str) -> Result<&str, CliError> {
         )));
     }
     Ok(branch)
+}
+
+/// The `--metadata KEY=VALUE` flags as the server's `metadata=` JSON
+/// object, or `None` without any. Each flag splits on its first `=`, so a
+/// value may hold `=` or `,`; keys and values are matched as given, so
+/// nothing is trimmed.
+fn metadata_filter(flags: &[String]) -> Result<Option<String>, CliError> {
+    if flags.is_empty() {
+        return Ok(None);
+    }
+    if flags.len() > MAX_METADATA_PAIRS {
+        return Err(CliError::client(format!(
+            "invalid --metadata: expected at most {MAX_METADATA_PAIRS} KEY=VALUE pairs, got {}.",
+            flags.len()
+        )));
+    }
+    let mut pairs = BTreeMap::new();
+    for flag in flags {
+        let bad = |expected: String| {
+            CliError::client(format!("invalid --metadata `{flag}`: expected {expected}."))
+        };
+        let Some((key, value)) = flag.split_once('=') else {
+            return Err(bad("KEY=VALUE".into()));
+        };
+        if key.is_empty() || key.len() > MAX_METADATA_KEY_BYTES {
+            return Err(bad(format!(
+                "a KEY of 1 to {MAX_METADATA_KEY_BYTES} bytes before the `=`"
+            )));
+        }
+        if value.len() > MAX_METADATA_VALUE_BYTES {
+            return Err(bad(format!(
+                "a VALUE of at most {MAX_METADATA_VALUE_BYTES} bytes"
+            )));
+        }
+        if pairs.insert(key, value).is_some() {
+            return Err(bad(format!("each KEY once, `{key}` is given twice")));
+        }
+    }
+    serde_json::to_string(&pairs)
+        .map(Some)
+        .map_err(|e| CliError::client(format!("invalid --metadata: {e}.")))
 }
 
 /// A `--since` / `--until` value: RFC 3339, or `YYYY-MM-DD` read as UTC midnight.
