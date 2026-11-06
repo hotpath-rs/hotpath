@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.1] - 2026-11-06
+
+### 🚀 Features
+
+- Add hotpath cloud CLI reports command
+
+
+### 🐛 Bug Fixes
+
+- Keep measured async futures linear in size
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Optimize CI cache usage
+
+- Simplify criterion benchmark config
+
+- Add nested async functions phase to meta benchmark
+
+- Release 0.31.1
+
+
 ## [0.31.0] - 2026-11-03
 
 ### 🚀 Features
