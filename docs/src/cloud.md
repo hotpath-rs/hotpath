@@ -94,3 +94,8 @@ Link your repository's hotpath-cloud page from its README:
 ```
 
 Replace `OWNER/NAME` with your GitHub repository. The page opens once the hotpath GitHub App is installed on the repository. Reports of a public repository are public by default; for a private repository the page opens only for users with access to it.
+
+## Pricing
+
+- **Public repositories:** free, now and after the beta. `hotpath-cloud` will always offer a free plan for public repositories.
+- **Private repositories:** free during the open beta. Paid plans for private repositories will be introduced after the beta.
