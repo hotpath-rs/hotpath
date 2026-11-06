@@ -27,13 +27,13 @@ hotpath cloud auth --pretty
 }
 ```
 
-The token gives the CLI access to the same repositories as your account on hotpath.rs: the ones your GitHub user can see that have the hotpath GitHub App installed. They are listed on <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a>, where you can also add more.
+The token reads what your account reads on hotpath.rs. `repos` lists the repositories in the hotpath GitHub App installations your GitHub user can see, the same list as <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a>, where you can also add more. The other commands also read the public reports of any other project when you name its repository; see [which repositories you can read](mcp_api.md#which-repositories-you-can-read). The same data is available to AI assistants through the [hotpath-cloud MCP server](mcp_api.md).
 
 ## CLI commands
 
 ### repos and benchmarks
 
-`repos` lists every repository the token reaches, with its benchmarks. `benchmarks` lists one repository's:
+`repos` lists the repositories of your installations, with their benchmarks. `benchmarks` lists one repository's:
 
 ```bash
 hotpath cloud benchmarks --repo hotpath-rs/hotpath --pretty

@@ -51,7 +51,7 @@ Instruction counts measure computational work, not execution time: a higher coun
 
 ## Investigate and fix regressions with AI agents
 
-The [`hotpath cloud`](agents_cli.md) CLI and the `hotpath-rs` [agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath-rs/SKILL.md) give coding agents access to the same reports. An agent can analyze a performance diff, pinpoint the functions that regressed, and use the profiling data to guide optimizations:
+The [`hotpath cloud`](agents_cli.md) CLI, the `hotpath-rs` [agent skill](https://github.com/hotpath-rs/hotpath/blob/main/skills/hotpath-rs/SKILL.md) and the [hotpath-cloud MCP server](mcp_api.md) give coding agents and AI assistants access to the same reports. An agent can analyze a performance diff, pinpoint the functions that regressed, and use the profiling data to guide optimizations:
 
 <img loading="lazy" src="{{#asset-hash images/cloud-agent-diff.webp}}" alt="AI agent summarizing a hotpath-cloud diff">
 

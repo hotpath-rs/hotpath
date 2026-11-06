@@ -8,6 +8,8 @@ The Model Context Protocol (MCP) integration allows LLM agents like Claude Code 
 
 and get instant answers.
 
+This MCP server runs inside your application and serves live data. To let AI assistants read the reports your CI uploads to hotpath-cloud, use the [hotpath-cloud MCP server](mcp_api.md).
+
 ## Setup
 
 Run your program with the MCP enabled alongside profiling:

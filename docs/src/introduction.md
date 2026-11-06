@@ -410,7 +410,8 @@ Explore the docs for customization options and advanced profiling features.
 - [Prometheus & Grafana](./prometheus_grafana.html) - export metrics to Prometheus and build Grafana dashboards
 - [Criterion benchmarks](./criterion.html) - profile existing Criterion benchmarks with timing, allocations and Callgrind instruction counts
 - [hotpath-cloud CI integration](./ci_integration.html) - performance regression detection on every pull request
-- [MCP Server](./mcp.html) - LLM integration via Model Context Protocol
+- [Live MCP Server](./mcp.html) - LLM queries of a running application's profiling data via Model Context Protocol
+- [Hotpath Cloud MCP Server and REST API](./mcp_api.html) - AI assistant access to stored CI reports
 - [Cargo flamegraph alternatives](/blog/sampling_comparison) - when to use `hotpath` vs sampling profilers like perf and samply
 - [Configuration](./configuration.html) - explore all config options
 
