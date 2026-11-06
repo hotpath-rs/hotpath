@@ -136,8 +136,15 @@ Every filter is optional, and filters combine:
 | `--since DATE` | uploaded at or after `DATE` |
 | `--until DATE` | uploaded before `DATE` |
 | `--verdict VERDICT` | with this stored verdict: `passed` (judged, no regression), `regressed` (judged with a regression, failed reports included), `failed`, `not_judged` |
+| `--metadata KEY=VALUE` | whose `user_metadata` has `KEY` with exactly `VALUE`; repeat it (up to 8 times) to require several pairs |
 
 `DATE` is `YYYY-MM-DD`, read as midnight UTC, or an RFC 3339 time such as `2026-11-01T10:30:00+01:00`.
+
+`--metadata` matches the pairs a report was uploaded with ([`HOTPATH_USER_METADATA`](configuration.md) or `HotpathGuardBuilder::user_metadata`), case-sensitively; a report without metadata never matches. It splits on the first `=`, so a value may contain `=` or `,`. To compare one benchmark across runners:
+
+```bash
+hotpath cloud reports --repo hotpath-rs/hotpath --benchmark drain --metadata runner=Linux-ARM64 --limit 10
+```
 
 Each run prints one page of `--limit N` reports (1 to 50, default 20). When more reports match, `next_cursor` is a string: pass it as `--cursor` with the same filters to get the next page. It is `null` on the last page.
 

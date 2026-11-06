@@ -964,6 +964,98 @@ mod tests {
     }
 
     #[test]
+    fn reports_metadata_flags_are_one_json_object() {
+        let at_bounds_key = "k".repeat(64);
+        let at_bounds_value = "v".repeat(200);
+        let at_bounds = format!("{at_bounds_key}={at_bounds_value}");
+        let eight: Vec<String> = (1..=8).map(|i| format!("k{i}={i}")).collect();
+        let cases: Vec<(Vec<&str>, String)> = vec![
+            (
+                vec!["--metadata", "runner=Linux-ARM64"],
+                r#"{"runner":"Linux-ARM64"}"#.into(),
+            ),
+            // split on the first `=`, keys in order, values as given
+            (
+                vec![
+                    "--metadata",
+                    "runner=a=b, c/d+e&f g",
+                    "--metadata",
+                    "cpu=AMD EPYC 9V74 80-Core Processor",
+                ],
+                r#"{"cpu":"AMD EPYC 9V74 80-Core Processor","runner":"a=b, c/d+e&f g"}"#.into(),
+            ),
+            (vec!["--metadata", "note="], r#"{"note":""}"#.into()),
+            (
+                vec!["--metadata", "quote=\"x\"\\"],
+                r#"{"quote":"\"x\"\\"}"#.into(),
+            ),
+            (
+                vec!["--metadata", &at_bounds],
+                format!(r#"{{"{at_bounds_key}":"{at_bounds_value}"}}"#),
+            ),
+            (
+                eight
+                    .iter()
+                    .flat_map(|flag| ["--metadata", flag.as_str()])
+                    .collect(),
+                r#"{"k1":"1","k2":"2","k3":"3","k4":"4","k5":"5","k6":"6","k7":"7","k8":"8"}"#
+                    .into(),
+            ),
+        ];
+        for (filters, object) in cases {
+            let mut server = Server::new();
+            let body = report_list_body("null");
+            let mock = mock_reports(
+                &mut server,
+                Matcher::AllOf(vec![
+                    Matcher::UrlEncoded("metadata".into(), object.clone()),
+                    Matcher::Regex("^metadata=[^&]+$".into()),
+                ]),
+                &body,
+            );
+            let output = hotpath(&server, Some(TOKEN), &reports_args(&filters));
+            assert_eq!(
+                output.status.code(),
+                Some(0),
+                "{filters:?}: {}",
+                stderr(&output)
+            );
+            assert_eq!(stdout(&output), format!("{body}\n"), "{filters:?}");
+            mock.assert();
+        }
+
+        // with the other filters, in the query's place after `verdict`
+        let mut server = Server::new();
+        let body = report_list_body("null");
+        let mock = mock_reports(
+            &mut server,
+            Matcher::AllOf(vec![
+                Matcher::UrlEncoded("metadata".into(), r#"{"runner":"Linux-ARM64"}"#.into()),
+                Matcher::Regex(
+                    "^benchmark=drain&verdict=regressed&metadata=[^&]+&limit=10$".into(),
+                ),
+            ]),
+            &body,
+        );
+        let output = hotpath(
+            &server,
+            Some(TOKEN),
+            &reports_args(&[
+                "--metadata",
+                "runner=Linux-ARM64",
+                "--benchmark",
+                "drain",
+                "--limit",
+                "10",
+                "--verdict",
+                "regressed",
+            ]),
+        );
+        assert_eq!(output.status.code(), Some(0), "stderr: {}", stderr(&output));
+        mock.assert();
+    }
+
+    #[test]
     fn reports_rejects_bad_values_before_the_token_or_a_request() {
         let mut server = Server::new();
         let mock = server
@@ -973,6 +1065,13 @@ mod tests {
 
         let long_branch = "b".repeat(256);
         let pr_over_i32 = (i64::from(i32::MAX) + 1).to_string();
+        let long_key = format!("{}=v", "k".repeat(65));
+        let long_value = format!("k={}", "v".repeat(201));
+        let nine: Vec<String> = (1..=9).map(|i| format!("k{i}={i}")).collect();
+        let nine_flags: Vec<&str> = nine
+            .iter()
+            .flat_map(|flag| ["--metadata", flag.as_str()])
+            .collect();
         let cases: Vec<(Vec<&str>, &str)> = vec![
             (vec!["reports", "--repo", "nope"], "invalid --repo `nope`"),
             (vec!["reports", "--repo", "a/.."], "invalid --repo `a/..`"),
@@ -1033,6 +1132,30 @@ mod tests {
             ),
             (reports_args(&["--limit", "0"]), "invalid --limit `0`"),
             (reports_args(&["--limit", "51"]), "invalid --limit `51`"),
+            (
+                reports_args(&["--metadata", "runner"]),
+                "invalid --metadata `runner`: expected KEY=VALUE",
+            ),
+            (
+                reports_args(&["--metadata", "=Linux"]),
+                "invalid --metadata `=Linux`: expected a KEY",
+            ),
+            (
+                reports_args(&["--metadata", &long_key]),
+                "invalid --metadata `kkkk",
+            ),
+            (
+                reports_args(&["--metadata", &long_value]),
+                "invalid --metadata `k=vvvv",
+            ),
+            (
+                reports_args(&["--metadata", "a=1", "--metadata", "a=2"]),
+                "invalid --metadata `a=2`: expected each KEY once",
+            ),
+            (
+                reports_args(&nine_flags),
+                "invalid --metadata: expected at most 8",
+            ),
         ];
         for (args, expected) in cases {
             let output = hotpath(&server, None, &args);
@@ -1066,6 +1189,7 @@ mod tests {
             reports_args(&["--pr", "-1"]),
             reports_args(&["--limit", "many"]),
             reports_args(&["--offset", "20"]),
+            reports_args(&["--metadata"]),
         ] {
             let output = hotpath(&server, Some(TOKEN), &args);
             assert_eq!(
