@@ -123,6 +123,8 @@ impl<T> Drop for MutexGuard<'_, T> {
     }
 }
 
+crate::lib_on::impl_lock_debug!(Mutex, MutexGuard);
+
 impl<T> InstrumentMutex for StdMutex<T> {
     type Output = Mutex<T>;
     fn instrument(self, source: &'static str, label: Option<String>) -> Self::Output {

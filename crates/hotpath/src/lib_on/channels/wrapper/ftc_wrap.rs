@@ -426,20 +426,6 @@ impl<T> Drop for UnboundedReceiver<T> {
     }
 }
 
-// futures' endpoints implement `Debug` for any `T`, so the wrappers delegate
-// unconditionally too.
-macro_rules! impl_debug_via_inner {
-    ($($ty:ident),+) => {$(
-        impl<T> std::fmt::Debug for $ty<T> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.debug_struct(stringify!($ty))
-                    .field("inner", &self.inner)
-                    .finish_non_exhaustive()
-            }
-        }
-    )+};
-}
-
 impl_debug_via_inner!(Sender, Receiver, UnboundedSender, UnboundedReceiver);
 
 fn build_bounded<T>(

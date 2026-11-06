@@ -4757,11 +4757,16 @@ dependencies = [
 name = "test-all-features"
 version = "0.0.0"
 dependencies = [
+ "async-channel",
+ "async-lock",
  "axum",
+ "crossbeam-channel",
  "diesel",
+ "flume 0.12.0",
  "futures",
  "hotpath",
  "libsqlite3-sys",
+ "parking_lot",
  "tokio",
  "ureq",
 ]

@@ -103,6 +103,16 @@ impl<T> std::ops::DerefMut for InstrumentedIo<T> {
     }
 }
 
+// Bounded on the wrapped value, so wrapping keeps `Debug` wherever it had it.
+impl<T: std::fmt::Debug> std::fmt::Debug for InstrumentedIo<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InstrumentedIo")
+            .field("inner", &self.inner)
+            .field("id", &self.id)
+            .finish_non_exhaustive()
+    }
+}
+
 /// Records a completed synchronous operation. Retryable conditions
 /// (`WouldBlock`, `Interrupted`) produce no event; other errors are counted.
 fn record_sync_op(

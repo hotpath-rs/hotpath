@@ -79,6 +79,33 @@ pub(crate) mod valgrind;
 #[doc(hidden)]
 pub use locations::{register_location, Location};
 
+/// Implements `Debug` for an instrumented lock wrapper and its guards under the
+/// `T: Debug` bound every wrapped lock crate uses. The lock prints its inner lock
+/// (whose `Debug` peeks via `try_lock`, so it records no lock event) plus the
+/// registration id; a guard prints the guarded value, like the upstream guards.
+macro_rules! impl_lock_debug {
+    ($lock:ident $(, $guard:ident)* $(,)?) => {
+        impl<T: std::fmt::Debug> std::fmt::Debug for $lock<T> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_struct(stringify!($lock))
+                    .field("inner", &self.inner)
+                    .field("id", &self.id)
+                    .finish_non_exhaustive()
+            }
+        }
+
+        $(
+            impl<T: std::fmt::Debug> std::fmt::Debug for $guard<'_, T> {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    std::fmt::Debug::fmt(&**self, f)
+                }
+            }
+        )*
+    };
+}
+
+pub(crate) use impl_lock_debug;
+
 pub use functions::allocator::CountingAllocator;
 pub use functions::{
     measure_async, measure_async_future, measure_async_future_log, measure_async_log,

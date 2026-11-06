@@ -40,6 +40,16 @@ impl<S> InstrumentedStream<S> {
     }
 }
 
+// Bounded on the wrapped stream, so wrapping keeps `Debug` wherever it had it.
+impl<S: std::fmt::Debug> std::fmt::Debug for InstrumentedStream<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InstrumentedStream")
+            .field("inner", &self.inner)
+            .field("id", &self.id)
+            .finish_non_exhaustive()
+    }
+}
+
 impl<S: Stream> Stream for InstrumentedStream<S> {
     type Item = S::Item;
 
@@ -99,6 +109,15 @@ impl<S> InstrumentedStreamLog<S> {
             id,
             completed: false,
         }
+    }
+}
+
+impl<S: std::fmt::Debug> std::fmt::Debug for InstrumentedStreamLog<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InstrumentedStreamLog")
+            .field("inner", &self.inner)
+            .field("id", &self.id)
+            .finish_non_exhaustive()
     }
 }
 
