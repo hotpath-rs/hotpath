@@ -47,7 +47,7 @@ hotpath-prometheus-meta = ["hotpath-meta", "hotpath-meta/hotpath-prometheus-meta
 hotpath-ordered-drain = ["hotpath-alloc", "hotpath-drain/hotpath-ordered-drain"]
 hotpath-alloc = ["hotpath", "hotpath-macros/hotpath-alloc"]
 hotpath-cloud = ["hotpath", "dep:ureq", "ureq/rustls", "ureq/json", "dep:flate2"]
-cloud = ["json", "dep:eyre", "dep:clap", "dep:ureq", "ureq/json", "ureq/rustls", "serde_json/preserve_order"]
+cloud = ["json", "dep:eyre", "dep:clap", "dep:ureq", "ureq/json", "ureq/rustls", "serde_json/preserve_order", "dep:percent-encoding", "time/parsing"]
 tui = ["json", "dep:eyre", "dep:clap", "dep:reqwest", "reqwest/json", "reqwest/rustls", "dep:crossterm", "dep:ratatui", "dep:crossbeam-channel", "dep:tokio", "tokio/rt", "tokio/rt-multi-thread", "crossbeam", "dep:futures-util"]
 demo = ["hotpath-prometheus", "sqlx", "dep:sqlx", "diesel", "diesel/sqlite", "dep:libsqlite3-sys", "reqwest-0-13", "axum-0-8", "axum/tokio", "axum/http1", "tokio/net"]
 tokio = ["dep:tokio", "tokio/sync", "tokio/time"]
@@ -95,6 +95,7 @@ serde_json = { version = "1.0", optional = true }
 tiny_http = { version = "0.12", optional = true }
 tokio = { version = "1.47", features = ["rt"], optional = true }
 ureq = { version = "3", default-features = false, optional = true }
+percent-encoding = { version = "2.3.1", optional = true }
 reqwest ={ version = "0.13", default-features = false, optional = true }
 reqwest-012 = { package = "reqwest", version = "0.12", default-features = false, optional = true }
 reqwest-middleware-04 = { package = "reqwest-middleware", version = "0.4", optional = true }

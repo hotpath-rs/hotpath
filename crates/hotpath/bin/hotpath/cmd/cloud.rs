@@ -9,6 +9,7 @@ mod init;
 mod policy;
 mod repo;
 mod report;
+mod reports;
 mod repos;
 mod selector;
 
@@ -22,6 +23,7 @@ use crate::cmd::cloud::diff::DiffArgs;
 use crate::cmd::cloud::init::InitArgs;
 use crate::cmd::cloud::policy::ValidatePolicyArgs;
 use crate::cmd::cloud::report::ReportArgs;
+use crate::cmd::cloud::reports::ReportsArgs;
 
 #[derive(Parser, Debug)]
 pub(crate) struct CloudArgs {
@@ -100,6 +102,54 @@ token's user cannot see all answer 404 `not_found`: poll with --commit until it
 exits 0 to wait for CI's upload. Same token and base URL environment as `auth`."
     )]
     Report(ReportArgs),
+
+    #[command(
+        about = "List a repository's stored reports, newest first, one page per run (GET /api/v1/repos/{owner}/{name}/reports)",
+        long_about = "List a repository's stored reports, newest first, one page per run
+(GET /api/v1/repos/{owner}/{name}/reports).
+
+Each entry is one upload, as the summary `report --no-payload` prints (never the
+payload), so a pull request measured three times lists three reports. The body is
+`repository`, `reports` and `next_cursor`.
+
+Every filter is optional and they combine with AND:
+  --benchmark NAME          one benchmark; without it, every benchmark of the repository
+  --event EVENT             push or pull_request
+  --pr N                    reports of this pull request
+  --commit SHA              a full 40-character sha, matching the measured commit or the
+                            pull request's head commit, so `--commit $(git rev-parse HEAD)`
+                            on a PR branch finds the PR's reports; with --pr, the reports
+                            of that PR at that commit
+  --branch NAME             the bare branch name measured (refs/heads/NAME), not a PR's
+                            head or base branch; a value starting with refs/ is refused
+  --since DATE              uploaded at or after DATE
+  --until DATE              uploaded strictly before DATE
+  --verdict VERDICT         passed: judged without regressions; regressed: judged with
+                            regressions, failed reports included; failed: judged and
+                            failed; not_judged: no stored judgement
+DATE is YYYY-MM-DD (UTC midnight) or an RFC 3339 time (2026-11-01T10:30:00+01:00);
+--since must be before --until.
+
+Pagination: --limit N reports per page, 1 to 50 (default 20). When more reports match,
+`next_cursor` is a string: pass it as --cursor with the same filters to get the next
+page; it is null on the last page. The cursor is opaque, passed back unchanged, and a
+cursor the server did not issue answers 400. No run fetches more than one page.
+
+Examples:
+  hotpath cloud reports --repo OWNER/NAME --pretty
+  hotpath cloud reports --repo OWNER/NAME --benchmark NAME --event push --branch main --limit 50
+  hotpath cloud reports --repo OWNER/NAME --verdict regressed --since 2026-11-01
+  hotpath cloud reports --repo OWNER/NAME --commit $(git rev-parse HEAD)
+
+Exit codes:
+  0  a page was listed, empty or with regressed or failed reports: a verdict is
+     never an exit code here (use `diff` for that)
+  1  any error (unknown repository or benchmark, bad cursor, bad argument value,
+     auth, network, unparseable body)
+  2  usage error
+Same token and base URL environment as `auth`."
+    )]
+    Reports(Box<ReportsArgs>),
 
     #[command(
         about = "Compare a stored report with its baseline under the policy it carried",
@@ -282,6 +332,7 @@ impl CloudArgs {
             CloudCommand::Repos => repos::run(output),
             CloudCommand::Benchmarks { repo } => benchmarks::run(output, &repo),
             CloudCommand::Report(args) => report::run(output, args),
+            CloudCommand::Reports(args) => reports::run(output, *args),
             CloudCommand::Diff(args) => diff::run(output, args),
             CloudCommand::ValidatePolicy(args) => policy::validate(output, args),
             CloudCommand::Init(args) => init::run(output, args),

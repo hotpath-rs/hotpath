@@ -72,18 +72,10 @@ impl ReportSelector {
     pub(crate) fn validate(&self) -> Result<Selector, CliError> {
         // The required, single-choice `selector` group guarantees exactly one.
         if let Some(pr) = self.pr {
-            return NonZeroU64::new(pr).map(Selector::Pr).ok_or_else(|| {
-                CliError::client("invalid --pr `0`: expected a pull request number greater than 0.")
-            });
+            return validate_pr(pr).map(Selector::Pr);
         }
         if let Some(commit) = &self.commit {
-            let sha = commit.to_ascii_lowercase();
-            if sha.len() != 40 || !sha.bytes().all(|b| b.is_ascii_hexdigit()) {
-                return Err(CliError::client(format!(
-                    "invalid --commit `{commit}`: expected a full 40-character hex commit sha, e.g. --commit $(git rev-parse HEAD)."
-                )));
-            }
-            return Ok(Selector::Commit(sha));
+            return validate_commit(commit).map(Selector::Commit);
         }
         let id = self.id.as_deref().unwrap_or_default();
         if id.len() != 36 || !id.bytes().all(|b| b.is_ascii_hexdigit() || b == b'-') {
@@ -93,4 +85,28 @@ impl ReportSelector {
         }
         Ok(Selector::Id(id.to_string()))
     }
+}
+
+/// A `--pr` value: a pull request number the server stores (1 to `i32::MAX`).
+pub(crate) fn validate_pr(pr: u64) -> Result<NonZeroU64, CliError> {
+    NonZeroU64::new(pr)
+        .filter(|pr| i32::try_from(pr.get()).is_ok())
+        .ok_or_else(|| {
+            CliError::client(format!(
+                "invalid --pr `{pr}`: expected a pull request number from 1 to {}.",
+                i32::MAX
+            ))
+        })
+}
+
+/// A `--commit` value: a full 40-character hex sha, lowercased as the server
+/// stores it.
+pub(crate) fn validate_commit(commit: &str) -> Result<String, CliError> {
+    let sha = commit.to_ascii_lowercase();
+    if sha.len() != 40 || !sha.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(CliError::client(format!(
+            "invalid --commit `{commit}`: expected a full 40-character hex commit sha, e.g. --commit $(git rev-parse HEAD)."
+        )));
+    }
+    Ok(sha)
 }
