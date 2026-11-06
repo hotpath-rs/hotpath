@@ -118,12 +118,21 @@ impl<M> EventQueue<M> {
             // chunk in the ring stays allocated until `EventQueue::drop`.
             let chunk = unsafe { &*chunk_ptr };
             let len = chunk.len.load(Ordering::Acquire);
-            for i in consumed..len {
-                // SAFETY: the `Acquire` load of `len` synchronizes with the
-                // producer's `Release` publish, so slots `..len` are
-                // initialized; slots below `consumed` were already read out
-                // and are never touched twice (consumer-only cursor).
-                out.push(unsafe { (*chunk.slots[i].get()).assume_init_read() });
+            let n = len - consumed;
+            out.reserve(n);
+            // SAFETY: the `Acquire` load of `len` synchronizes with the
+            // producer's `Release` publish, so slots `..len` are initialized;
+            // slots below `consumed` were already read out and are never
+            // touched twice (consumer-only cursor). `UnsafeCell<MaybeUninit<M>>`
+            // has the layout of `M`, so the published range copies out as one
+            // block into the `n` slots reserved above, which moves the values.
+            unsafe {
+                ptr::copy_nonoverlapping(
+                    chunk.slots.as_ptr().add(consumed).cast::<M>(),
+                    out.as_mut_ptr().add(out.len()),
+                    n,
+                );
+                out.set_len(out.len() + n);
             }
             consumed = len;
             if len == CHUNK_SIZE {
