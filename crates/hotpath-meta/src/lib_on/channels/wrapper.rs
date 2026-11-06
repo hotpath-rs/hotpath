@@ -101,6 +101,10 @@ pub(crate) struct SendSide<T> {
 }
 
 impl<T> SendSide<T> {
+    pub(crate) fn id(&self) -> u32 {
+        self.id
+    }
+
     pub(crate) fn register(
         source: &'static str,
         label: Option<String>,
@@ -166,10 +170,6 @@ pub(crate) struct WeakSendSide<T>(SendSide<T>);
 
 #[cfg(feature = "tokio")]
 impl<T> SendSide<T> {
-    pub(crate) fn id(&self) -> u32 {
-        self.id
-    }
-
     pub(crate) fn downgrade(&self) -> WeakSendSide<T> {
         WeakSendSide(self.share())
     }
@@ -226,7 +226,6 @@ impl RecvSide {
         Self { id, closed }
     }
 
-    #[cfg(any(feature = "tokio", feature = "futures"))]
     pub(crate) fn id(&self) -> u32 {
         self.id
     }
@@ -349,6 +348,22 @@ pub trait WrapChannel {
         log_fn: Option<fn(&Self::Msg) -> String>,
         iter: bool,
     ) -> Self::Output;
+}
+
+/// Implements `Debug` for endpoint wrappers that hold an `inner` endpoint and a
+/// `side`. Every wrapped multi-message backend implements `Debug` for any `T`, so
+/// the wrappers do too.
+macro_rules! impl_debug_via_inner {
+    ($($ty:ident),+ $(,)?) => {$(
+        impl<T> std::fmt::Debug for $ty<T> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_struct(stringify!($ty))
+                    .field("inner", &self.inner)
+                    .field("id", &self.side.id())
+                    .finish_non_exhaustive()
+            }
+        }
+    )+};
 }
 
 /// Generates the receiver iterator trio shared by the blocking backends. Expects a

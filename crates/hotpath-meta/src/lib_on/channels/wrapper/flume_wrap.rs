@@ -194,6 +194,8 @@ impl<T> Drop for Receiver<T> {
 
 impl_receiver_iters!("flume");
 
+impl_debug_via_inner!(Sender, Receiver);
+
 fn build<T>(
     inner: (InnerSender<T>, InnerReceiver<T>),
     source: &'static str,

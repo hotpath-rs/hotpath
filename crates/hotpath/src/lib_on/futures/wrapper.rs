@@ -146,6 +146,16 @@ impl Drop for CallerScopeGuard {
     }
 }
 
+// Bounded on the wrapped future, so wrapping keeps `Debug` wherever it had it.
+impl<F: Future + std::fmt::Debug> std::fmt::Debug for InstrumentedFuture<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InstrumentedFuture")
+            .field("inner", &self.inner)
+            .field("id", &self.future_id)
+            .finish_non_exhaustive()
+    }
+}
+
 impl<F: Future> Future for InstrumentedFuture<F> {
     type Output = F::Output;
 
@@ -306,6 +316,15 @@ impl<F: Future> InstrumentedFutureLog<F> {
             alloc_bridge,
             caller_scope,
         }
+    }
+}
+
+impl<F: Future + std::fmt::Debug> std::fmt::Debug for InstrumentedFutureLog<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InstrumentedFutureLog")
+            .field("inner", &self.inner)
+            .field("id", &self.future_id)
+            .finish_non_exhaustive()
     }
 }
 

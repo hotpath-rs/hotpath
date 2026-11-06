@@ -172,6 +172,8 @@ impl<T> Drop for RwLockWriteGuard<'_, T> {
     }
 }
 
+crate::lib_on::impl_lock_debug!(RwLock, RwLockReadGuard, RwLockWriteGuard);
+
 impl<T> InstrumentRwLock for TokioRwLock<T> {
     type Output = RwLock<T>;
     fn instrument(self, source: &'static str, label: Option<String>) -> Self::Output {

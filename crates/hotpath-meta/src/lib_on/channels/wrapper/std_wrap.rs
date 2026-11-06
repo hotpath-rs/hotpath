@@ -173,6 +173,8 @@ impl<T> Drop for Receiver<T> {
 
 impl_receiver_iters!("std::sync::mpsc");
 
+impl_debug_via_inner!(Sender, SyncSender, Receiver);
+
 fn build_unbounded<T>(
     source: &'static str,
     label: Option<String>,

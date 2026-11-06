@@ -561,21 +561,6 @@ impl<T> Drop for UnboundedReceiver<T> {
 // can reach a `T` in it.
 unsafe impl<T: Send> Sync for UnboundedReceiver<T> {}
 
-// Tokio's endpoints implement `Debug` for any `T`, so the wrappers delegate
-// unconditionally too.
-macro_rules! impl_debug_via_inner {
-    ($($ty:ident),+) => {$(
-        impl<T> std::fmt::Debug for $ty<T> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.debug_struct(stringify!($ty))
-                    .field("inner", &self.inner)
-                    .field("id", &self.side.id())
-                    .finish_non_exhaustive()
-            }
-        }
-    )+};
-}
-
 impl_debug_via_inner!(
     Sender,
     Receiver,
