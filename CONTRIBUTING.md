@@ -191,7 +191,7 @@ separate private repository and is not part of this repo.
 
 ## Publishing to the MCP Registry
 
-`server.json` in the repo root lists the hosted Hotpath Cloud MCP server (`https://hotpath.rs/api/v1/mcp`) in the [official MCP Registry](https://registry.modelcontextprotocol.io) as `rs.hotpath/hotpath-cloud`. It is a remote-only entry: the server implementation lives in the private backend, so the file has no `packages` or `repository`. Its `version` is independent of the crate versions. Publishing is manual, there is no CI workflow for it.
+`server.json` in the repo root lists the hosted hotpath-cloud MCP server (`https://hotpath.rs/api/v1/mcp`) in the [official MCP Registry](https://registry.modelcontextprotocol.io) as `rs.hotpath/hotpath-cloud`. It is a remote-only entry: the server implementation lives in the private backend, so the file has no `packages` or `repository`. Its `version` is independent of the crate versions. Publishing is manual, there is no CI workflow for it.
 
 1. Install the CLI: `brew install mcp-publisher` (or a release binary from [modelcontextprotocol/registry](https://github.com/modelcontextprotocol/registry/releases)).
 2. Validate: `mcp-publisher validate server.json`.

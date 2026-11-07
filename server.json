@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "rs.hotpath/hotpath-cloud",
-  "title": "Hotpath Cloud",
+  "title": "hotpath-cloud",
   "description": "Read-only access to Rust profiling reports from CI: benchmark history, diffs and policies",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "websiteUrl": "https://hotpath.rs/mcp_api",
   "remotes": [
     {

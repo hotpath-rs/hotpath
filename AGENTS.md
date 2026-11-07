@@ -80,6 +80,8 @@ The mdBook source lives in `docs/` (book.toml, src/, theme/). Serve a live-reloa
 
 ## Code style
 
+The cloud product is always named `hotpath-cloud` (lowercase, hyphenated) in prose, headings, titles and metadata such as `server.json`: never "Hotpath Cloud", "hotpath Cloud" or a bare "Cloud". The `hotpath cloud` CLI command and the `cloud` / `hotpath-cloud` Cargo features keep their literal names.
+
 Never use `super` for imports, only `crate` and absolute paths.
 
 Default to `pub(crate)` for new functions, structs, and fields. Only use `pub` when the item is part of the public API or re-exported from `lib.rs`.

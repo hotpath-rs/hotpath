@@ -1,6 +1,6 @@
 # hotpath-cloud MCP Server and REST API
 
-The Hotpath Cloud MCP server connects AI assistants such as Claude, ChatGPT, Codex and Cursor to the Rust profiling reports your CI uploads. With it, an assistant can:
+The hotpath-cloud MCP server connects AI assistants such as Claude, ChatGPT, Codex and Cursor to the Rust profiling reports your CI uploads. With it, an assistant can:
 
 - analyze stored profiling and benchmark reports,
 - investigate a performance regression in a pull request,
@@ -32,7 +32,7 @@ Access follows GitHub and the repository's reports visibility on the <a href="ht
 - it is private on GitHub and your GitHub user can read it,
 - it is public on GitHub with private reports, and your GitHub user has push permission to it.
 
-`list_repos` (and `GET /repos`) is not a directory of every project using Hotpath Cloud. It lists only the repositories in the GitHub App installations your GitHub user can see, the same list as <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a>. To read the public reports of another project, pass its `owner/name` to the other tools directly. A repository you cannot read answers `not_found`, the same as one that does not exist.
+`list_repos` (and `GET /repos`) is not a directory of every project using hotpath-cloud. It lists only the repositories in the GitHub App installations your GitHub user can see, the same list as <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a>. To read the public reports of another project, pass its `owner/name` to the other tools directly. A repository you cannot read answers `not_found`, the same as one that does not exist.
 
 ## Connect your AI assistant
 

@@ -112,7 +112,7 @@ Merging needs the `hotpath-callgrind` and `hotpath-cloud` features (`hotpath` `0
 
 Both runs must do the same work: the same binary, arguments, environment, inputs and working directory, a fixed workload (fixed inputs and seeds, no network), and nothing the first run leaves behind (a database it fills, files it creates) changing the second.
 
-In [hotpath-cloud](#cloud-ci), merged mode is the recommended way to benchmark in CI.
+In [hotpath-cloud](#hotpath-cloud-ci), merged mode is the recommended way to benchmark in CI.
 
 ## What is counted
 
@@ -128,7 +128,7 @@ Counts are reproducible for deterministic workloads, closely but not guaranteed 
 
 Counts depend on the Valgrind version, the Rust toolchain and the target, so compare counts produced by the same three. The JSON report records the Valgrind build in the section's `tool` field (e.g. `callgrind-3.26.0`, or `callgrind-3.28.0.hotpath-rs-2` for the patched ARM64 build) and the toolchain and OS in `meta`. hotpath.rs compares two reports that differ in any of them anyway, but marks the section with an `environment mismatch` alert on the comment and every view, and its regressions never fail the pull request check, since the changes may come from the environment and not the code; pinning all three in CI, as the [CI integration](./ci_integration.md#profiling-modes) workflows do, is what makes a verdict trustworthy. x86_64 and ARM64 counts are never comparable: a benchmark moved between architectures is compared with its old baseline under that alert until the default branch uploads a new one. Pin the rest of the runtime environment and dependencies too: libc versions, compiler flags and CPU-specific code paths can all change counts. Counts may differ between local and CI environments, even for the same commit.
 
-## Cloud CI
+## hotpath-cloud CI
 
 Reproducible counts let [hotpath-cloud](cloud.md) judge changes in CPU work on shared GitHub runners, where timing is too noisy to judge small changes. A higher count means more work, which usually but not always means slower code. The recommended setup is [merged mode](#timing-and-instruction-counts-in-one-report): build the benchmark with `hotpath-alloc,hotpath-cloud,hotpath-callgrind`, run it natively, then under Callgrind in a pinned environment, which uploads one merged report. Its instruction counts and allocations are judged under `[functions.icount]` and `[functions.alloc]` of the [policy file](./regression_policy.md#functions-instructions), and its native timing is shown next to them. [CI integration](./ci_integration.md#profiling-modes) has the workflows; the [AI setup](./cloud.md#ai-setup-recommended) picks merged mode for suitable new benchmarks on its own.
 

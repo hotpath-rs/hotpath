@@ -411,7 +411,7 @@ Explore the docs for customization options and advanced profiling features.
 - [Criterion benchmarks](./criterion.html) - profile existing Criterion benchmarks with timing, allocations and Callgrind instruction counts
 - [hotpath-cloud CI integration](./ci_integration.html) - performance regression detection on every pull request
 - [Live MCP Server](./mcp.html) - LLM queries of a running application's profiling data via Model Context Protocol
-- [Hotpath Cloud MCP Server and REST API](./mcp_api.html) - AI assistant access to stored CI reports
+- [hotpath-cloud MCP Server and REST API](./mcp_api.html) - AI assistant access to stored CI reports
 - [Cargo flamegraph alternatives](/blog/sampling_comparison) - when to use `hotpath` vs sampling profilers like perf and samply
 - [Configuration](./configuration.html) - explore all config options
 
