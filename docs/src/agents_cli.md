@@ -221,6 +221,15 @@ How to read it:
 
 By default the answer lists only what the comment lists. `--advisory` adds the findings of sections the policy lists with `judged = false`, which never count toward the verdict. `--full` lists every row and every value.
 
+`--select JSON` compares the entities you name instead, whether or not the policy lists them, ignores them or finds them changed. It takes the same object as `report --select`, exact `keys` per resource, and not `--advisory` or `--full`:
+
+```bash
+hotpath cloud diff --repo OWNER/NAME --benchmark NAME --pr 604 \
+  --select '{"functions":{"keys":["app::hot"]},"server":{"keys":["GET /api/users"]}}'
+```
+
+The answer then has `"rows": "selected"`, no section rows, and `metrics`: every value of every section the diff has of each entity, as `base`, `head` and `change_percent`. For an entity only one report has, the other side and the change are `null`. `"metrics": {}` means nothing matched, and `"metrics": null` that nothing was compared (no baseline or an unreadable report). A section the two reports could not be compared on is left out and named in `result.skipped`. The verdict, the budgets and the exit code are the same as without `--select`.
+
 `diff` exits `0` only when the report was judged and nothing regressed. A regression, a broken budget, or nothing to judge (no baseline and no budgets) exits `1` with the answer on stdout.
 
 ### validate-policy and init

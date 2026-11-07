@@ -1,4 +1,4 @@
-//! `--select JSON`, shared by `report` and `reports`: the metrics of named
+//! `--select JSON`, shared by `report`, `reports` and `diff`: the metrics of named
 //! entities, sent as the server's `select=` JSON object. Only the shape is
 //! checked here (a JSON object); resources, keys and the size bounds are the
 //! server's to judge, its `bad_request` saying what to change.
