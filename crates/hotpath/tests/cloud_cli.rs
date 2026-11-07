@@ -1648,6 +1648,47 @@ mod tests {
             assert_eq!(stdout(&output), format!("{body}\n"), "{budgets:?}");
         }
 
+        // by commit and by id: the head where the selector puts it, then
+        // select; nothing matched (`metrics: {}`) is printed as received
+        let body = diff_body(&compared(false), BudgetsCase::Hold).replacen(
+            r#""verdict""#,
+            r#""metrics":{},"verdict""#,
+            1,
+        );
+        assert!(body.contains(r#""metrics":{}"#), "{body}");
+        for (selector, query) in [
+            (
+                vec!["--commit", SHA],
+                format!("^commit={SHA}&select=[^&]+$"),
+            ),
+            (
+                vec!["--id", REPORT_ID],
+                format!("^head={REPORT_ID}&select=[^&]+$"),
+            ),
+        ] {
+            let mut server = Server::new();
+            let mock = server
+                .mock("GET", DIFF_PATH)
+                .match_query(Matcher::AllOf(vec![
+                    Matcher::UrlEncoded("select".into(), select.into()),
+                    Matcher::Regex(query),
+                ]))
+                .with_status(200)
+                .with_body(&body)
+                .create();
+            let mut args = selector.clone();
+            args.extend(["--select", select]);
+            let output = hotpath(&server, Some(TOKEN), &diff_args(&args));
+            mock.assert();
+            assert_eq!(
+                output.status.code(),
+                Some(0),
+                "{selector:?}: {}",
+                stderr(&output)
+            );
+            assert_eq!(stdout(&output), format!("{body}\n"), "{selector:?}");
+        }
+
         // a malformed selection is refused before any request
         let mut server = Server::new();
         let mock = server
