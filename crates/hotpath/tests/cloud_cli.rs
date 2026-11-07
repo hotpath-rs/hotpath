@@ -1617,6 +1617,64 @@ mod tests {
     }
 
     #[test]
+    fn diff_select_is_sent_as_given_and_still_exits_by_the_verdict() {
+        let select = r#"{"functions":{"keys":["app::hot"]},"server":{"keys":["GET /users/{id}"]}}"#;
+        for (budgets, code) in [(BudgetsCase::Hold, 0), (BudgetsCase::Broken, 1)] {
+            let body = diff_body(&compared(false), budgets);
+            let body = body.replacen(
+                r#""verdict""#,
+                r#""metrics":{"functions":{"app::hot":{"timing":{"avg":{"base":"1.10 ms","head":"1.24 ms","change_percent":12.73}}}}},"verdict""#,
+                1,
+            );
+            let mut server = Server::new();
+            let mock = server
+                .mock("GET", DIFF_PATH)
+                .match_query(Matcher::AllOf(vec![
+                    Matcher::UrlEncoded("select".into(), select.into()),
+                    Matcher::Regex("^pr=42&event=pull_request&select=[^&]+$".into()),
+                ]))
+                .match_header("authorization", format!("Bearer {TOKEN}").as_str())
+                .with_status(200)
+                .with_body(&body)
+                .create();
+            let output = hotpath(
+                &server,
+                Some(TOKEN),
+                &diff_args(&["--pr", "42", "--event", "pull_request", "--select", select]),
+            );
+            mock.assert();
+            assert_eq!(output.status.code(), Some(code), "{budgets:?}");
+            assert_eq!(stderr(&output), "", "{budgets:?}");
+            assert_eq!(stdout(&output), format!("{body}\n"), "{budgets:?}");
+        }
+
+        // a malformed selection is refused before any request
+        let mut server = Server::new();
+        let mock = server
+            .mock("GET", Matcher::Regex("^/api/v1/".into()))
+            .expect(0)
+            .create();
+        let output = hotpath(&server, None, &diff_args(&["--pr", "42", "--select", "[]"]));
+        assert_eq!(output.status.code(), Some(1));
+        assert!(
+            client_error(&output).starts_with("invalid --select `[]`: expected a JSON object"),
+            "{}",
+            stderr(&output)
+        );
+        // the server refuses select beside rows=: --full and --advisory are
+        // usage errors with it
+        for flag in ["--full", "--advisory"] {
+            let output = hotpath(
+                &server,
+                Some(TOKEN),
+                &diff_args(&["--pr", "42", flag, "--select", select]),
+            );
+            assert_eq!(output.status.code(), Some(2), "{flag}: {}", stderr(&output));
+        }
+        mock.assert();
+    }
+
+    #[test]
     fn diff_unknown_report_is_the_server_404_verbatim() {
         let mut server = Server::new();
         let body = error_body(ApiErrorCode::NotFound, "No report of benchmark ci matches.");

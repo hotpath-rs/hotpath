@@ -202,7 +202,21 @@ legend that says which way is worse for each column. --advisory is the step betw
 the two: the default cut, plus the regressions, improvements, added and removed rows
 of unjudged families, so a nonzero count in an unjudged family's `counts` can be
 inspected without --full. Those rows never count toward the verdict; `family.judged`
-of their section says so. Inside a section, a key that is unset or an empty list is
+of their section says so.
+
+--select JSON (not with --full or --advisory) compares named entities instead,
+whatever the policy lists, ignores or finds:
+'{\"functions\":{\"keys\":[\"app::hot\"]},\"server\":{\"keys\":[\"GET /users/{id}\"]}}'.
+The body then says `rows: \"selected\"`, sends no section rows, and adds `metrics`:
+for each entity the diff has, every value of every section, as `base`, `head` and
+`change_percent` (a side null for an added or removed entity, and the change with
+it). An entity, section or value the diff lacks is left out, so `metrics: {}` means
+nothing matched; a section the two reports could not be compared on is never in it,
+and `result.skipped` says why. `metrics` is null when nothing was compared (no
+baseline or an unreadable side). The verdict, the budgets and the exit code are the
+same as without --select.
+
+Inside a section, a key that is unset or an empty list is
 left out: `mode`, `totals`, `columns`, `omitted_from_base`, `omitted_from_head`, a
 row's `location` and `unreadable`, a cell's `role` and `crossed`. A cell's `base`,
 `head` and `change_percent` are always there, null when a side is absent, and so is
