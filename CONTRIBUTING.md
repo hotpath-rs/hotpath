@@ -189,6 +189,35 @@ cargo install mdbook-assets-hash
 The Axum web server that builds and serves the production `hotpath.rs` site lives in a
 separate private repository and is not part of this repo.
 
+## Publishing to the MCP Registry
+
+`server.json` in the repo root lists the hosted Hotpath Cloud MCP server (`https://hotpath.rs/api/v1/mcp`) in the [official MCP Registry](https://registry.modelcontextprotocol.io) as `rs.hotpath/hotpath-cloud`. It is a remote-only entry: the server implementation lives in the private backend, so the file has no `packages` or `repository`. Its `version` is independent of the crate versions. Publishing is manual, there is no CI workflow for it.
+
+1. Install the CLI: `brew install mcp-publisher` (or a release binary from [modelcontextprotocol/registry](https://github.com/modelcontextprotocol/registry/releases)).
+2. Validate: `mcp-publisher validate server.json`.
+3. Generate a signing key **outside the repository** and keep it in a password manager. macOS LibreSSL has no Ed25519, so use OpenSSL 3 (`brew install openssl@3`):
+
+   ```bash
+   OPENSSL=/opt/homebrew/opt/openssl@3/bin/openssl
+   $OPENSSL genpkey -algorithm Ed25519 -out ~/secure/hotpath-mcp-registry.pem
+   PUBLIC_KEY="$($OPENSSL pkey -in ~/secure/hotpath-mcp-registry.pem -pubout -outform DER | tail -c 32 | base64)"
+   echo "hotpath.rs. IN TXT \"v=MCPv1; k=ed25519; p=${PUBLIC_KEY}\""
+   ```
+
+4. Add that TXT record to the `hotpath.rs` apex (next to the existing TXT records) and wait until `dig +short TXT hotpath.rs` shows it.
+5. Log in with DNS auth, which grants the `rs.hotpath/*` namespace:
+
+   ```bash
+   PRIVATE_KEY="$($OPENSSL pkey -in ~/secure/hotpath-mcp-registry.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')"
+   mcp-publisher login dns --domain hotpath.rs --private-key "${PRIVATE_KEY}"
+   ```
+
+   The CLI stores its Registry token in your home directory, never in the repo.
+6. Publish from the repo root: `mcp-publisher publish`.
+7. Verify the listing: `curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=rs.hotpath/hotpath-cloud"`.
+
+To update the listing, change `server.json`, bump its `version` (published versions are immutable), validate, log in again if the token expired, and publish. Keep the TXT record in place, every login checks it.
+
 ## CI checks
 
 CI runs on `ubuntu-latest` against Rust `1.89`, `stable`, and `nightly`. The Callgrind tests (`callgrind-linux` job in `.github/workflows/ci.yml`) run as a matrix over x86_64 (`ubuntu-26.04`, Ubuntu's pinned `valgrind` package) and aarch64 (`ubuntu-26.04-arm`, the patched `3.28.0.hotpath-rs-2` build from `hotpath-rs/setup-valgrind`, experimental). You can run the same checks locally:
