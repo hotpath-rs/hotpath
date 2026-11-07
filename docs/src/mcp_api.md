@@ -19,9 +19,9 @@ This server is hosted and serves stored CI reports. It is a different server fro
 https://hotpath.rs/api/v1/mcp
 ```
 
-The server speaks Streamable HTTP. Every request needs a credential, also for repositories whose reports are public. There are two kinds:
+The server speaks Streamable HTTP. A client can connect and list the tools without signing in; every tool call needs a credential, also for repositories whose reports are public. There are two kinds:
 
-- **OAuth sign-in.** When a client connects, hotpath.rs asks you to log in with GitHub and shows a consent page that names the application. After you approve it, the application can use the [tools](#available-mcp-tools) on behalf of your account, with the single read-only scope `hotpath:read`. Clients identify themselves with an OAuth Client ID Metadata Document; dynamic client registration is not supported.
+- **OAuth sign-in.** When a client first needs your data, hotpath.rs asks you to log in with GitHub and shows a consent page that names the application. After you approve it, the application can use the [tools](#available-mcp-tools) on behalf of your account, with the single read-only scope `hotpath:read`. Clients identify themselves with an OAuth Client ID Metadata Document; dynamic client registration is not supported.
 - **Personal API token.** For clients without that kind of OAuth support, create a token at <a href="https://hotpath.rs/app/tokens" target="_blank" rel="noopener noreferrer">hotpath.rs/app/tokens</a> and send it as `Authorization: Bearer <token>`.
 
 ### Which repositories you can read
