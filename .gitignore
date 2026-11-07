@@ -8,6 +8,7 @@ hotpath_report.json
 *.json.gz
 *.json
 !hotpath_adoption.json
+!/server.json
 !crates/test-io/fixtures/*.json
 !docker/grafana/dashboards/*.json
 log/

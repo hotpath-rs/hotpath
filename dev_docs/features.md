@@ -23,6 +23,7 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 
 - `hotpath-cloud` upload: `lib_on/cloud.rs`, called from `HotpathGuard::drop`. Report provenance: `lib_on/report_meta.rs`, `lib_on/git_info.rs`, `lib_on/ci_info.rs`. Policy file lookup: `json/policy_file.rs`.
 - User docs: the "hotpath-cloud" pages in `docs/src/SUMMARY.md`.
+- MCP Registry listing of the hosted MCP server: root `server.json`, published by hand (see CONTRIBUTING.md); its `version` is independent of the crates.
 - `cloud` CLI: `bin/hotpath/cmd/cloud.rs`, one file per command under `cmd/cloud/`, shared HTTP plumbing in `cmd/cloud/api.rs`.
 - `json/cloud_api.rs` is the client contract hotpath-backend imports; bodies the CLI only prints are owned by the backend. `validate_benchmark_name` must stay identical to the backend's copy.
 - The cloud path (upload or JSON output with the feature on) ignores display limits and renders exact precision; the live metrics server never does.
