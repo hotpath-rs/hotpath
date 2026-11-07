@@ -11,6 +11,7 @@ mod repo;
 mod report;
 mod reports;
 mod repos;
+mod select;
 mod selector;
 
 use std::path::PathBuf;
@@ -92,6 +93,13 @@ commit is often measured by a push to main and as a PR head). --no-payload asks 
 the summary only; the payload is the uploaded hotpath JSON report, verbatim apart
 from key order and without `meta.policy`.
 
+--select JSON adds `metrics`: every measurement the stored report has of the named
+entities (timing, allocations with their `mode`, instruction counts, ...), e.g.
+'{\"functions\":{\"keys\":[\"app::hot\",\"app::process\"]}}'. Keys are exact (as the
+diff's rows name them); an entity, section or value the report lacks is left out, so
+`metrics: {}` means nothing matched, and `metrics: null` a payload the server cannot
+read.
+
 `policy_path` names the policy file the report was judged under, relative to the
 repository root, and `policy_url` is that file on GitHub, pinned to the measured
 commit. Every stored report carries its policy, so both are always set. The document is the file at that path in the measured
@@ -130,6 +138,9 @@ Every filter is optional and they combine with AND:
 DATE is YYYY-MM-DD (UTC midnight) or an RFC 3339 time (2026-11-01T10:30:00+01:00);
 --since must be before --until.
 
+--select JSON adds each report's `metrics`, as `report --select` does; a page then
+holds 1 to 20 reports (default 10), each payload being read whole.
+
 Pagination: --limit N reports per page, 1 to 50 (default 20). When more reports match,
 `next_cursor` is a string: pass it as --cursor with the same filters to get the next
 page; it is null on the last page. The cursor is opaque, passed back unchanged, and a
@@ -140,6 +151,7 @@ Examples:
   hotpath cloud reports --repo OWNER/NAME --benchmark NAME --event push --branch main --limit 50
   hotpath cloud reports --repo OWNER/NAME --verdict regressed --since 2026-11-01
   hotpath cloud reports --repo OWNER/NAME --commit $(git rev-parse HEAD)
+  hotpath cloud reports --repo OWNER/NAME --benchmark NAME --select '{\"functions\":{\"keys\":[\"app::hot\"]}}'
 
 Exit codes:
   0  a page was listed, empty or with regressed or failed reports: a verdict is

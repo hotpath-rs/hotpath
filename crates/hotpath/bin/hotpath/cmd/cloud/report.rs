@@ -7,8 +7,9 @@ use std::process::ExitCode;
 
 use clap::Args;
 
-use crate::cmd::cloud::api::{CliError, Client, Output};
+use crate::cmd::cloud::api::{with_query, CliError, Client, Output};
 use crate::cmd::cloud::repo;
+use crate::cmd::cloud::select::SelectArg;
 use crate::cmd::cloud::selector::{ReportSelector, Selector};
 
 #[derive(Args, Debug)]
@@ -24,6 +25,9 @@ pub(crate) struct ReportArgs {
 
     #[arg(long, help = "Leave out the report payload (summary only)")]
     no_payload: bool,
+
+    #[command(flatten)]
+    select: SelectArg,
 }
 
 pub(crate) fn run(output: &Output, args: ReportArgs) -> Result<ExitCode, CliError> {
@@ -40,30 +44,27 @@ fn request_path(args: &ReportArgs) -> Result<String, CliError> {
     let repo = repo::validate(&args.repo)?;
     let benchmark = repo::validate_benchmark(&args.benchmark)?;
     let selector = args.selector.validate()?;
+    let select = args.select.validate()?;
 
     let base = format!("/api/v1/repos/{repo}/benchmarks/{benchmark}/reports");
-    let mut query = Vec::new();
-    let path = match &selector {
-        Selector::Pr(pr) => {
-            query.push(format!("pr={pr}"));
-            format!("{base}/latest")
+    let pr;
+    let (path, at) = match &selector {
+        Selector::Pr(n) => {
+            pr = n.to_string();
+            (format!("{base}/latest"), Some(("pr", pr.as_str())))
         }
-        Selector::Commit(sha) => {
-            query.push(format!("commit={sha}"));
-            format!("{base}/latest")
-        }
-        Selector::Id(id) => format!("{base}/{id}"),
+        Selector::Commit(sha) => (format!("{base}/latest"), Some(("commit", sha.as_str()))),
+        Selector::Id(id) => (format!("{base}/{id}"), None),
     };
     // clap rejects `--event` together with `--id`.
-    if let Some(event) = args.selector.event {
-        query.push(format!("event={}", event.as_str()));
-    }
-    if args.no_payload {
-        query.push("payload=false".to_string());
-    }
-    Ok(if query.is_empty() {
-        path
-    } else {
-        format!("{path}?{}", query.join("&"))
-    })
+    let params: Vec<(&str, &str)> = [
+        at,
+        args.selector.event.map(|event| ("event", event.as_str())),
+        args.no_payload.then_some(("payload", "false")),
+        select.map(|select| ("select", select)),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    Ok(with_query(&path, &params))
 }
