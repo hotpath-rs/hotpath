@@ -14,6 +14,7 @@ use time::{Date, OffsetDateTime};
 
 use crate::cmd::cloud::api::{with_query, CliError, Client, Output};
 use crate::cmd::cloud::repo;
+use crate::cmd::cloud::select::{SelectArg, MAX_SELECTED_LIMIT};
 use crate::cmd::cloud::selector::{validate_commit, validate_pr, Event};
 
 /// The server's page size bound; it applies its own default when `--limit`
@@ -84,10 +85,13 @@ pub(crate) struct ReportsArgs {
     )]
     metadata: Vec<String>,
 
+    #[command(flatten)]
+    select: SelectArg,
+
     #[arg(
         long,
         value_name = "N",
-        help = "Reports per page, 1 to 50 (server default 20)"
+        help = "Reports per page, 1 to 50 (server default 20); 1 to 20 with --select (default 10)"
     )]
     limit: Option<u64>,
 
@@ -168,7 +172,11 @@ fn request_path(args: &ReportsArgs) -> Result<String, CliError> {
         }
     }
     let metadata = metadata_filter(&args.metadata)?;
-    let limit = args.limit.map(validate_limit).transpose()?;
+    let select = args.select.validate()?;
+    let limit = args
+        .limit
+        .map(|limit| validate_limit(limit, select.is_some()))
+        .transpose()?;
 
     // The dates go as given, so their offsets reach the server unchanged.
     let params: Vec<(&str, &str)> = [
@@ -181,6 +189,7 @@ fn request_path(args: &ReportsArgs) -> Result<String, CliError> {
         ("until", args.until.as_deref()),
         ("verdict", args.verdict.map(VerdictFilter::as_str)),
         ("metadata", metadata.as_deref()),
+        ("select", select),
         ("limit", limit.as_deref()),
         ("cursor", args.cursor.as_deref()),
     ]
@@ -264,12 +273,19 @@ fn time_bound(flag: &str, raw: &str) -> Result<OffsetDateTime, CliError> {
         })
 }
 
-fn validate_limit(limit: u64) -> Result<String, CliError> {
-    if (1..=MAX_LIMIT).contains(&limit) {
+/// `--limit` by the server's bound: lower with `--select`, each listed
+/// payload being read whole.
+fn validate_limit(limit: u64, selected: bool) -> Result<String, CliError> {
+    let (max, with) = if selected {
+        (MAX_SELECTED_LIMIT, " with --select")
+    } else {
+        (MAX_LIMIT, "")
+    };
+    if (1..=max).contains(&limit) {
         Ok(limit.to_string())
     } else {
         Err(CliError::client(format!(
-            "invalid --limit `{limit}`: expected a number of reports from 1 to {MAX_LIMIT}."
+            "invalid --limit `{limit}`: expected a number of reports from 1 to {max}{with}."
         )))
     }
 }

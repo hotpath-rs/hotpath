@@ -81,6 +81,15 @@ hotpath cloud report --repo hotpath-rs/hotpath --benchmark drain --pr 604 --no-p
 
 `--commit $(git rev-parse HEAD)` works on a pull request branch: CI measures GitHub's merge commit, and the report also matches the pull request's head commit. Without `--no-payload` the answer also carries the full uploaded hotpath report.
 
+`--select JSON` adds `metrics`: every measurement the stored report has of the entities you name. The object names resources (`functions`, `sql`, `http`, `server`, `mutexes`, `rw_locks`, `channels`, `io`, `threads`), each with exact `keys` as the diff's rows name them. A selected entity comes with all its sections and values: a function's timing, its allocations (with `mode`, `bytes` or `count`) and its instruction counts, whichever the report has:
+
+```bash
+hotpath cloud report --repo OWNER/NAME --benchmark NAME --pr 604 --no-payload \
+  --select '{"functions":{"keys":["app::hot","app::process"]},"server":{"keys":["GET /api/users"]}}'
+```
+
+An entity, section or value the report lacks is left out, so `"metrics": {}` means nothing matched, and `"metrics": null` a payload the server cannot read. A selection names at most 20 keys; the server's error says what to change in one it refuses.
+
 A report that is not there yet answers `not_found` with exit code 1, so polling `report` until it exits 0 waits for CI's upload.
 
 ### reports
@@ -145,6 +154,8 @@ Every filter is optional, and filters combine:
 ```bash
 hotpath cloud reports --repo hotpath-rs/hotpath --benchmark drain --metadata runner=Linux-ARM64 --limit 10
 ```
+
+`--select JSON` adds each listed report's `metrics`, as `report --select` does, to follow a few functions or routes across a benchmark's history. A page then holds 1 to 20 reports (default 10).
 
 Each run prints one page of `--limit N` reports (1 to 50, default 20). When more reports match, `next_cursor` is a string: pass it as `--cursor` with the same filters to get the next page. It is `null` on the last page.
 

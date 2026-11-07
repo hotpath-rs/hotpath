@@ -628,6 +628,68 @@ mod tests {
     }
 
     #[test]
+    fn report_select_is_sent_as_given_and_the_answer_printed_verbatim() {
+        // spaces and the order kept, nothing re-serialized; a repeated
+        // resource reaches the server, whose refusal it is
+        let cases = [
+            r#"{"functions":{"keys":["app::hot","app::process"]}}"#,
+            r#"  {"server": {"keys": ["GET /users/{id}"]}, "sql": {"keys": ["SELECT 1 | - | -"]}} "#,
+            r#"{"functions":{"keys":["a"]},"functions":{"keys":["b"]}}"#,
+        ];
+        let body = SUMMARY_BODY.replace(
+            r#""benchmark":"ci""#,
+            r#""benchmark":"ci","metrics":{"functions":{"app::hot":{"timing":{"avg":"1.62 ms"}}}}"#,
+        );
+        for select in cases {
+            let mut server = Server::new();
+            let mock = server
+                .mock("GET", format!("{REPORTS_PATH}/latest").as_str())
+                .match_query(Matcher::AllOf(vec![
+                    Matcher::UrlEncoded("select".into(), select.trim().into()),
+                    Matcher::Regex("^pr=7&payload=false&select=[^&]+$".into()),
+                ]))
+                .match_header("authorization", format!("Bearer {TOKEN}").as_str())
+                .with_status(200)
+                .with_header("content-type", "application/json; charset=utf-8")
+                .with_body(&body)
+                .create();
+            let output = hotpath(
+                &server,
+                Some(TOKEN),
+                &report_args(&["--pr", "7", "--no-payload", "--select", select]),
+            );
+            assert_eq!(
+                output.status.code(),
+                Some(0),
+                "{select}: {}",
+                stderr(&output)
+            );
+            assert_eq!(stdout(&output), format!("{body}\n"), "{select}");
+            mock.assert();
+        }
+
+        // by id, the only query parameter
+        let mut server = Server::new();
+        let select = r#"{"threads":{"keys":["main"]}}"#;
+        let mock = server
+            .mock("GET", format!("{REPORTS_PATH}/{REPORT_ID}").as_str())
+            .match_query(Matcher::AllOf(vec![
+                Matcher::UrlEncoded("select".into(), select.into()),
+                Matcher::Regex("^select=[^&]+$".into()),
+            ]))
+            .with_status(200)
+            .with_body(SUMMARY_BODY)
+            .create();
+        let output = hotpath(
+            &server,
+            Some(TOKEN),
+            &report_args(&["--id", REPORT_ID, "--select", select]),
+        );
+        assert_eq!(output.status.code(), Some(0), "stderr: {}", stderr(&output));
+        mock.assert();
+    }
+
+    #[test]
     fn report_not_uploaded_yet_is_the_server_404_verbatim() {
         let mut server = Server::new();
         let body = error_body(
@@ -659,10 +721,22 @@ mod tests {
 
         let long_name = "a".repeat(65);
         let non_hex = "g".repeat(40);
-        let cases: [(Vec<&str>, &str); 9] = [
+        let cases: [(Vec<&str>, &str); 12] = [
             (
                 report_args(&["--commit", "9ab2"]),
                 "invalid --commit `9ab2`",
+            ),
+            (
+                report_args(&["--pr", "1", "--select", "functions"]),
+                "invalid --select `functions`: expected a JSON object",
+            ),
+            (
+                report_args(&["--pr", "1", "--select", r#"[{"functions":{}}]"#]),
+                "invalid --select `[{",
+            ),
+            (
+                report_args(&["--pr", "1", "--select", r#"{"functions":"#]),
+                "invalid --select `{\"functions\":`: expected a JSON object of resources (",
             ),
             (report_args(&["--commit", &non_hex]), "invalid --commit"),
             (report_args(&["--pr", "0"]), "invalid --pr `0`"),
@@ -964,6 +1038,40 @@ mod tests {
     }
 
     #[test]
+    fn reports_select_is_sent_as_given_with_its_own_page_bound() {
+        let select = r#"{"functions":{"keys":["app::hot"]},"server":{"keys":["GET /api/users"]}}"#;
+        for (limit, query) in [
+            (None, "^benchmark=drain&select=[^&]+$"),
+            (Some("20"), "^benchmark=drain&select=[^&]+&limit=20$"),
+            (Some("1"), "^benchmark=drain&select=[^&]+&limit=1$"),
+        ] {
+            let mut server = Server::new();
+            let body = report_list_body("null");
+            let mock = mock_reports(
+                &mut server,
+                Matcher::AllOf(vec![
+                    Matcher::UrlEncoded("select".into(), select.into()),
+                    Matcher::Regex(query.into()),
+                ]),
+                &body,
+            );
+            let mut filters = vec!["--benchmark", "drain", "--select", select];
+            if let Some(limit) = limit {
+                filters.extend(["--limit", limit]);
+            }
+            let output = hotpath(&server, Some(TOKEN), &reports_args(&filters));
+            assert_eq!(
+                output.status.code(),
+                Some(0),
+                "{limit:?}: {}",
+                stderr(&output)
+            );
+            assert_eq!(stdout(&output), format!("{body}\n"), "{limit:?}");
+            mock.assert();
+        }
+    }
+
+    #[test]
     fn reports_metadata_flags_are_one_json_object() {
         let at_bounds_key = "k".repeat(64);
         let at_bounds_value = "v".repeat(200);
@@ -1072,7 +1180,8 @@ mod tests {
             .iter()
             .flat_map(|flag| ["--metadata", flag.as_str()])
             .collect();
-        let cases: Vec<(Vec<&str>, &str)> = vec![
+        let cases: Vec<(Vec<&str>, &str)> =
+            vec![
             (vec!["reports", "--repo", "nope"], "invalid --repo `nope`"),
             (vec!["reports", "--repo", "a/.."], "invalid --repo `a/..`"),
             (
@@ -1155,6 +1264,18 @@ mod tests {
             (
                 reports_args(&nine_flags),
                 "invalid --metadata: expected at most 8",
+            ),
+            (
+                reports_args(&["--select", r#"{"functions":{"keys":["a"]}}"#, "--limit", "21"]),
+                "invalid --limit `21`: expected a number of reports from 1 to 20 with --select.",
+            ),
+            (
+                reports_args(&["--select", "null"]),
+                "invalid --select `null`: expected a JSON object",
+            ),
+            (
+                reports_args(&["--select", r#"{"functions":{"keys":["a"]}} trailing"#]),
+                "invalid --select",
             ),
         ];
         for (args, expected) in cases {
