@@ -1,9 +1,7 @@
 name: Cloud random benchmark
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 # Synthetic benchmark for checking PR comment correctness: `benchmark_random`
 # touches every resource type the comment policy judges and on each run
@@ -11,13 +9,11 @@ on:
 # known mix of regressions and improvements. The draw is attached to the report
 # as `user_metadata`. Uploaded to the separate `random` series.
 #
-# Pushes upload in process with the job's OIDC token. Fork PRs get no
-# `id-token: write`, so pull requests write the report to an artifact and
-# `cloud-benchmark-relay.yml` uploads it.
+# The results are noisy, so it runs only when triggered manually and uploads
+# in process with the job's OIDC token.
 jobs:
   upload:
-    name: cloud random benchmark (push)
-    if: github.event_name == 'push'
+    name: cloud random benchmark
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -68,46 +64,3 @@ jobs:
             echo "no upload response, so no verdict"
           fi
 
-  report:
-    name: cloud random benchmark (pull request)
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Record rustc version
-        id: rustc
-        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
-      - name: Record runner CPU and image
-        id: host
-        # Commas would split the user metadata, so they are stripped.
-        run: |
-          echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
-          echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: cloud-random-benchmark
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-          cache-on-failure: true
-      - name: Run random benchmark and write report
-        env:
-          HOTPATH_BENCHMARK: random
-          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release
-          HOTPATH_EXCLUDE_WRAPPER: "true"
-          HOTPATH_OUTPUT_FORMAT: json
-          HOTPATH_OUTPUT_PATH: report.json
-        run: |
-          cargo run -q --release -p test-axum --example benchmark_random \
-            --features hotpath-alloc,hotpath-cloud
-          test -s report.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: hotpath-report
-          path: report.json
-          retention-days: 1
-          if-no-files-found: error
