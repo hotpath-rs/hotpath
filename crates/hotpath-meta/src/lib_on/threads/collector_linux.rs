@@ -11,7 +11,7 @@ static CLOCK_TICKS: OnceLock<u64> = OnceLock::new();
 fn state_to_status(state: &str) -> (String, String) {
     let code = state.to_string();
     let name = match state {
-        "R" => "Running ",
+        "R" => "Running",
         "S" => "Sleeping",
         "D" => "Blocked", // Disk sleep / uninterruptible
         "Z" => "Zombie",
