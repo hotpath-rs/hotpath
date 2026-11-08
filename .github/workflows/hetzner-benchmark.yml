@@ -7,8 +7,9 @@ name: Hetzner runner benchmark
 # each writing its own JSON report. The raw reports and a CSV of
 # `total_elapsed_ns` per run are kept as an artifact; the last measured run
 # also uploads its report to hotpath-cloud with the job's OIDC token, into a
-# per-runner series (`<benchmark>-hetzner-ccx` / `<benchmark>-github-x64`) kept
-# apart from the production `drain` and `dedup` series. Uploads are native
+# per-runner series (`drain-hetzner-ccx`, `drain-github-x64`,
+# `dedup-hetzner-ccx`) kept apart from the production `drain` and `dedup`
+# series. Uploads are native
 # timing only (no Callgrind run); the reports name the benchmarked commit.
 #
 # - `drain`: the `hotpath-drain` `throughput` example. Five threads meet at
@@ -52,6 +53,9 @@ jobs:
     env:
       BENCHMARK: ${{ matrix.benchmark }}
       SERIES: ${{ matrix.benchmark }}-${{ matrix.runner == 'hetzner' && 'hetzner-ccx' || 'github-x64' }}
+      # The repository's series limit leaves no room for `dedup-github-x64`;
+      # that job still measures into its artifact.
+      UPLOAD: ${{ !(matrix.benchmark == 'dedup' && matrix.runner == 'github-hosted') }}
       RUNNER_KIND: ${{ matrix.runner }}
       OUT: ${{ github.workspace }}/bench-out
     steps:
@@ -106,7 +110,7 @@ jobs:
           for i in $(seq 1 "$ITERATIONS"); do
             report="$OUT/run-$(printf %03d "$i").json"
             upload=()
-            if [ "$i" = "$ITERATIONS" ]; then
+            if [ "$UPLOAD" = true ] && [ "$i" = "$ITERATIONS" ]; then
               upload=("${PREFIX}_UPLOAD=fail-on-error" "${PREFIX}_UPLOAD_RESPONSE_PATH=$OUT/upload-response.json" "${PREFIX}_USER_METADATA=$metadata")
             fi
             started=$(date +%s%N)
@@ -114,8 +118,10 @@ jobs:
             echo "$BENCHMARK,$RUNNER_KIND,$RUNNER_NAME,$GITHUB_RUN_ID,$GITHUB_RUN_ATTEMPT,$i,$started,$(jq -e '.functions_timing.total_elapsed_ns' "$report")" >> "$OUT/elapsed.csv"
           done
           cat "$OUT/elapsed.csv"
-          test -s "$OUT/upload-response.json"
+          if [ "$UPLOAD" = true ]; then test -s "$OUT/upload-response.json"; fi
+      # Also after a failed upload, so the measurements are kept.
       - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
         with:
           name: ${{ matrix.benchmark }}-${{ matrix.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: bench-out
