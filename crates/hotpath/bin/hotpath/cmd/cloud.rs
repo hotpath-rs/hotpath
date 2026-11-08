@@ -101,7 +101,7 @@ matching entries, unchanged, with `included_count` set to their number; `total_c
 and the totals still describe the whole run. Sections of other resources, `streams`,
 `futures`, `debug` and named sections left empty are dropped, so a key that matches
 nothing keeps nothing. Not with --no-payload. A payload the server cannot read
-answers 400 rather than an unfiltered one.
+produces an error rather than an unfiltered response.
 
 `policy_path` names the policy file the report was judged under, relative to the
 repository root, and `policy_url` is that file on GitHub, pinned to the measured
