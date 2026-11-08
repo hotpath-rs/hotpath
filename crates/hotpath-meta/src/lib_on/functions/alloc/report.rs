@@ -136,7 +136,7 @@ pub(crate) fn build_functions_list_alloc(
             }
 
             JsonFunctionEntry {
-                id: s.id,
+                id: Some(s.id),
                 name: s.name.to_string(),
                 calls: s.count,
                 sampled_calls: s.count,
@@ -254,7 +254,7 @@ pub(crate) fn build_functions_list_timing(
             }
 
             JsonFunctionEntry {
-                id: s.id,
+                id: Some(s.id),
                 name: s.name.to_string(),
                 calls: s.count,
                 sampled_calls: s.duration_sampled_count,

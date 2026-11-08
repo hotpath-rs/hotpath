@@ -98,7 +98,7 @@ pub mod tests {
             6772,
             "channels",
             &["basic_flume.rs", "bounded-channel", "Actor 1"],
-            |channels: &JsonChannelsList| channels.data.first().map(|channel| channel.id),
+            |channels: &JsonChannelsList| channels.data.first().and_then(|channel| channel.id),
         );
     }
 

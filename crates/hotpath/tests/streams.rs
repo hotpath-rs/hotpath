@@ -109,7 +109,7 @@ pub mod tests {
             6774,
             "streams",
             &["basic_streams.rs", "number-stream", "text-stream"],
-            |streams: &JsonStreamsList| streams.data.first().map(|stream| stream.id),
+            |streams: &JsonStreamsList| streams.data.first().and_then(|stream| stream.id),
         );
     }
 

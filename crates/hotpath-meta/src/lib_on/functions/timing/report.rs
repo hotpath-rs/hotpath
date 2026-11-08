@@ -74,7 +74,7 @@ pub(crate) fn build_functions_list(
             }
 
             JsonFunctionEntry {
-                id: s.id,
+                id: Some(s.id),
                 name: s.name.to_string(),
                 calls: s.count,
                 sampled_calls: s.sampled_count,

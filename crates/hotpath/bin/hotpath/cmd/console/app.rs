@@ -637,32 +637,32 @@ impl App {
 
     pub(crate) fn selected_channel_id(&self) -> Option<u32> {
         let idx = self.channels_table_state.selected()?;
-        self.channels.data.get(idx).map(|e| e.id)
+        self.channels.data.get(idx).and_then(|e| e.id)
     }
 
     pub(crate) fn selected_stream_id(&self) -> Option<u32> {
         let idx = self.streams_table_state.selected()?;
-        self.streams.data.get(idx).map(|e| e.id)
+        self.streams.data.get(idx).and_then(|e| e.id)
     }
 
     pub(crate) fn selected_future_id(&self) -> Option<u32> {
         let idx = self.futures_table_state.selected()?;
-        self.futures.data.get(idx).map(|e| e.id)
+        self.futures.data.get(idx).and_then(|e| e.id)
     }
 
     pub(crate) fn selected_sql_id(&self) -> Option<u32> {
         let idx = self.sql_table_state.selected()?;
-        self.sql.data.get(idx).map(|e| e.id)
+        self.sql.data.get(idx).and_then(|e| e.id)
     }
 
     pub(crate) fn selected_http_id(&self) -> Option<u32> {
         let idx = self.http_table_state.selected()?;
-        self.http.data.get(idx).map(|e| e.id)
+        self.http.data.get(idx).and_then(|e| e.id)
     }
 
     pub(crate) fn selected_server_id(&self) -> Option<u32> {
         let idx = self.server_table_state.selected()?;
-        self.server.data.get(idx).map(|e| e.id)
+        self.server.data.get(idx).and_then(|e| e.id)
     }
 
     pub(crate) fn run(

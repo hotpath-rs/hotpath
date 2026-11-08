@@ -90,8 +90,8 @@ commit: a pull request job usually measures GitHub's merge commit, which nobody 
 locally, so `--commit $(git rev-parse HEAD)` on a PR branch still finds the PR's
 report. --event push|pull_request narrows --pr / --commit to one event (the same
 commit is often measured by a push to main and as a PR head). --no-payload asks for
-the summary only; the payload is the uploaded hotpath JSON report, verbatim apart
-from key order and without `meta.policy`.
+the summary only; the payload is the uploaded hotpath JSON report without
+`meta.policy`.
 
 --select JSON adds `metrics`: every measurement the stored report has of the named
 entities (timing, allocations with their `mode`, instruction counts, ...), e.g.

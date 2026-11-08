@@ -274,7 +274,7 @@ pub(crate) fn channel_to_json(
     };
 
     JsonChannelEntry {
-        id: stats.id,
+        id: Some(stats.id),
         source: stats.source.to_string(),
         label,
         has_custom_label: stats.label.is_some(),

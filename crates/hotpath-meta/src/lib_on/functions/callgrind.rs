@@ -310,7 +310,7 @@ pub(crate) fn build_icount_list(
                 0.0
             };
             JsonFunctionEntry {
-                id,
+                id: Some(id),
                 name: name.to_string(),
                 calls: count,
                 sampled_calls: count,

@@ -102,7 +102,7 @@ impl From<&DbgEntry> for JsonDebugEntry {
         let last_value = stats.logs.back().map(|e| e.value.clone());
         let source = crate::channels::display_source(stats.source);
         JsonDebugEntry {
-            id: stats.id,
+            id: Some(stats.id),
             entry_type: crate::json::DebugEntryType::Dbg,
             source: source.to_string(),
             source_display: truncate_source_path(source),

@@ -86,7 +86,8 @@ fn lookup_location(name: &str) -> Option<JsonLocation> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonFunctionEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub name: String,
     pub calls: u64,
     pub sampled_calls: u64,
@@ -128,7 +129,8 @@ pub struct JsonFunctionsList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonFunctionCpuEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub name: String,
     pub samples: u64,
     pub percent: String,
@@ -332,7 +334,8 @@ pub struct JsonChannelsList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonChannelEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub source: String,
     pub label: String,
     pub has_custom_label: bool,
@@ -381,7 +384,8 @@ pub struct JsonRwLocksList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRwLockEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub source: String,
     pub label: String,
     pub has_custom_label: bool,
@@ -416,7 +420,8 @@ pub struct JsonMutexesList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonMutexEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub source: String,
     pub label: String,
     pub has_custom_label: bool,
@@ -449,7 +454,8 @@ pub struct JsonSqlList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonSqlEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub query: String,
     /// Instrumented function the query was executed from, `None` when it ran
     /// outside any measured scope.
@@ -521,7 +527,8 @@ pub struct JsonHttpList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonHttpEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub endpoint: String,
     /// Instrumented function the request was issued from, `None` when it was
     /// sent outside any measured scope.
@@ -602,7 +609,8 @@ pub struct JsonServerList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonServerEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     /// `METHOD template` of the matched route, e.g. `GET /users/{id}`.
     pub route: String,
     pub count: u64,
@@ -664,7 +672,8 @@ pub struct JsonIoList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonIoEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub source: String,
     pub label: String,
     pub has_custom_label: bool,
@@ -799,7 +808,8 @@ pub struct JsonStreamsList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonStreamEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub source: String,
     pub label: String,
     pub has_custom_label: bool,
@@ -850,7 +860,8 @@ pub struct JsonFuturesList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonFutureEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub source: String,
     pub label: String,
     pub has_custom_label: bool,
@@ -1003,7 +1014,8 @@ pub struct JsonDebugList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonDebugEntry {
-    pub id: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub entry_type: DebugEntryType,
     pub source: String,
     pub source_display: String,
