@@ -1,0 +1,148 @@
+name: Cloud cache benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The `test-cache` `cache` example. One build runs twice: natively for timing
+# and allocations, then under Valgrind Callgrind, which merges the native
+# report into its own.
+#
+# Pushes and same-repository pull requests upload in process with the job's
+# OIDC token. Fork pull requests get no `id-token: write`, so they write the
+# merged report to an artifact and `cloud-benchmark-relay.yml` uploads it.
+jobs:
+  upload:
+    name: cloud cache benchmark (upload)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-26.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    # Shared by both runs, so their reports describe one benchmark.
+    env:
+      HOTPATH_BENCHMARK: cache
+      HOTPATH_OUTPUT_FORMAT: json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull request's head commit, not the default merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Record rustc version
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Record runner CPU and image
+        id: host
+        # Commas would split the user metadata, so they are stripped.
+        run: |
+          echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
+          echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cloud-cache-benchmark
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
+      # Released Valgrind misattributes inclusive instruction counts on arm64;
+      # this build fixes it (unofficial fork, hotpath-rs/valgrind).
+      - uses: hotpath-rs/setup-valgrind@v1.1.0
+        with:
+          version: 3.28.0.hotpath-rs-2
+      - name: Build cache benchmark
+        run: |
+          cargo build -q --release -p test-cache --example cache \
+            --features hotpath-alloc,hotpath-cloud,hotpath-callgrind
+      # Run from the workspace root (git info, policy lookup). No upload: this
+      # report is merged into the Callgrind run's.
+      - name: Run cache benchmark natively
+        env:
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs-2
+          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/native.json
+        run: target/release/examples/cache
+      # The uploader reports its own outcome: one `::notice::` / `::warning::`
+      # / `::error::` annotation plus a step summary block. The response file
+      # exists only after an accepted upload, so `test -s` also fails a
+      # skipped one; the `jq` check fails a report that is not a merged one.
+      - name: Run cache benchmark under Callgrind and upload the merged report
+        env:
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs-2
+          HOTPATH_UPLOAD: fail-on-error
+          HOTPATH_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
+          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/merged.json
+          HOTPATH_MERGE_REPORT: ${{ runner.temp }}/native.json
+          HOTPATH_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
+        run: |
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_CALLGRIND_OUT_FILE" \
+            target/release/examples/cache
+          test -s "$HOTPATH_UPLOAD_RESPONSE_PATH"
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and (.functions_alloc.data | length > 0)' \
+            "$HOTPATH_OUTPUT_PATH" > /dev/null
+
+  report:
+    name: cloud cache benchmark (fork pull request)
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-26.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      HOTPATH_BENCHMARK: cache
+      HOTPATH_OUTPUT_FORMAT: json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull request's head commit, not the default merge commit.
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Record rustc version
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Record runner CPU and image
+        id: host
+        # Commas would split the user metadata, so they are stripped.
+        run: |
+          echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
+          echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cloud-cache-benchmark
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
+      # Released Valgrind misattributes inclusive instruction counts on arm64;
+      # this build fixes it (unofficial fork, hotpath-rs/valgrind).
+      - uses: hotpath-rs/setup-valgrind@v1.1.0
+        with:
+          version: 3.28.0.hotpath-rs-2
+      - name: Build cache benchmark
+        run: |
+          cargo build -q --release -p test-cache --example cache \
+            --features hotpath-alloc,hotpath-cloud,hotpath-callgrind
+      - name: Run cache benchmark natively
+        env:
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs-2
+          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/native.json
+        run: target/release/examples/cache
+      # A failed merge fails the job before the artifact upload, so the relay
+      # never posts a report that is not merged.
+      - name: Run cache benchmark under Callgrind and write the merged report
+        env:
+          HOTPATH_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs-2
+          HOTPATH_OUTPUT_PATH: report.json
+          HOTPATH_MERGE_REPORT: ${{ runner.temp }}/native.json
+          HOTPATH_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
+        run: |
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_CALLGRIND_OUT_FILE" \
+            target/release/examples/cache
+          test -s report.json
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and (.functions_alloc.data | length > 0)' \
+            "$HOTPATH_OUTPUT_PATH" > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hotpath-report
+          path: report.json
+          retention-days: 1
+          if-no-files-found: error
