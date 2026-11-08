@@ -11,7 +11,7 @@ use ratatui::{
 };
 
 fn status_style(status: &str) -> Style {
-    let color = match status {
+    let color = match status.trim() {
         "Running" => Color::Green,
         "Sleeping" => Color::Reset,
         "Blocked" => Color::Red,

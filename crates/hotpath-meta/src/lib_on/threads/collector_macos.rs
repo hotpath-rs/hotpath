@@ -29,11 +29,11 @@ const TH_STATE_HALTED: i32 = 5;
 
 fn run_state_to_status(state: i32) -> (String, String) {
     match state {
-        TH_STATE_RUNNING => ("Running ".to_string(), "1".to_string()),
+        TH_STATE_RUNNING => ("Running".to_string(), "1".to_string()),
         TH_STATE_STOPPED => ("Stopped".to_string(), "2".to_string()),
         TH_STATE_WAITING => ("Sleeping".to_string(), "3".to_string()),
-        TH_STATE_UNINTERRUPTIBLE => ("Blocked ".to_string(), "4".to_string()),
-        TH_STATE_HALTED => ("Halted  ".to_string(), "5".to_string()),
+        TH_STATE_UNINTERRUPTIBLE => ("Blocked".to_string(), "4".to_string()),
+        TH_STATE_HALTED => ("Halted".to_string(), "5".to_string()),
         _ => ("Unknown".to_string(), state.to_string()),
     }
 }
