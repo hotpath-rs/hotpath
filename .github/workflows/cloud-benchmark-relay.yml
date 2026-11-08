@@ -2,7 +2,7 @@ name: Cloud benchmark relay
 
 on:
   workflow_run:
-    workflows: ["Cloud drain benchmark", "Cloud meta benchmark", "Cloud drain criterion benchmark"]
+    workflows: ["Cloud drain benchmark", "Cloud meta benchmark", "Cloud drain criterion benchmark", "Cloud dedup benchmark"]
     types: [completed]
 
 permissions: {}
@@ -14,12 +14,13 @@ jobs:
   relay:
     # Only successful pull request runs have a report to relay; the action
     # checks this too, so this only saves starting a runner. The drain
-    # criterion benchmark uploads same-repository pull requests in process and
-    # writes an artifact only for forks.
+    # criterion and dedup benchmarks upload same-repository pull requests in
+    # process and write an artifact only for forks.
     if: >-
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success' &&
-      (github.event.workflow_run.name != 'Cloud drain criterion benchmark' ||
+      ((github.event.workflow_run.name != 'Cloud drain criterion benchmark' &&
+      github.event.workflow_run.name != 'Cloud dedup benchmark') ||
       github.event.workflow_run.head_repository.full_name != github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -36,4 +37,4 @@ jobs:
     steps:
       - uses: hotpath-rs/hotpath-relay@v1.0.0
         with:
-          benchmark: ${{ fromJSON('{"Cloud drain benchmark":"drain","Cloud meta benchmark":"meta","Cloud drain criterion benchmark":"drain-criterion"}')[github.event.workflow_run.name] }}
+          benchmark: ${{ fromJSON('{"Cloud drain benchmark":"drain","Cloud meta benchmark":"meta","Cloud drain criterion benchmark":"drain-criterion","Cloud dedup benchmark":"dedup"}')[github.event.workflow_run.name] }}

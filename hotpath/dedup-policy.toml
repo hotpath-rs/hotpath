@@ -1,0 +1,22 @@
+# Policy for the `dedup` benchmark: a native run merged into a Callgrind run.
+
+[functions]
+min_percent_total = 0.5
+
+[functions.alloc]
+judged = true
+min_percent_change = 2
+metrics = ["avg", "total"]
+min_calls = 0
+
+[functions.icount]
+judged = true
+min_percent_change = 3
+metrics = ["avg", "total"]
+min_calls = 0
+
+[functions.timing]
+judged = true
+min_percent_change = 50
+metrics = ["avg", "total"]
+min_calls = 1

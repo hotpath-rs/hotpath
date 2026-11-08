@@ -4934,6 +4934,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-dedup"
+version = "0.0.0"
+dependencies = [
+ "hotpath",
+]
+
+[[package]]
 name = "test-diesel"
 version = "0.0.0"
 dependencies = [
