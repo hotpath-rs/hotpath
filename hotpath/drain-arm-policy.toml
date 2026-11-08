@@ -1,0 +1,54 @@
+# Policy for the `drain-arm` benchmark: a native run merged into a Callgrind run, so
+# the report carries native timing and allocations next to instruction counts.
+# Lockstep rounds make allocations deterministic; instruction counts are close
+# to it.
+
+# A broken budget or an allocation regression fails the pull request's check run.
+pr_check = "fail"
+
+[functions]
+min_percent_total = 0.5
+
+# The producer hot path allocates a fresh chunk each time one fills: 24 B per
+# push and 23.1 MB over the run. Any growth past that is a breach.
+[[functions.budgets]]
+match = "hotpath_drain::EventProducer::push"
+alloc = { avg = "25 B", total = "24 MB" }
+calls = { min = 1000000, max = 1000000 }
+
+[functions.alloc]
+judged = true
+# Deterministic, so any regression past the bar is real.
+fail_check = true
+min_percent_change = 2
+metrics = ["avg", "total"]
+min_calls = 0
+
+# Producer/consumer interleaving moves the hot paths' instruction counts by up
+# to ~1.5% between runs of one commit (`push`, `sweep`, `drain_into`), so the
+# bar sits above that and does not fail the check.
+[functions.icount]
+judged = true
+min_percent_change = 3
+metrics = ["avg", "total"]
+min_calls = 0
+
+# Native timing on a shared runner is too noisy to judge; listed so it shows as
+# context next to the counts.
+[functions.timing]
+judged = false
+min_percent_change = 50
+metrics = ["avg", "total"]
+min_calls = 1
+
+# Every worker thread is named and does the same lockstep work each round, so
+# their allocations are as deterministic as the functions'. The main thread is
+# left out: its name depends on how the benchmark is launched.
+[threads]
+names = ["consumer", "producer-0", "producer-1", "producer-2", "producer-3"]
+
+[threads.alloc]
+judged = true
+fail_check = true
+min_percent_change = 2
+metrics = ["total"]
