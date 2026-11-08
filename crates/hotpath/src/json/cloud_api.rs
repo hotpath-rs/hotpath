@@ -56,6 +56,7 @@ pub fn validate_benchmark_name(name: &str) -> Result<(), InvalidBenchmarkName> {
 /// Why a request was refused, as clients branch on it. Never on the message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ApiErrorCode {
     /// No `Authorization: Bearer` credential at all (401).
     MissingToken,
@@ -80,6 +81,9 @@ pub enum ApiErrorCode {
     /// repository's policy file. A plain `ApiError`, there is no document to
     /// list problems for.
     PolicyRequired,
+    /// A stored report the request cannot be applied to (422), e.g. a
+    /// `select` on a payload older than the schema the server reads.
+    Unprocessable,
     Internal,
     /// A code this client does not know; printed like any other error. Also
     /// the default, so a body without `code` still parses.
@@ -309,6 +313,38 @@ mod tests {
             })
             .unwrap(),
             r#"{"error":"Benchmark ci not found.","code":"not_found"}"#
+        );
+    }
+
+    /// Every known code keeps its wire name both ways, and a code a newer
+    /// server sends reads as `Unknown`: `#[non_exhaustive]` is for Rust
+    /// callers only, the wire format does not change.
+    #[test]
+    fn api_error_codes_round_trip_their_wire_names() {
+        for (code, wire) in [
+            (ApiErrorCode::MissingToken, "missing_token"),
+            (ApiErrorCode::InvalidToken, "invalid_token"),
+            (
+                ApiErrorCode::GithubAuthorizationExpired,
+                "github_authorization_expired",
+            ),
+            (ApiErrorCode::BadRequest, "bad_request"),
+            (ApiErrorCode::Forbidden, "forbidden"),
+            (ApiErrorCode::NotFound, "not_found"),
+            (ApiErrorCode::MethodNotAllowed, "method_not_allowed"),
+            (ApiErrorCode::RateLimited, "rate_limited"),
+            (ApiErrorCode::InvalidPolicy, "invalid_policy"),
+            (ApiErrorCode::PolicyRequired, "policy_required"),
+            (ApiErrorCode::Unprocessable, "unprocessable"),
+            (ApiErrorCode::Internal, "internal"),
+        ] {
+            let json = format!("\"{wire}\"");
+            assert_eq!(serde_json::to_string(&code).unwrap(), json);
+            assert_eq!(serde_json::from_str::<ApiErrorCode>(&json).unwrap(), code);
+        }
+        assert_eq!(
+            serde_json::from_str::<ApiErrorCode>("\"from_a_newer_server\"").unwrap(),
+            ApiErrorCode::Unknown
         );
     }
 

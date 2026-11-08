@@ -93,12 +93,15 @@ commit is often measured by a push to main and as a PR head). --no-payload asks 
 the summary only; the payload is the uploaded hotpath JSON report without
 `meta.policy`.
 
---select JSON adds `metrics`: every measurement the stored report has of the named
-entities (timing, allocations with their `mode`, instruction counts, ...), e.g.
-'{\"functions\":{\"keys\":[\"app::hot\",\"app::process\"]}}'. Keys are exact (as the
-diff's rows name them); an entity, section or value the report lacks is left out, so
-`metrics: {}` means nothing matched, and `metrics: null` a payload the server cannot
-read.
+--select JSON filters the payload to the named entities, e.g.
+'{\"functions\":{\"keys\":[\"app::hot\",\"app::process\"]},\"io\":{\"keys\":[\"sock\"]}}'.
+Keys are exact (as the diff's rows name them; io takes the value's label, every op of
+it; threads the name, every thread of it). Each kept section's `data` holds only the
+matching entries, unchanged, with `included_count` set to their number; `total_count`
+and the totals still describe the whole run. Sections of other resources, `streams`,
+`futures`, `debug` and named sections left empty are dropped, so a key that matches
+nothing keeps nothing. Not with --no-payload. A payload the server cannot read
+produces an error rather than an unfiltered response.
 
 `policy_path` names the policy file the report was judged under, relative to the
 repository root, and `policy_url` is that file on GitHub, pinned to the measured
@@ -116,9 +119,9 @@ exits 0 to wait for CI's upload. Same token and base URL environment as `auth`."
         long_about = "List a repository's stored reports, newest first, one page per run
 (GET /api/v1/repos/{owner}/{name}/reports).
 
-Each entry is one upload, as the summary `report --no-payload` prints (never the
-payload), so a pull request measured three times lists three reports. The body is
-`repository`, `reports` and `next_cursor`.
+Each entry is one upload, as the summary `report --no-payload` prints (the payload
+only with --select), so a pull request measured three times lists three reports. The
+body is `repository`, `reports` and `next_cursor`.
 
 Every filter is optional and they combine with AND:
   --benchmark NAME          one benchmark; without it, every benchmark of the repository
@@ -138,8 +141,9 @@ Every filter is optional and they combine with AND:
 DATE is YYYY-MM-DD (UTC midnight) or an RFC 3339 time (2026-11-01T10:30:00+01:00);
 --since must be before --until.
 
---select JSON adds each report's `metrics`, as `report --select` does; a page then
-holds 1 to 20 reports (default 10), each payload being read whole.
+--select JSON lists each report exactly as `report --select` prints it, with its
+payload filtered to the named entities; a page then holds 1 to 20 reports (default
+10), each payload being read whole.
 
 Pagination: --limit N reports per page, 1 to 50 (default 20). When more reports match,
 `next_cursor` is a string: pass it as --cursor with the same filters to get the next
@@ -204,17 +208,14 @@ of unjudged families, so a nonzero count in an unjudged family's `counts` can be
 inspected without --full. Those rows never count toward the verdict; `family.judged`
 of their section says so.
 
---select JSON (not with --full or --advisory) compares named entities instead,
-whatever the policy lists, ignores or finds:
-'{\"functions\":{\"keys\":[\"app::hot\"]},\"server\":{\"keys\":[\"GET /users/{id}\"]}}'.
-The body then says `rows: \"selected\"`, sends no section rows, and adds `metrics`:
-for each entity the diff has, every value of every section, as `base`, `head` and
-`change_percent` (a side null for an added or removed entity, and the change with
-it). An entity, section or value the diff lacks is left out, so `metrics: {}` means
-nothing matched; a section the two reports could not be compared on is never in it,
-and `result.skipped` says why. `metrics` is null when nothing was compared (no
-baseline or an unreadable side). The verdict, the budgets and the exit code are the
-same as without --select.
+--select JSON keeps only the rows and truncation omissions of named entities, as
+`report --select` names them:
+'{\"functions\":{\"keys\":[\"app::hot\"]},\"io\":{\"keys\":[\"sock\"]}}' (an io label
+keeps every op row of it). Alone it lists every row of those entities, as --full
+does (unchanged and ignored rows included); with --advisory only their findings. A
+section left without rows or omissions is dropped; a section the policy leaves out
+is never added. The verdict, the budgets, the totals, the coverages, the counts and
+the exit code describe the whole comparison, the same as without --select.
 
 Inside a section, a key that is unset or an empty list is
 left out: `mode`, `totals`, `columns`, `omitted_from_base`, `omitted_from_head`, a

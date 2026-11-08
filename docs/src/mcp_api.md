@@ -143,6 +143,15 @@ Every tool is read-only.
 
 The answers have the same shape as the CLI's JSON output, and the arguments mean the same as its flags; [AI Agents CLI](agents_cli.md#cli-commands) explains both, including how to read a diff.
 
+`get_report`, `list_reports` and `get_diff` accept `select`, which names entities per resource with exact `keys`, such as `{"functions":{"keys":["app::hot"]},"io":{"keys":["sock"]}}`. It filters the data the answer already carries and adds no field such as `metrics`:
+
+- A report keeps its payload sections, each with only the matching `data` entries. `get_report` includes the payload when `select` is given.
+- `list_reports` without `select` lists summaries only; with it, each entry is the report with its filtered payload, as `get_report` returns it.
+- A diff keeps only the matching comparison rows. `select` combines with `rows`, which defaults to `all` when `select` is given.
+- I/O is selected by the value's label and keeps every operation of it.
+
+[AI Agents CLI](agents_cli.md#report) has examples.
+
 ## REST API
 
 The base URL is `https://hotpath.rs/api/v1`. Every request needs a personal API token from <a href="https://hotpath.rs/app/tokens" target="_blank" rel="noopener noreferrer">hotpath.rs/app/tokens</a> in the `Authorization` header; OAuth tokens issued to MCP clients do not work here. Repository access is the same as for [the MCP server](#which-repositories-you-can-read).
@@ -191,14 +200,14 @@ Trimmed answer:
 | `GET /auth` | the user and token of the request |
 | `GET /repos` | the repositories in your installations, with their benchmarks; `query=TEXT`, `with_benchmarks=true` |
 | `GET /repos/{owner}/{name}/benchmarks` | one repository's benchmarks |
-| `GET /repos/{owner}/{name}/reports` | the repository's reports, newest first; `benchmark`, `event`, `pr`, `commit`, `branch`, `since`, `until`, `verdict`, `metadata`, `limit`, `cursor` |
-| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/reports/latest` | the newest report of `pr=N` or `commit=SHA`, optionally narrowed by `event`; `payload=false` leaves out the uploaded report |
-| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/reports/{id}` | one report by id; `payload=false` as above |
-| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/diff` | the diff of the report picked by `pr=N`, `commit=SHA` or `head=ID`, optionally narrowed by `event`; `rows=findings\|advisory\|all` |
+| `GET /repos/{owner}/{name}/reports` | the repository's reports, newest first; `benchmark`, `event`, `pr`, `commit`, `branch`, `since`, `until`, `verdict`, `metadata`, `select`, `limit`, `cursor` |
+| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/reports/latest` | the newest report of `pr=N` or `commit=SHA`, optionally narrowed by `event`; `payload=false` leaves out the uploaded report, `select` filters it |
+| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/reports/{id}` | one report by id; `payload=false` and `select` as above |
+| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/diff` | the diff of the report picked by `pr=N`, `commit=SHA` or `head=ID`, optionally narrowed by `event`; `rows=findings\|advisory\|all`, `select` |
 | `GET /policy/default` | the default policy file, as `source` |
 | `POST /policy/validate` | checks the policy sent as the JSON body `{"source": "<TOML>"}` |
 
-The parameters mean the same as the CLI flags of the same name in [AI Agents CLI](agents_cli.md#cli-commands). `limit` (1 to 50, default 20) and `cursor` page through reports: pass the answer's `next_cursor` as `cursor` with the same filters. `metadata` is a JSON object of string values, such as `metadata={"runner":"Linux-ARM64"}` (URL-encoded).
+The parameters mean the same as the CLI flags of the same name in [AI Agents CLI](agents_cli.md#cli-commands). `limit` (1 to 50, default 20) and `cursor` page through reports: pass the answer's `next_cursor` as `cursor` with the same filters. `metadata` is a JSON object of string values, such as `metadata={"runner":"Linux-ARM64"}` (URL-encoded). `select` is the JSON object described [above](#available-mcp-tools), URL-encoded; it cannot be combined with `payload=false`, and with it a listing page holds 1 to 20 reports (default 10).
 
 Every error answers a non-2xx status with a JSON body that names the problem and a machine-readable `code`:
 

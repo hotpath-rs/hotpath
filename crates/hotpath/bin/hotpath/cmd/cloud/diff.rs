@@ -2,8 +2,9 @@
 //! judged under the benchmark's current policy, as JSON. The head is picked
 //! like `report` (`selector.rs`). Without flags only the PR comment's findings
 //! are sent; `--full` (`rows=all`) asks for every row and cell, `--advisory`
-//! also lists the unjudged families' findings. `--select` (`select.rs`) asks
-//! for named entities compared instead of any rows, so it takes neither.
+//! also lists the unjudged families' findings. `--select` (`select.rs`) keeps
+//! only the named entities' rows; alone it means every row of them (the
+//! server's `rows=all` default), with `--advisory` only their findings.
 //!
 //! Exit 0 means exactly "judged and nothing failed"
 //! (`verdict.judged && !verdict.regressed`), exit 1 is everything else. A
@@ -35,14 +36,13 @@ pub(crate) struct DiffArgs {
 
     #[arg(
         long,
-        conflicts_with = "select",
         help = "Every row and every cell of every section, with the column legend, not only the PR comment's findings"
     )]
     full: bool,
 
     #[arg(
         long,
-        conflicts_with_all = ["full", "select"],
+        conflicts_with = "full",
         help = "The findings of unjudged families too, which never count toward the verdict"
     )]
     advisory: bool,
@@ -93,9 +93,9 @@ fn request_path(args: &DiffArgs) -> Result<String, CliError> {
         Selector::Commit(sha) => ("commit", sha.as_str()),
         Selector::Id(id) => ("head", id.as_str()),
     };
-    // Without `rows=` the server sends findings only. clap rejects `--event`
-    // together with `--id`, and any two of `--full`, `--advisory` and
-    // `--select`, which the server refuses alongside `rows=`.
+    // Without `rows=` the server sends findings only, or with `select=` every
+    // row of the named entities. clap rejects `--event` together with `--id`,
+    // and `--full` together with `--advisory`.
     let rows = if args.full {
         Some("all")
     } else if args.advisory {

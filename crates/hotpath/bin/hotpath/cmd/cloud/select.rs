@@ -1,5 +1,6 @@
-//! `--select JSON`, shared by `report`, `reports` and `diff`: the metrics of named
-//! entities, sent as the server's `select=` JSON object. Only the shape is
+//! `--select JSON`, shared by `report`, `reports` and `diff`: a filter keeping
+//! only named entities in the payload or the diff rows, sent as the server's
+//! `select=` JSON object. Only the shape is
 //! checked here (a JSON object); resources, keys and the size bounds are the
 //! server's to judge, its `bad_request` saying what to change.
 
@@ -17,8 +18,8 @@ pub(crate) struct SelectArg {
     #[arg(
         long,
         value_name = "JSON",
-        help = "Add `metrics`: every measurement of these entities, as a JSON object of \
-                resources and their exact keys ({\"functions\":{\"keys\":[\"app::hot\"]}})"
+        help = "Keep only these entities, as a JSON object of resources and their exact \
+                keys ({\"functions\":{\"keys\":[\"app::hot\"]}})"
     )]
     select: Option<String>,
 }

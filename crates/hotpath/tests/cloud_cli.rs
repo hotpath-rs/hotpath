@@ -38,6 +38,16 @@ mod tests {
         )
     }
 
+    /// What the server answers `report --select` with: `SUMMARY_BODY` and a
+    /// payload the server filtered to `app::hot`, counts of the whole run.
+    fn selected_report_body() -> String {
+        format!(
+            "{},\"payload\":{}}}",
+            &SUMMARY_BODY[..SUMMARY_BODY.len() - 1],
+            r#"{"version":"0.26.1","meta":{},"functions_timing":{"profiling_mode":"timing","total_count":12,"included_count":1,"data":[{"name":"app::hot","calls":200,"avg":"1.62 ms","total":"323.25 ms"}]}}"#
+        )
+    }
+
     fn json(text: &str) -> serde_json::Value {
         serde_json::from_str(text.trim()).unwrap_or_else(|e| panic!("not JSON: {e}\n{text}"))
     }
@@ -636,17 +646,15 @@ mod tests {
             r#"  {"server": {"keys": ["GET /users/{id}"]}, "sql": {"keys": ["SELECT 1 | - | -"]}} "#,
             r#"{"functions":{"keys":["a"]},"functions":{"keys":["b"]}}"#,
         ];
-        let body = SUMMARY_BODY.replace(
-            r#""benchmark":"ci""#,
-            r#""benchmark":"ci","metrics":{"functions":{"app::hot":{"timing":{"avg":"1.62 ms"}}}}"#,
-        );
+        // the server's filtered payload, printed as received
+        let body = selected_report_body();
         for select in cases {
             let mut server = Server::new();
             let mock = server
                 .mock("GET", format!("{REPORTS_PATH}/latest").as_str())
                 .match_query(Matcher::AllOf(vec![
                     Matcher::UrlEncoded("select".into(), select.trim().into()),
-                    Matcher::Regex("^pr=7&payload=false&select=[^&]+$".into()),
+                    Matcher::Regex("^pr=7&select=[^&]+$".into()),
                 ]))
                 .match_header("authorization", format!("Bearer {TOKEN}").as_str())
                 .with_status(200)
@@ -656,7 +664,7 @@ mod tests {
             let output = hotpath(
                 &server,
                 Some(TOKEN),
-                &report_args(&["--pr", "7", "--no-payload", "--select", select]),
+                &report_args(&["--pr", "7", "--select", select]),
             );
             assert_eq!(
                 output.status.code(),
@@ -678,7 +686,7 @@ mod tests {
                 Matcher::Regex("^select=[^&]+$".into()),
             ]))
             .with_status(200)
-            .with_body(SUMMARY_BODY)
+            .with_body(&body)
             .create();
         let output = hotpath(
             &server,
@@ -686,6 +694,7 @@ mod tests {
             &report_args(&["--id", REPORT_ID, "--select", select]),
         );
         assert_eq!(output.status.code(), Some(0), "stderr: {}", stderr(&output));
+        assert_eq!(stdout(&output), format!("{body}\n"));
         mock.assert();
     }
 
@@ -818,6 +827,8 @@ mod tests {
             vec!["--id", REPORT_ID, "--event", "push"],
             vec!["--pr", "1", "--event", "merge"],
             vec!["--pr", "-1"],
+            // select filters the payload: never without it
+            vec!["--pr", "1", "--no-payload", "--select", "{}"],
         ] {
             let output = hotpath(&server, Some(TOKEN), &report_args(&selector));
             assert_eq!(
@@ -1046,7 +1057,11 @@ mod tests {
             (Some("1"), "^benchmark=drain&select=[^&]+&limit=1$"),
         ] {
             let mut server = Server::new();
-            let body = report_list_body("null");
+            // with select each entry is the report with its filtered payload
+            let report = selected_report_body();
+            let body = format!(
+                r#"{{"repository":"hotpath-rs/hotpath","reports":[{report},{report}],"next_cursor":null}}"#
+            );
             let mock = mock_reports(
                 &mut server,
                 Matcher::AllOf(vec![
@@ -1619,13 +1634,17 @@ mod tests {
     #[test]
     fn diff_select_is_sent_as_given_and_still_exits_by_the_verdict() {
         let select = r#"{"functions":{"keys":["app::hot"]},"server":{"keys":["GET /users/{id}"]}}"#;
-        for (budgets, code) in [(BudgetsCase::Hold, 0), (BudgetsCase::Broken, 1)] {
-            let body = diff_body(&compared(false), budgets);
-            let body = body.replacen(
-                r#""verdict""#,
-                r#""metrics":{"functions":{"app::hot":{"timing":{"avg":{"base":"1.10 ms","head":"1.24 ms","change_percent":12.73}}}}},"verdict""#,
+        // the server's filtered diff: select without rows is rows=all
+        let selected = |budgets: BudgetsCase, rows: &str| {
+            diff_body(&compared(false), budgets).replacen(
+                r#""rows":"findings""#,
+                &format!(r#""rows":"{rows}""#),
                 1,
-            );
+            )
+        };
+        for (budgets, code) in [(BudgetsCase::Hold, 0), (BudgetsCase::Broken, 1)] {
+            let body = selected(budgets, "all");
+            assert!(body.contains(r#""rows":"all""#), "{body}");
             let mut server = Server::new();
             let mock = server
                 .mock("GET", DIFF_PATH)
@@ -1649,23 +1668,30 @@ mod tests {
         }
 
         // by commit and by id: the head where the selector puts it, then
-        // select; nothing matched (`metrics: {}`) is printed as received
-        let body = diff_body(&compared(false), BudgetsCase::Hold).replacen(
-            r#""verdict""#,
-            r#""metrics":{},"verdict""#,
-            1,
-        );
-        assert!(body.contains(r#""metrics":{}"#), "{body}");
-        for (selector, query) in [
+        // select; --full and --advisory send their rows= beside it
+        for (selector, query, rows) in [
             (
                 vec!["--commit", SHA],
                 format!("^commit={SHA}&select=[^&]+$"),
+                "all",
             ),
             (
                 vec!["--id", REPORT_ID],
                 format!("^head={REPORT_ID}&select=[^&]+$"),
+                "all",
+            ),
+            (
+                vec!["--id", REPORT_ID, "--full"],
+                format!("^head={REPORT_ID}&rows=all&select=[^&]+$"),
+                "all",
+            ),
+            (
+                vec!["--id", REPORT_ID, "--advisory"],
+                format!("^head={REPORT_ID}&rows=advisory&select=[^&]+$"),
+                "advisory",
             ),
         ] {
+            let body = selected(BudgetsCase::Hold, rows);
             let mut server = Server::new();
             let mock = server
                 .mock("GET", DIFF_PATH)
@@ -1702,16 +1728,6 @@ mod tests {
             "{}",
             stderr(&output)
         );
-        // the server refuses select beside rows=: --full and --advisory are
-        // usage errors with it
-        for flag in ["--full", "--advisory"] {
-            let output = hotpath(
-                &server,
-                Some(TOKEN),
-                &diff_args(&["--pr", "42", flag, "--select", select]),
-            );
-            assert_eq!(output.status.code(), Some(2), "{flag}: {}", stderr(&output));
-        }
         mock.assert();
     }
 

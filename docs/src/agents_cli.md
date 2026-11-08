@@ -81,14 +81,14 @@ hotpath cloud report --repo hotpath-rs/hotpath --benchmark drain --pr 604 --no-p
 
 `--commit $(git rev-parse HEAD)` works on a pull request branch: CI measures GitHub's merge commit, and the report also matches the pull request's head commit. Without `--no-payload` the answer also carries the full uploaded hotpath report.
 
-`--select JSON` adds `metrics`: every measurement the stored report has of the entities you name. The object names resources (`functions`, `sql`, `http`, `server`, `mutexes`, `rw_locks`, `channels`, `io`, `threads`), each with exact `keys` as the diff's rows name them. A selected entity comes with all its sections and values: a function's timing, its allocations (with `mode`, `bytes` or `count`) and its instruction counts, whichever the report has:
+`--select JSON` filters the payload to the entities you name. The object names resources (`functions`, `sql`, `http`, `server`, `mutexes`, `rw_locks`, `channels`, `io`, `threads`), each with exact `keys` as the diff's rows name them; an io value is named by its label and keeps all its operations, a thread name keeps every thread of that name:
 
 ```bash
-hotpath cloud report --repo OWNER/NAME --benchmark NAME --pr 604 --no-payload \
+hotpath cloud report --repo OWNER/NAME --benchmark NAME --pr 604 \
   --select '{"functions":{"keys":["app::hot","app::process"]},"server":{"keys":["GET /api/users"]}}'
 ```
 
-An entity, section or value the report lacks is left out, so `"metrics": {}` means nothing matched, and `"metrics": null` a payload the server cannot read. A selection names at most 20 keys; the server's error says what to change in one it refuses.
+The payload keeps its usual shape. Each kept section's `data` holds only the matching entries, unchanged, so a function keeps its timing, allocation, instruction count and CPU entries, whichever the report has. `included_count` counts the kept entries, while `total_count` and the totals still describe the whole run. Sections of other resources, `streams`, `futures`, `debug` and sections left without entries are dropped, so a key that matches nothing keeps nothing. `--select` does not go with `--no-payload`. A selection names at most 20 keys; the server's error says what to change in one it refuses, and a report too old for the server to read is an error rather than an unfiltered payload.
 
 A report that is not there yet answers `not_found` with exit code 1, so polling `report` until it exits 0 waits for CI's upload.
 
@@ -155,7 +155,7 @@ Every filter is optional, and filters combine:
 hotpath cloud reports --repo hotpath-rs/hotpath --benchmark drain --metadata runner=Linux-ARM64 --limit 10
 ```
 
-`--select JSON` adds each listed report's `metrics`, as `report --select` does, to follow a few functions or routes across a benchmark's history. A page then holds 1 to 20 reports (default 10).
+`--select JSON` lists each report exactly as `report --select` prints it, with its payload filtered to the entities you name, to follow a few functions or routes across a benchmark's history. A page then holds 1 to 20 reports (default 10).
 
 Each run prints one page of `--limit N` reports (1 to 50, default 20). When more reports match, `next_cursor` is a string: pass it as `--cursor` with the same filters to get the next page. It is `null` on the last page.
 
@@ -221,14 +221,14 @@ How to read it:
 
 By default the answer lists only what the comment lists. `--advisory` adds the findings of sections the policy lists with `judged = false`, which never count toward the verdict. `--full` lists every row and every value.
 
-`--select JSON` compares the entities you name instead, whether or not the policy lists them, ignores them or finds them changed. It takes the same object as `report --select`, exact `keys` per resource, and not `--advisory` or `--full`:
+`--select JSON` keeps only the rows of the entities you name, with the same object as `report --select`:
 
 ```bash
 hotpath cloud diff --repo OWNER/NAME --benchmark NAME --pr 604 \
-  --select '{"functions":{"keys":["app::hot"]},"server":{"keys":["GET /api/users"]}}'
+  --select '{"functions":{"keys":["app::hot"]},"io":{"keys":["sock"]}}'
 ```
 
-The answer then has `"rows": "selected"`, no section rows, and `metrics`: every value of every section the diff has of each entity, as `base`, `head` and `change_percent`. For an entity only one report has, the other side and the change are `null`. `"metrics": {}` means nothing matched, and `"metrics": null` that nothing was compared (no baseline or an unreadable report). A section the two reports could not be compared on is left out and named in `result.skipped`. The verdict, the budgets and the exit code are the same as without `--select`.
+Alone it lists every row of those entities, as `--full` does, including unchanged rows and rows the policy ignores; with `--advisory` only their findings. An io label keeps one row per operation. A section left without rows is dropped, unless it still names a selected entity in `omitted_from_base` or `omitted_from_head` (cut by a truncated report), and a section the policy leaves out is never added. The verdict, the budgets, the totals, the counts and the exit code describe the whole comparison, the same as without `--select`.
 
 `diff` exits `0` only when the report was judged and nothing regressed. A regression, a broken budget, or nothing to judge (no baseline and no budgets) exits `1` with the answer on stdout.
 
