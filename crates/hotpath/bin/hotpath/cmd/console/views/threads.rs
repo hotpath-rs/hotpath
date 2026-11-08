@@ -11,7 +11,7 @@ use ratatui::{
 };
 
 fn status_style(status: &str) -> Style {
-    let color = match status.trim() {
+    let color = match status {
         "Running" => Color::Green,
         "Sleeping" => Color::Reset,
         "Blocked" => Color::Red,
@@ -125,7 +125,7 @@ pub(crate) fn render_threads_panel(
                 ("N/A", "N/A", "N/A")
             };
 
-            let status_str = format!("{} ({})", thread.status, thread.status_code);
+            let status_str = format!("{:<8} ({})", thread.status, thread.status_code);
 
             let cpu_percent_avg_str = thread.cpu_percent_avg.as_deref().unwrap_or("-");
 
