@@ -3,6 +3,7 @@
 //! Run with:
 //!   cargo run --release -p test-dedup --example dedup --features hotpath-alloc
 
+use std::collections::HashSet;
 use std::hint::black_box;
 
 const LEN: usize = 50_000;
@@ -23,9 +24,10 @@ fn input() -> Vec<u64> {
 
 #[hotpath::measure]
 fn dedup(values: &[u64]) -> Vec<u64> {
+    let mut seen = HashSet::new();
     let mut unique = Vec::new();
     for &value in values {
-        if !unique.contains(&value) {
+        if seen.insert(value) {
             unique.push(value);
         }
     }
