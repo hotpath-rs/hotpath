@@ -1,0 +1,104 @@
+name: Hetzner runner benchmark
+
+# Run-to-run variability experiment for the self-hosted Hetzner runner
+# (`hotpath-bench` label) against a GitHub-hosted runner. Each job runs one
+# existing benchmark, built like its `cloud-*-benchmark.yml` builds it, on a
+# fixed commit: a few discarded warmups, then a fixed number of measured runs,
+# each writing its own JSON report. Nothing is uploaded to hotpath-cloud; the
+# raw reports and a CSV of `total_elapsed_ns` per run are kept as an artifact.
+#
+# - `drain`: the `hotpath-drain` `throughput` example. Five threads meet at
+#   barriers every round, so its timing is dominated by cross-core wakeups.
+# - `dedup`: the `test-dedup` example. Single-threaded and cache resident, so
+#   its timing shows the machine's own noise floor.
+#
+# Runs only on pushes to the `hetzner-benchmark` branch, never on pull
+# requests, so no pull request code reaches the self-hosted runner. Each
+# repetition is a re-run of the same workflow run, which schedules fresh jobs:
+#   gh run rerun <run-id>
+on:
+  push:
+    branches: [hetzner-benchmark]
+
+permissions:
+  contents: read
+
+env:
+  # The benchmarked code, independent of this branch's head.
+  BENCH_COMMIT: 8a8979a1837191bccbad49b5bc26ed64a989c219
+  RUSTUP_TOOLCHAIN: 1.99.1
+  WARMUPS: 3
+  ITERATIONS: 8
+
+jobs:
+  bench:
+    name: ${{ matrix.benchmark }} benchmark (${{ matrix.runner }})
+    if: github.repository == 'hotpath-rs/hotpath'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [hetzner, github-hosted]
+        benchmark: [drain, dedup]
+    # The single Hetzner runner takes one job at a time, so its jobs never overlap.
+    runs-on: ${{ matrix.runner == 'hetzner' && fromJSON('["self-hosted","linux","x64","hotpath-bench"]') || 'ubuntu-26.04' }}
+    timeout-minutes: 30
+    env:
+      BENCHMARK: ${{ matrix.benchmark }}
+      RUNNER_KIND: ${{ matrix.runner }}
+      OUT: ${{ github.workspace }}/bench-out
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BENCH_COMMIT }}
+      # drain is profiled by hotpath-meta (`HOTPATH_META_*` env), dedup by hotpath.
+      - name: Select benchmark
+        run: |
+          case "$BENCHMARK" in
+            drain) echo "PACKAGE=hotpath-drain EXAMPLE=throughput FEATURES=hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta PREFIX=HOTPATH_META" ;;
+            dedup) echo "PACKAGE=test-dedup EXAMPLE=dedup FEATURES=hotpath-alloc,hotpath-cloud,hotpath-callgrind PREFIX=HOTPATH" ;;
+          esac | tr ' ' '\n' >> "$GITHUB_ENV"
+      - name: Install pinned toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+      - name: Record environment
+        run: |
+          mkdir -p "$OUT"
+          jq -n \
+            --arg benchmark "$BENCHMARK" \
+            --arg runner_kind "$RUNNER_KIND" \
+            --arg runner_name "$RUNNER_NAME" \
+            --arg commit "$(git rev-parse HEAD)" \
+            --arg cpu "$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1)" \
+            --arg arch "$(uname -m)" \
+            --arg nproc "$(nproc)" \
+            --arg os "$(. /etc/os-release && echo "$PRETTY_NAME")" \
+            --arg kernel "$(uname -r)" \
+            --arg rustc "$(rustc -V)" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg warmups "$WARMUPS" \
+            --arg iterations "$ITERATIONS" \
+            '$ARGS.named' | tee "$OUT/environment.json"
+          lscpu > "$OUT/lscpu.txt"
+      # Build time is excluded: the measured runs below execute the binary directly.
+      - name: Build benchmark
+        run: cargo build -q --locked --release -p "$PACKAGE" --example "$EXAMPLE" --features "$FEATURES"
+      - name: Run warmups and measured iterations
+        run: |
+          bin="target/release/examples/$EXAMPLE"
+          for i in $(seq 1 "$WARMUPS"); do
+            env "${PREFIX}_OUTPUT_FORMAT=json" "${PREFIX}_OUTPUT_PATH=/dev/null" "$bin" > /dev/null
+          done
+          echo "benchmark,runner_kind,runner_name,run_id,run_attempt,iteration,started_at_ns,total_elapsed_ns" > "$OUT/elapsed.csv"
+          for i in $(seq 1 "$ITERATIONS"); do
+            report="$OUT/run-$(printf %03d "$i").json"
+            started=$(date +%s%N)
+            env "${PREFIX}_BENCHMARK=$BENCHMARK" "${PREFIX}_OUTPUT_FORMAT=json" "${PREFIX}_OUTPUT_PATH=$report" "$bin"
+            echo "$BENCHMARK,$RUNNER_KIND,$RUNNER_NAME,$GITHUB_RUN_ID,$GITHUB_RUN_ATTEMPT,$i,$started,$(jq -e '.functions_timing.total_elapsed_ns' "$report")" >> "$OUT/elapsed.csv"
+          done
+          cat "$OUT/elapsed.csv"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.benchmark }}-${{ matrix.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: bench-out
+          retention-days: 90
+          if-no-files-found: error
