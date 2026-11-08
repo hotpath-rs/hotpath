@@ -13,6 +13,7 @@ use time::macros::format_description;
 use time::{Date, OffsetDateTime};
 
 use crate::cmd::cloud::api::{with_query, CliError, Client, Output};
+use crate::cmd::cloud::precise::PreciseArg;
 use crate::cmd::cloud::repo;
 use crate::cmd::cloud::select::{SelectArg, MAX_SELECTED_LIMIT};
 use crate::cmd::cloud::selector::{validate_commit, validate_pr, Event};
@@ -87,6 +88,9 @@ pub(crate) struct ReportsArgs {
 
     #[command(flatten)]
     select: SelectArg,
+
+    #[command(flatten)]
+    precise: PreciseArg,
 
     #[arg(
         long,
@@ -190,6 +194,7 @@ fn request_path(args: &ReportsArgs) -> Result<String, CliError> {
         ("verdict", args.verdict.map(VerdictFilter::as_str)),
         ("metadata", metadata.as_deref()),
         ("select", select),
+        ("precise", args.precise.value()),
         ("limit", limit.as_deref()),
         ("cursor", args.cursor.as_deref()),
     ]

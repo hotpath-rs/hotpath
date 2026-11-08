@@ -7,6 +7,7 @@ mod benchmarks;
 mod diff;
 mod init;
 mod policy;
+mod precise;
 mod repo;
 mod report;
 mod reports;
@@ -103,6 +104,10 @@ and the totals still describe the whole run. Sections of other resources, `strea
 nothing keeps nothing. Not with --no-payload. A payload the server cannot read
 produces an error rather than an unfiltered response.
 
+--precise returns measurements at the precision the uploaded report carries instead
+of rounded for reading: the payload as uploaded (`11.617504 ms`, `2425213 B`) and the
+totals in ns and B. It combines with every other flag.
+
 `policy_path` names the policy file the report was judged under, relative to the
 repository root, and `policy_url` is that file on GitHub, pinned to the measured
 commit. Every stored report carries its policy, so both are always set. The document is the file at that path in the measured
@@ -143,7 +148,8 @@ DATE is YYYY-MM-DD (UTC midnight) or an RFC 3339 time (2026-11-01T10:30:00+01:00
 
 --select JSON lists each report exactly as `report --select` prints it, with its
 payload filtered to the named entities; a page then holds 1 to 20 reports (default
-10), each payload being read whole.
+10), each payload being read whole. --precise returns totals and payloads as
+`report --precise` does.
 
 Pagination: --limit N reports per page, 1 to 50 (default 20). When more reports match,
 `next_cursor` is a string: pass it as --cursor with the same filters to get the next
@@ -216,6 +222,10 @@ does (unchanged and ignored rows included); with --advisory only their findings.
 section left without rows or omissions is dropped; a section the policy leaves out
 is never added. The verdict, the budgets, the totals, the coverages, the counts and
 the exit code describe the whole comparison, the same as without --select.
+
+--precise writes every value unrounded: cells, totals and budget figures in ns and B
+(throughputs with their uploaded tenth, `12.4 B`), `change_percent` without rounding.
+Rows, outcomes, the verdict and the exit code are the same.
 
 Inside a section, a key that is unset or an empty list is
 left out: `mode`, `totals`, `columns`, `omitted_from_base`, `omitted_from_head`, a

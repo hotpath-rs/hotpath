@@ -1580,6 +1580,84 @@ mod tests {
         assert_eq!(json(&printed), json(&body));
     }
 
+    /// `--precise` adds `precise=true` to `report`, `reports` and `diff`,
+    /// with every other flag, `--select` included; without it nothing is
+    /// sent (the other tests match their queries exactly), and the answer is
+    /// printed as received.
+    #[test]
+    fn precise_is_sent_with_the_flag_only() {
+        let select = r#"{"functions":{"keys":["app::hot"]}}"#;
+        let encoded = "%7B%22functions%22%3A%7B%22keys%22%3A%5B%22app%3A%3Ahot%22%5D%7D%7D";
+        let reports_path = "/api/v1/repos/hotpath-rs/hotpath/reports";
+        let diff = diff_body(&compared(false), BudgetsCase::NoRules);
+        let list = report_list_body("null");
+        let cases: Vec<(Vec<&str>, String, String, String)> = vec![
+            (
+                report_args(&["--pr", "7", "--precise"]),
+                format!("{REPORTS_PATH}/latest"),
+                "pr=7&precise=true".into(),
+                report_body(),
+            ),
+            (
+                report_args(&["--id", REPORT_ID, "--no-payload", "--precise"]),
+                format!("{REPORTS_PATH}/{REPORT_ID}"),
+                "payload=false&precise=true".into(),
+                SUMMARY_BODY.into(),
+            ),
+            (
+                report_args(&["--id", REPORT_ID, "--select", select, "--precise"]),
+                format!("{REPORTS_PATH}/{REPORT_ID}"),
+                format!("select={encoded}&precise=true"),
+                selected_report_body(),
+            ),
+            (
+                reports_args(&["--precise"]),
+                reports_path.into(),
+                "precise=true".into(),
+                list.clone(),
+            ),
+            (
+                reports_args(&[
+                    "--benchmark",
+                    "ci",
+                    "--select",
+                    select,
+                    "--precise",
+                    "--limit",
+                    "5",
+                ]),
+                reports_path.into(),
+                format!("benchmark=ci&select={encoded}&precise=true&limit=5"),
+                list,
+            ),
+            (
+                diff_args(&["--pr", "42", "--full", "--precise"]),
+                DIFF_PATH.into(),
+                "pr=42&rows=all&precise=true".into(),
+                diff.clone(),
+            ),
+            (
+                diff_args(&["--pr", "42", "--select", select, "--precise"]),
+                DIFF_PATH.into(),
+                format!("pr=42&select={encoded}&precise=true"),
+                diff,
+            ),
+        ];
+        for (args, path, query, body) in cases {
+            let mut server = Server::new();
+            let mock = mock_report(&mut server, &path, &query, &body);
+            let output = hotpath(&server, Some(TOKEN), &args);
+            assert_eq!(
+                output.status.code(),
+                Some(0),
+                "{args:?}: {}",
+                stderr(&output)
+            );
+            assert_eq!(stdout(&output), format!("{body}\n"), "{args:?}");
+            mock.assert();
+        }
+    }
+
     #[test]
     fn diff_sends_commit_event_and_full_and_maps_id_to_head() {
         let mut server = Server::new();

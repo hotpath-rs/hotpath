@@ -90,6 +90,8 @@ hotpath cloud report --repo OWNER/NAME --benchmark NAME --pr 604 \
 
 The payload keeps its usual shape. Each kept section's `data` holds only the matching entries, unchanged, so a function keeps its timing, allocation, instruction count and CPU entries, whichever the report has. `included_count` counts the kept entries, while `total_count` and the totals still describe the whole run. Sections of other resources, `streams`, `futures`, `debug` and sections left without entries are dropped, so a key that matches nothing keeps nothing. `--select` does not go with `--no-payload`. A selection names at most 20 keys; the server's error says what to change in one it refuses, and a report too old for the server to read is an error rather than an unfiltered payload.
 
+`--precise` returns measurements at the precision the uploaded report carries instead of rounded for reading: the payload exactly as uploaded (`11.617504 ms`, `2425213 B`) and the run totals in nanoseconds and bytes (`327925208 ns`). It works with every other flag, `--select` included, and changes no other field. [MCP and REST API](mcp_api.md#available-mcp-tools) lists the units.
+
 A report that is not there yet answers `not_found` with exit code 1, so polling `report` until it exits 0 waits for CI's upload.
 
 ### reports
@@ -155,7 +157,7 @@ Every filter is optional, and filters combine:
 hotpath cloud reports --repo hotpath-rs/hotpath --benchmark drain --metadata runner=Linux-ARM64 --limit 10
 ```
 
-`--select JSON` lists each report exactly as `report --select` prints it, with its payload filtered to the entities you name, to follow a few functions or routes across a benchmark's history. A page then holds 1 to 20 reports (default 10).
+`--select JSON` lists each report exactly as `report --select` prints it, with its payload filtered to the entities you name, to follow a few functions or routes across a benchmark's history. A page then holds 1 to 20 reports (default 10). `--precise` returns each report's totals and payload as `report --precise` does.
 
 Each run prints one page of `--limit N` reports (1 to 50, default 20). When more reports match, `next_cursor` is a string: pass it as `--cursor` with the same filters to get the next page. It is `null` on the last page.
 
@@ -229,6 +231,8 @@ hotpath cloud diff --repo OWNER/NAME --benchmark NAME --pr 604 \
 ```
 
 Alone it lists every row of those entities, as `--full` does, including unchanged rows and rows the policy ignores; with `--advisory` only their findings. An io label keeps one row per operation. A section left without rows is dropped, unless it still names a selected entity in `omitted_from_base` or `omitted_from_head` (cut by a truncated report), and a section the policy leaves out is never added. The verdict, the budgets, the totals, the counts and the exit code describe the whole comparison, the same as without `--select`.
+
+`--precise` writes every value of the diff unrounded: cells, totals and budget limits in nanoseconds and bytes, throughputs with their uploaded tenth of a byte (`12.4 B`), and `change_percent` without rounding, so a change too small to show keeps its value. It never changes which rows are listed, their outcomes, the verdict or the exit code.
 
 `diff` exits `0` only when the report was judged and nothing regressed. A regression, a broken budget, or nothing to judge (no baseline and no budgets) exits `1` with the answer on stdout.
 
