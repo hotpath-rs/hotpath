@@ -80,6 +80,9 @@ pub enum ApiErrorCode {
     /// repository's policy file. A plain `ApiError`, there is no document to
     /// list problems for.
     PolicyRequired,
+    /// A stored report the request cannot be applied to (422), e.g. a
+    /// `select` on a payload older than the schema the server reads.
+    Unprocessable,
     Internal,
     /// A code this client does not know; printed like any other error. Also
     /// the default, so a body without `code` still parses.
