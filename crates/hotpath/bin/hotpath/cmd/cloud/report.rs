@@ -9,6 +9,7 @@ use std::process::ExitCode;
 use clap::Args;
 
 use crate::cmd::cloud::api::{with_query, CliError, Client, Output};
+use crate::cmd::cloud::precise::PreciseArg;
 use crate::cmd::cloud::repo;
 use crate::cmd::cloud::select::SelectArg;
 use crate::cmd::cloud::selector::{ReportSelector, Selector};
@@ -33,6 +34,9 @@ pub(crate) struct ReportArgs {
 
     #[command(flatten)]
     select: SelectArg,
+
+    #[command(flatten)]
+    precise: PreciseArg,
 }
 
 pub(crate) fn run(output: &Output, args: ReportArgs) -> Result<ExitCode, CliError> {
@@ -68,6 +72,7 @@ fn request_path(args: &ReportArgs) -> Result<String, CliError> {
         args.selector.event.map(|event| ("event", event.as_str())),
         args.no_payload.then_some(("payload", "false")),
         select.map(|select| ("select", select)),
+        args.precise.value().map(|precise| ("precise", precise)),
     ]
     .into_iter()
     .flatten()

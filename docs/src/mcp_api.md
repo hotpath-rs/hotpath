@@ -152,6 +152,14 @@ The answers have the same shape as the CLI's JSON output, and the arguments mean
 
 [AI Agents CLI](agents_cli.md#report) has examples.
 
+`get_report`, `list_reports` and `get_diff` also accept `precise`. By default (`false`) measurements are rounded for reading, as the dashboard and the pull request comment show them (`2.06 ms`, `2.3 MB`, `12.30%`). With `precise: true` they keep the precision the uploaded report carries:
+
+- Payload values are returned exactly as uploaded. hotpath-cloud reports carry every nanosecond and byte (`11.617504 ms`, `2425213 B`).
+- Run totals, diff cells, section totals and budget limits and actual values are durations in nanoseconds (`2062517 ns`), byte counts in bytes (`2425213 B`) and throughputs in bytes with the tenth hotpath uploads (`12.4 B`). Percentages keep only the decimals they carry (`12.3%`), and instruction counts and plain counts are exact either way.
+- `change_percent` is not rounded to two decimals, so a change too small to show (`0.0` by default) keeps its value.
+
+`precise` changes only how values are written. Verdicts, regressions, budget results, the rows returned, ids, counts and pagination are the same either way. Values that hotpath rounds before upload stay rounded: throughputs above 1 KiB/s carry one decimal of their unit, so `24.8 MB` is served as `26004684.8 B`.
+
 ## REST API
 
 The base URL is `https://hotpath.rs/api/v1`. Every request needs a personal API token from <a href="https://hotpath.rs/app/tokens" target="_blank" rel="noopener noreferrer">hotpath.rs/app/tokens</a> in the `Authorization` header; OAuth tokens issued to MCP clients do not work here. Repository access is the same as for [the MCP server](#which-repositories-you-can-read).
@@ -200,14 +208,14 @@ Trimmed answer:
 | `GET /auth` | the user and token of the request |
 | `GET /repos` | the repositories in your installations, with their benchmarks; `query=TEXT`, `with_benchmarks=true` |
 | `GET /repos/{owner}/{name}/benchmarks` | one repository's benchmarks |
-| `GET /repos/{owner}/{name}/reports` | the repository's reports, newest first; `benchmark`, `event`, `pr`, `commit`, `branch`, `since`, `until`, `verdict`, `metadata`, `select`, `limit`, `cursor` |
-| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/reports/latest` | the newest report of `pr=N` or `commit=SHA`, optionally narrowed by `event`; `payload=false` leaves out the uploaded report, `select` filters it |
-| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/reports/{id}` | one report by id; `payload=false` and `select` as above |
-| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/diff` | the diff of the report picked by `pr=N`, `commit=SHA` or `head=ID`, optionally narrowed by `event`; `rows=findings\|advisory\|all`, `select` |
+| `GET /repos/{owner}/{name}/reports` | the repository's reports, newest first; `benchmark`, `event`, `pr`, `commit`, `branch`, `since`, `until`, `verdict`, `metadata`, `select`, `precise`, `limit`, `cursor` |
+| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/reports/latest` | the newest report of `pr=N` or `commit=SHA`, optionally narrowed by `event`; `payload=false` leaves out the uploaded report, `select` filters it, `precise=true` keeps full precision |
+| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/reports/{id}` | one report by id; `payload=false`, `select` and `precise` as above |
+| `GET /repos/{owner}/{name}/benchmarks/{benchmark}/diff` | the diff of the report picked by `pr=N`, `commit=SHA` or `head=ID`, optionally narrowed by `event`; `rows=findings\|advisory\|all`, `select`, `precise` |
 | `GET /policy/default` | the default policy file, as `source` |
 | `POST /policy/validate` | checks the policy sent as the JSON body `{"source": "<TOML>"}` |
 
-The parameters mean the same as the CLI flags of the same name in [AI Agents CLI](agents_cli.md#cli-commands). `limit` (1 to 50, default 20) and `cursor` page through reports: pass the answer's `next_cursor` as `cursor` with the same filters. `metadata` is a JSON object of string values, such as `metadata={"runner":"Linux-ARM64"}` (URL-encoded). `select` is the JSON object described [above](#available-mcp-tools), URL-encoded; it cannot be combined with `payload=false`, and with it a listing page holds 1 to 20 reports (default 10).
+The parameters mean the same as the CLI flags of the same name in [AI Agents CLI](agents_cli.md#cli-commands). `limit` (1 to 50, default 20) and `cursor` page through reports: pass the answer's `next_cursor` as `cursor` with the same filters. `metadata` is a JSON object of string values, such as `metadata={"runner":"Linux-ARM64"}` (URL-encoded). `select` is the JSON object described [above](#available-mcp-tools), URL-encoded; it cannot be combined with `payload=false`, and with it a listing page holds 1 to 20 reports (default 10). `precise` is `true` or `false` (the default) and means the same as the MCP argument [above](#available-mcp-tools); the CLI sends it with `--precise`.
 
 Every error answers a non-2xx status with a JSON body that names the problem and a machine-readable `code`:
 

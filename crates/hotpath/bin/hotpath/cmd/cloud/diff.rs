@@ -19,6 +19,7 @@ use hotpath::json::cloud_api::Verdict;
 use serde::Deserialize;
 
 use crate::cmd::cloud::api::{with_query, CliError, Client, Output};
+use crate::cmd::cloud::precise::PreciseArg;
 use crate::cmd::cloud::repo;
 use crate::cmd::cloud::select::SelectArg;
 use crate::cmd::cloud::selector::{ReportSelector, Selector};
@@ -49,6 +50,9 @@ pub(crate) struct DiffArgs {
 
     #[command(flatten)]
     select: SelectArg,
+
+    #[command(flatten)]
+    precise: PreciseArg,
 }
 
 pub(crate) fn run(output: &Output, args: DiffArgs) -> Result<ExitCode, CliError> {
@@ -108,6 +112,7 @@ fn request_path(args: &DiffArgs) -> Result<String, CliError> {
         args.selector.event.map(|event| ("event", event.as_str())),
         rows.map(|rows| ("rows", rows)),
         select.map(|select| ("select", select)),
+        args.precise.value().map(|precise| ("precise", precise)),
     ]
     .into_iter()
     .flatten()
