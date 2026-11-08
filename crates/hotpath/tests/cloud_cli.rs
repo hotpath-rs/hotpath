@@ -636,17 +636,15 @@ mod tests {
             r#"  {"server": {"keys": ["GET /users/{id}"]}, "sql": {"keys": ["SELECT 1 | - | -"]}} "#,
             r#"{"functions":{"keys":["a"]},"functions":{"keys":["b"]}}"#,
         ];
-        let body = SUMMARY_BODY.replace(
-            r#""benchmark":"ci""#,
-            r#""benchmark":"ci","metrics":{"functions":{"app::hot":{"timing":{"avg":"1.62 ms"}}}}"#,
-        );
+        // the server's filtered payload, printed as received
+        let body = report_body();
         for select in cases {
             let mut server = Server::new();
             let mock = server
                 .mock("GET", format!("{REPORTS_PATH}/latest").as_str())
                 .match_query(Matcher::AllOf(vec![
                     Matcher::UrlEncoded("select".into(), select.trim().into()),
-                    Matcher::Regex("^pr=7&payload=false&select=[^&]+$".into()),
+                    Matcher::Regex("^pr=7&select=[^&]+$".into()),
                 ]))
                 .match_header("authorization", format!("Bearer {TOKEN}").as_str())
                 .with_status(200)
@@ -656,7 +654,7 @@ mod tests {
             let output = hotpath(
                 &server,
                 Some(TOKEN),
-                &report_args(&["--pr", "7", "--no-payload", "--select", select]),
+                &report_args(&["--pr", "7", "--select", select]),
             );
             assert_eq!(
                 output.status.code(),
@@ -818,6 +816,8 @@ mod tests {
             vec!["--id", REPORT_ID, "--event", "push"],
             vec!["--pr", "1", "--event", "merge"],
             vec!["--pr", "-1"],
+            // select filters the payload: never without it
+            vec!["--pr", "1", "--no-payload", "--select", "{}"],
         ] {
             let output = hotpath(&server, Some(TOKEN), &report_args(&selector));
             assert_eq!(
@@ -1621,11 +1621,6 @@ mod tests {
         let select = r#"{"functions":{"keys":["app::hot"]},"server":{"keys":["GET /users/{id}"]}}"#;
         for (budgets, code) in [(BudgetsCase::Hold, 0), (BudgetsCase::Broken, 1)] {
             let body = diff_body(&compared(false), budgets);
-            let body = body.replacen(
-                r#""verdict""#,
-                r#""metrics":{"functions":{"app::hot":{"timing":{"avg":{"base":"1.10 ms","head":"1.24 ms","change_percent":12.73}}}}},"verdict""#,
-                1,
-            );
             let mut server = Server::new();
             let mock = server
                 .mock("GET", DIFF_PATH)
@@ -1649,13 +1644,8 @@ mod tests {
         }
 
         // by commit and by id: the head where the selector puts it, then
-        // select; nothing matched (`metrics: {}`) is printed as received
-        let body = diff_body(&compared(false), BudgetsCase::Hold).replacen(
-            r#""verdict""#,
-            r#""metrics":{},"verdict""#,
-            1,
-        );
-        assert!(body.contains(r#""metrics":{}"#), "{body}");
+        // select; --full and --advisory send their rows= beside it
+        let body = diff_body(&compared(false), BudgetsCase::Hold);
         for (selector, query) in [
             (
                 vec!["--commit", SHA],
@@ -1664,6 +1654,14 @@ mod tests {
             (
                 vec!["--id", REPORT_ID],
                 format!("^head={REPORT_ID}&select=[^&]+$"),
+            ),
+            (
+                vec!["--id", REPORT_ID, "--full"],
+                format!("^head={REPORT_ID}&rows=all&select=[^&]+$"),
+            ),
+            (
+                vec!["--id", REPORT_ID, "--advisory"],
+                format!("^head={REPORT_ID}&rows=advisory&select=[^&]+$"),
             ),
         ] {
             let mut server = Server::new();
@@ -1702,16 +1700,6 @@ mod tests {
             "{}",
             stderr(&output)
         );
-        // the server refuses select beside rows=: --full and --advisory are
-        // usage errors with it
-        for flag in ["--full", "--advisory"] {
-            let output = hotpath(
-                &server,
-                Some(TOKEN),
-                &diff_args(&["--pr", "42", flag, "--select", select]),
-            );
-            assert_eq!(output.status.code(), Some(2), "{flag}: {}", stderr(&output));
-        }
         mock.assert();
     }
 

@@ -1,5 +1,6 @@
 //! `hotpath cloud report`: one stored report, selected by pull request, commit
-//! or id (`selector.rs`), with or without its payload. Also the agent loop's
+//! or id (`selector.rs`), with or without its payload, which `--select`
+//! (`select.rs`) filters to named entities. Also the agent loop's
 //! polling primitive: "has CI uploaded a report for my commit yet" is exit 0
 //! here instead of exit 1 with the server's `not_found`.
 
@@ -23,7 +24,11 @@ pub(crate) struct ReportArgs {
     #[command(flatten)]
     selector: ReportSelector,
 
-    #[arg(long, help = "Leave out the report payload (summary only)")]
+    #[arg(
+        long,
+        conflicts_with = "select",
+        help = "Leave out the report payload (summary only); not with --select, which filters it"
+    )]
     no_payload: bool,
 
     #[command(flatten)]
@@ -56,7 +61,8 @@ fn request_path(args: &ReportArgs) -> Result<String, CliError> {
         Selector::Commit(sha) => (format!("{base}/latest"), Some(("commit", sha.as_str()))),
         Selector::Id(id) => (format!("{base}/{id}"), None),
     };
-    // clap rejects `--event` together with `--id`.
+    // clap rejects `--event` together with `--id`, and `--no-payload` with
+    // `--select`, which the server refuses together.
     let params: Vec<(&str, &str)> = [
         at,
         args.selector.event.map(|event| ("event", event.as_str())),
