@@ -20,3 +20,13 @@ judged = true
 min_percent_change = 50
 metrics = ["avg", "total"]
 min_calls = 1
+
+# The benchmark runs on its main thread alone, named after the binary.
+[threads]
+names = ["dedup"]
+
+[threads.alloc]
+judged = true
+min_percent_change = 2
+metrics = ["total"]
+min_calls = 0
