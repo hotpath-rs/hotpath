@@ -4,8 +4,12 @@ name: Hetzner runner benchmark
 # (`hotpath-bench` label) against a GitHub-hosted runner. Each job runs one
 # existing benchmark, built like its `cloud-*-benchmark.yml` builds it, on a
 # fixed commit: a few discarded warmups, then a fixed number of measured runs,
-# each writing its own JSON report. Nothing is uploaded to hotpath-cloud; the
-# raw reports and a CSV of `total_elapsed_ns` per run are kept as an artifact.
+# each writing its own JSON report. The raw reports and a CSV of
+# `total_elapsed_ns` per run are kept as an artifact; the last measured run
+# also uploads its report to hotpath-cloud with the job's OIDC token, into a
+# per-runner series (`<benchmark>-hetzner-ccx` / `<benchmark>-github-x64`) kept
+# apart from the production `drain` and `dedup` series. Uploads are native
+# timing only (no Callgrind run); the reports name the benchmarked commit.
 #
 # - `drain`: the `hotpath-drain` `throughput` example. Five threads meet at
 #   barriers every round, so its timing is dominated by cross-core wakeups.
@@ -42,8 +46,12 @@ jobs:
     # The single Hetzner runner takes one job at a time, so its jobs never overlap.
     runs-on: ${{ matrix.runner == 'hetzner' && fromJSON('["self-hosted","linux","x64","hotpath-bench"]') || 'ubuntu-26.04' }}
     timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
     env:
       BENCHMARK: ${{ matrix.benchmark }}
+      SERIES: ${{ matrix.benchmark }}-${{ matrix.runner == 'hetzner' && 'hetzner-ccx' || 'github-x64' }}
       RUNNER_KIND: ${{ matrix.runner }}
       OUT: ${{ github.workspace }}/bench-out
     steps:
@@ -64,6 +72,7 @@ jobs:
           mkdir -p "$OUT"
           jq -n \
             --arg benchmark "$BENCHMARK" \
+            --arg series "$SERIES" \
             --arg runner_kind "$RUNNER_KIND" \
             --arg runner_name "$RUNNER_NAME" \
             --arg commit "$(git rev-parse HEAD)" \
@@ -82,20 +91,30 @@ jobs:
       # Build time is excluded: the measured runs below execute the binary directly.
       - name: Build benchmark
         run: cargo build -q --locked --release -p "$PACKAGE" --example "$EXAMPLE" --features "$FEATURES"
-      - name: Run warmups and measured iterations
+      # The last measured run also uploads; its timing is measured like the others.
+      # The response file exists only after an accepted upload.
+      - name: Run warmups and measured iterations, upload the last report
         run: |
           bin="target/release/examples/$EXAMPLE"
+          # Commas would split the user metadata, so they are stripped.
+          cpu=$(jq -r '.cpu | gsub(","; "")' "$OUT/environment.json")
+          metadata="runner=$RUNNER_KIND,runner_name=$RUNNER_NAME,cpu=$cpu,nproc=$(nproc),kernel=$(uname -r),toolchain=$RUSTUP_TOOLCHAIN,profile=release,iterations=$ITERATIONS"
           for i in $(seq 1 "$WARMUPS"); do
             env "${PREFIX}_OUTPUT_FORMAT=json" "${PREFIX}_OUTPUT_PATH=/dev/null" "$bin" > /dev/null
           done
           echo "benchmark,runner_kind,runner_name,run_id,run_attempt,iteration,started_at_ns,total_elapsed_ns" > "$OUT/elapsed.csv"
           for i in $(seq 1 "$ITERATIONS"); do
             report="$OUT/run-$(printf %03d "$i").json"
+            upload=()
+            if [ "$i" = "$ITERATIONS" ]; then
+              upload=("${PREFIX}_UPLOAD=fail-on-error" "${PREFIX}_UPLOAD_RESPONSE_PATH=$OUT/upload-response.json" "${PREFIX}_USER_METADATA=$metadata")
+            fi
             started=$(date +%s%N)
-            env "${PREFIX}_BENCHMARK=$BENCHMARK" "${PREFIX}_OUTPUT_FORMAT=json" "${PREFIX}_OUTPUT_PATH=$report" "$bin"
+            env "${PREFIX}_BENCHMARK=$SERIES" "${PREFIX}_OUTPUT_FORMAT=json" "${PREFIX}_OUTPUT_PATH=$report" "${upload[@]}" "$bin"
             echo "$BENCHMARK,$RUNNER_KIND,$RUNNER_NAME,$GITHUB_RUN_ID,$GITHUB_RUN_ATTEMPT,$i,$started,$(jq -e '.functions_timing.total_elapsed_ns' "$report")" >> "$OUT/elapsed.csv"
           done
           cat "$OUT/elapsed.csv"
+          test -s "$OUT/upload-response.json"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.benchmark }}-${{ matrix.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
