@@ -171,7 +171,7 @@ impl From<&FutureEntry> for JsonFutureEntry {
         let label = resolve_label(source, stats.label.as_deref(), None);
 
         JsonFutureEntry {
-            id: stats.id,
+            id: Some(stats.id),
             source: source.to_string(),
             label,
             has_custom_label: stats.label.is_some(),

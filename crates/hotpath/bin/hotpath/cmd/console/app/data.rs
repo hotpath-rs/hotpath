@@ -67,7 +67,7 @@ impl App {
                 self.update_and_request_function_logs();
             }
         } else if let Some(function_id) = selected_function_id {
-            if let Some(new_idx) = entries.iter().position(|f| f.id == function_id) {
+            if let Some(new_idx) = entries.iter().position(|f| f.id == Some(function_id)) {
                 self.timing_table_state.select(Some(new_idx));
             } else if !entries.is_empty() {
                 self.timing_table_state.select(Some(entries.len() - 1));
@@ -99,7 +99,7 @@ impl App {
                 self.update_and_request_function_logs();
             }
         } else if let Some(function_id) = selected_function_id {
-            if let Some(new_idx) = entries.iter().position(|f| f.id == function_id) {
+            if let Some(new_idx) = entries.iter().position(|f| f.id == Some(function_id)) {
                 self.memory_table_state.select(Some(new_idx));
             } else if !entries.is_empty() {
                 self.memory_table_state.select(Some(entries.len() - 1));
@@ -147,7 +147,7 @@ impl App {
         };
         table_state
             .selected()
-            .and_then(|idx| entries.get(idx).map(|f| f.id))
+            .and_then(|idx| entries.get(idx).and_then(|f| f.id))
     }
 
     pub(crate) fn selected_function_name(&self) -> Option<String> {
@@ -218,7 +218,7 @@ impl App {
                 self.channels_table_state.select(Some(idx.min(len - 1)));
             }
         } else if let Some(id) = selected_id {
-            if let Some(new_idx) = self.channels.data.iter().position(|e| e.id == id) {
+            if let Some(new_idx) = self.channels.data.iter().position(|e| e.id == Some(id)) {
                 self.channels_table_state.select(Some(new_idx));
             } else if len > 0 {
                 self.channels_table_state.select(Some(len - 1));
@@ -247,7 +247,7 @@ impl App {
                 self.streams_table_state.select(Some(idx.min(len - 1)));
             }
         } else if let Some(id) = selected_id {
-            if let Some(new_idx) = self.streams.data.iter().position(|e| e.id == id) {
+            if let Some(new_idx) = self.streams.data.iter().position(|e| e.id == Some(id)) {
                 self.streams_table_state.select(Some(new_idx));
             } else if len > 0 {
                 self.streams_table_state.select(Some(len - 1));
@@ -276,7 +276,7 @@ impl App {
                 self.futures_table_state.select(Some(idx.min(len - 1)));
             }
         } else if let Some(id) = selected_id {
-            if let Some(new_idx) = self.futures.data.iter().position(|e| e.id == id) {
+            if let Some(new_idx) = self.futures.data.iter().position(|e| e.id == Some(id)) {
                 self.futures_table_state.select(Some(new_idx));
             } else if len > 0 {
                 self.futures_table_state.select(Some(len - 1));
@@ -329,7 +329,7 @@ impl App {
         // Entries re-sort by total time on every refresh; follow the selected
         // query by id so the cursor (and its open logs) don't jump rows.
         if let Some(id) = selected_id {
-            if let Some(new_idx) = self.sql.data.iter().position(|e| e.id == id) {
+            if let Some(new_idx) = self.sql.data.iter().position(|e| e.id == Some(id)) {
                 self.sql_table_state.select(Some(new_idx));
             } else if len > 0 {
                 self.sql_table_state.select(Some(len - 1));
@@ -377,7 +377,7 @@ impl App {
         // Entries re-sort by total time on every refresh; follow the selected
         // endpoint by id so the cursor (and its open logs) don't jump rows.
         if let Some(id) = selected_id {
-            if let Some(new_idx) = self.http.data.iter().position(|e| e.id == id) {
+            if let Some(new_idx) = self.http.data.iter().position(|e| e.id == Some(id)) {
                 self.http_table_state.select(Some(new_idx));
             } else if len > 0 {
                 self.http_table_state.select(Some(len - 1));
@@ -419,7 +419,7 @@ impl App {
 
         let len = self.server.data.len();
         if let Some(id) = selected_id {
-            if let Some(new_idx) = self.server.data.iter().position(|e| e.id == id) {
+            if let Some(new_idx) = self.server.data.iter().position(|e| e.id == Some(id)) {
                 self.server_table_state.select(Some(new_idx));
             } else if len > 0 {
                 self.server_table_state.select(Some(len - 1));
@@ -470,17 +470,20 @@ impl App {
                 .channels_table_state
                 .selected()
                 .and_then(|i| self.channels.data.get(i))
-                .map(|e| DataRequest::FetchChannelLogs(e.id)),
+                .and_then(|e| e.id)
+                .map(DataRequest::FetchChannelLogs),
             DataFlowSubTab::Streams => self
                 .streams_table_state
                 .selected()
                 .and_then(|i| self.streams.data.get(i))
-                .map(|e| DataRequest::FetchStreamLogs(e.id)),
+                .and_then(|e| e.id)
+                .map(DataRequest::FetchStreamLogs),
             DataFlowSubTab::Futures => self
                 .futures_table_state
                 .selected()
                 .and_then(|i| self.futures.data.get(i))
-                .map(|e| DataRequest::FetchFutureLogs(e.id)),
+                .and_then(|e| e.id)
+                .map(DataRequest::FetchFutureLogs),
             DataFlowSubTab::RwLocks => None,
             DataFlowSubTab::Mutexes => None,
         };
@@ -567,7 +570,7 @@ impl App {
             .debug_table_state
             .selected()
             .and_then(|idx| self.debug_stats.get(idx))
-            .map(|stat| stat.id);
+            .and_then(|stat| stat.id);
 
         self.debug_stats = debug.entries;
         self.last_successful_fetch = Some(Instant::now());
@@ -579,7 +582,7 @@ impl App {
                 self.debug_table_state.select(Some(clamped));
             }
         } else if let Some(id) = selected_id {
-            if let Some(new_idx) = self.debug_stats.iter().position(|stat| stat.id == id) {
+            if let Some(new_idx) = self.debug_stats.iter().position(|stat| stat.id == Some(id)) {
                 self.debug_table_state.select(Some(new_idx));
             } else if !self.debug_stats.is_empty() {
                 self.debug_table_state
@@ -607,10 +610,13 @@ impl App {
         if let Some(selected) = self.debug_table_state.selected() {
             if !self.debug_stats.is_empty() && selected < self.debug_stats.len() {
                 let stat = &self.debug_stats[selected];
+                let Some(id) = stat.id else {
+                    return;
+                };
                 let request = match stat.entry_type {
-                    DebugEntryType::Dbg => DataRequest::FetchDebugDbgLogs(stat.id),
-                    DebugEntryType::Val => DataRequest::FetchDebugValLogs(stat.id),
-                    DebugEntryType::Gauge => DataRequest::FetchDebugGaugeLogs(stat.id),
+                    DebugEntryType::Dbg => DataRequest::FetchDebugDbgLogs(id),
+                    DebugEntryType::Val => DataRequest::FetchDebugValLogs(id),
+                    DebugEntryType::Gauge => DataRequest::FetchDebugGaugeLogs(id),
                 };
                 let _ = self.request_tx.send(request);
             }

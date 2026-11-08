@@ -208,7 +208,7 @@ pub(crate) fn build_cpu_json(
     };
 
     let to_entry = |s: &CpuFunctionStats| JsonFunctionCpuEntry {
-        id: s.id,
+        id: Some(s.id),
         name: s.name.to_string(),
         samples: s.samples,
         percent: format_percent(s.samples, report.total_samples),

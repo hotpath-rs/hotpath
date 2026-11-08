@@ -97,7 +97,7 @@ impl From<&ValEntry> for JsonDebugEntry {
             })
             .unwrap_or_else(|| ("<unknown>".to_string(), "<unknown>".to_string()));
         JsonDebugEntry {
-            id: stats.id,
+            id: Some(stats.id),
             entry_type: crate::json::DebugEntryType::Val,
             source,
             source_display,

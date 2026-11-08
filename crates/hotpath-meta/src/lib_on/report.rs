@@ -378,7 +378,7 @@ fn rw_lock_to_json(rw_lock: &RwLockEntry, percentiles: &[f64], cloud: bool) -> J
     }
 
     JsonRwLockEntry {
-        id: rw_lock.id,
+        id: Some(rw_lock.id),
         source: rw_lock.source.to_string(),
         label,
         has_custom_label: rw_lock.label.is_some(),
@@ -534,7 +534,7 @@ fn mutex_to_json(mutex: &MutexEntry, percentiles: &[f64], cloud: bool) -> JsonMu
     }
 
     JsonMutexEntry {
-        id: mutex.id,
+        id: Some(mutex.id),
         source: mutex.source.to_string(),
         label,
         has_custom_label: mutex.label.is_some(),
@@ -704,7 +704,7 @@ fn sql_to_json(
     }
 
     JsonSqlEntry {
-        id: entry.id,
+        id: Some(entry.id),
         query: entry.query.clone(),
         source: entry.source.map(String::from),
         route: entry.route.map(String::from),
@@ -855,7 +855,7 @@ fn http_to_json(
     }
 
     JsonHttpEntry {
-        id: entry.id,
+        id: Some(entry.id),
         endpoint: entry.endpoint.clone(),
         source: entry.source.map(String::from),
         route: entry.route.map(String::from),
@@ -1132,7 +1132,7 @@ fn server_to_json(
     }
 
     JsonServerEntry {
-        id: entry.id,
+        id: Some(entry.id),
         route: entry.route.clone(),
         count: entry.count,
         status_4xx: entry.status_4xx,
@@ -1342,7 +1342,7 @@ fn io_to_json(entry: &IoEntry, percentiles: &[f64], cloud: bool) -> JsonIoEntry 
     let label = resolve_label(entry.source, entry.label.as_deref(), Some(entry.iter));
 
     JsonIoEntry {
-        id: entry.id,
+        id: Some(entry.id),
         source: entry.source.to_string(),
         label,
         has_custom_label: entry.label.is_some(),

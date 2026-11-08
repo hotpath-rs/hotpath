@@ -70,7 +70,7 @@ pub mod tests {
             6775,
             "futures",
             &["basic_futures.rs", "call_count", "total_polls"],
-            |futures: &JsonFuturesList| futures.data.first().map(|future| future.id),
+            |futures: &JsonFuturesList| futures.data.first().and_then(|future| future.id),
         );
 
         if let Some(calls_text) = calls_text {

@@ -112,7 +112,7 @@ pub mod tests {
             6771,
             "channels",
             &["basic_crossbeam.rs", "unbounded", "hello-there"],
-            |channels: &JsonChannelsList| channels.data.first().map(|c| c.id),
+            |channels: &JsonChannelsList| channels.data.first().and_then(|c| c.id),
         );
     }
 

@@ -151,7 +151,7 @@ impl From<&GaugeEntry> for JsonDebugEntry {
     fn from(stats: &GaugeEntry) -> Self {
         let source = crate::channels::display_source(stats.source);
         JsonDebugEntry {
-            id: stats.id,
+            id: Some(stats.id),
             entry_type: crate::json::DebugEntryType::Gauge,
             source: source.to_string(),
             source_display: truncate_source_path(source),

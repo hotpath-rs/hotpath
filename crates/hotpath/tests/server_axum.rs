@@ -118,7 +118,7 @@ pub mod tests {
             .expect("users bucket missing");
         assert_eq!(users.count, 3);
 
-        let logs_url = format!("http://localhost:6787/server/{}/logs", users.id);
+        let logs_url = format!("http://localhost:6787/server/{}/logs", users.id.unwrap());
         let mut response = ureq::get(&logs_url).call().expect("GET server logs");
         let body = response
             .body_mut()

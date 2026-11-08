@@ -174,7 +174,7 @@ pub mod tests {
             serde_json::from_str(&alloc_json).expect("Failed to parse alloc JSON");
 
         if let Some(first) = timing_response.data.first() {
-            let function_id = first.id;
+            let function_id = first.id.unwrap();
 
             let timing_logs_url = format!(
                 "http://localhost:6775/functions_timing/{}/logs",

@@ -172,7 +172,7 @@ impl From<&StreamStats> for JsonStreamEntry {
         let label = resolve_label(stats.source, stats.label.as_deref(), Some(stats.iter));
 
         JsonStreamEntry {
-            id: stats.id,
+            id: Some(stats.id),
             source: stats.source.to_string(),
             label,
             has_custom_label: stats.label.is_some(),

@@ -92,7 +92,7 @@ pub mod tests {
             .find(|e| e.query == literal_query)
             .expect("inline-literal bucket not found in /sql");
 
-        let logs_url = format!("http://localhost:6786/sql/{}/logs", entry.id);
+        let logs_url = format!("http://localhost:6786/sql/{}/logs", entry.id.unwrap());
         let mut response = ureq::get(&logs_url)
             .call()
             .expect("Failed to call /sql/:id/logs endpoint");
@@ -152,7 +152,7 @@ pub mod tests {
             .find(|e| e.query == insert_query)
             .expect("INSERT bucket not found in /sql");
 
-        let logs_url = format!("http://localhost:6785/sql/{}/logs", entry.id);
+        let logs_url = format!("http://localhost:6785/sql/{}/logs", entry.id.unwrap());
         let mut response = ureq::get(&logs_url)
             .call()
             .expect("Failed to call /sql/:id/logs endpoint");
@@ -183,7 +183,7 @@ pub mod tests {
             .iter()
             .find(|e| e.query == literal_query)
             .expect("inline-literal bucket not found in /sql");
-        let logs_url = format!("http://localhost:6785/sql/{}/logs", entry.id);
+        let logs_url = format!("http://localhost:6785/sql/{}/logs", entry.id.unwrap());
         let mut response = ureq::get(&logs_url)
             .call()
             .expect("Failed to call /sql/:id/logs endpoint");

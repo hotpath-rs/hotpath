@@ -44,7 +44,7 @@ pub mod tests {
 
         let logs_json = ureq::get(&format!(
             "http://localhost:6780/debug/dbg/{}/logs",
-            first.id
+            first.id.unwrap()
         ))
         .call()
         .expect("Failed to call /debug/dbg/:id/logs endpoint")
@@ -122,7 +122,7 @@ pub mod tests {
 
         let logs_json = ureq::get(&format!(
             "http://localhost:6781/debug/val/{}/logs",
-            counter_entry.id
+            counter_entry.id.unwrap()
         ))
         .call()
         .expect("Failed to call /debug/val/:id/logs endpoint")
@@ -195,7 +195,7 @@ pub mod tests {
 
         let logs_json = ureq::get(&format!(
             "http://localhost:6782/debug/gauge/{}/logs",
-            queue_size_entry.id
+            queue_size_entry.id.unwrap()
         ))
         .call()
         .expect("Failed to call /debug/gauge/:id/logs endpoint")
@@ -305,7 +305,28 @@ pub mod tests {
                 "Expected log_count >= 1 for entry: {:?}",
                 entry
             );
+            assert!(entry["id"].is_u64(), "live entry without an id: {entry:?}");
         }
+
+        // live ids survive a round trip
+        let live: hotpath::json::JsonReport =
+            serde_json::from_value(report.clone()).expect("live report parses");
+        let reserialized = serde_json::to_value(&live).unwrap();
+        assert_eq!(reserialized["debug"]["entries"], report["debug"]["entries"]);
+
+        // served reports have no entry ids
+        let mut served = report.clone();
+        for entry in served["debug"]["entries"].as_array_mut().unwrap() {
+            entry.as_object_mut().unwrap().remove("id");
+        }
+        let parsed: hotpath::json::JsonReport =
+            serde_json::from_value(served.clone()).expect("served report parses");
+        let debug = parsed.debug.as_ref().expect("debug section");
+        assert!(debug.entries.iter().all(|e| e.id.is_none()));
+        assert_eq!(
+            serde_json::to_value(&parsed).unwrap()["debug"],
+            served["debug"]
+        );
     }
 
     // HOTPATH_REPORT=debug HOTPATH_METRICS_SERVER_OFF=true cargo run -p test-debug --example debug_report --features hotpath
