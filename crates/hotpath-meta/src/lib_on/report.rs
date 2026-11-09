@@ -22,7 +22,7 @@ use crate::json::{
 };
 use crate::mutexes::{compare_mutex_entries, MutexEntry, MUTEXES_STATE};
 use crate::output::{
-    format_bytes, format_count_display, format_duration, format_percentile_header,
+    display_percent, format_bytes, format_count_display, format_duration, format_percentile_header,
     format_percentile_key, format_rate, Precision,
 };
 use crate::output_on::{format_bytes_per_sec, format_throughput, write_section_header};
@@ -660,10 +660,10 @@ pub(crate) fn report_sql_table(
             row.push(Cell::new(&format_duration(entry.percentile_nanos(p))));
         }
         row.push(Cell::new(&format_duration(entry.total_nanos)));
-        row.push(Cell::new(&format_sql_percent(
+        row.push(Cell::new(&display_percent(&format_sql_percent(
             entry.total_nanos,
             reference_total,
-        )));
+        ))));
         table.add_row(row);
     }
 
@@ -828,10 +828,10 @@ pub(crate) fn report_http_table(
             row.push(Cell::new(&format_duration(entry.percentile_nanos(p))));
         }
         row.push(Cell::new(&format_duration(entry.total_nanos)));
-        row.push(Cell::new(&format_sql_percent(
+        row.push(Cell::new(&display_percent(&format_sql_percent(
             entry.total_nanos,
             reference_total,
-        )));
+        ))));
         table.add_row(row);
     }
 
@@ -1017,10 +1017,10 @@ pub(crate) fn report_server_table(
             row.push(Cell::new(&format_duration(entry.percentile_nanos(p))));
         }
         row.push(Cell::new(&format_duration(entry.total_nanos)));
-        row.push(Cell::new(&format_sql_percent(
+        row.push(Cell::new(&display_percent(&format_sql_percent(
             entry.total_nanos,
             reference_total,
-        )));
+        ))));
         table.add_row(row);
     }
 
