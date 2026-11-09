@@ -231,6 +231,32 @@ pub fn format_icount_display(hundredths: u64) -> String {
     with_icount_fraction(group_thousands(hundredths / 100), hundredths)
 }
 
+/// A share in hundredths of a percent for display only ([`parse_percent`]
+/// rejects it): two decimals with the whole part grouped like a count
+/// (`8,854,690.63%`). A share can pass 100% (`% Total` of inclusive or
+/// multi-threaded measurements), so it groups like any other large number.
+pub fn format_percent_display(hundredths: u64) -> String {
+    format!(
+        "{}.{:02}%",
+        group_thousands(hundredths / 100),
+        hundredths % 100
+    )
+}
+
+/// Parses a share as the JSON report carries it (`"12.34%"`, `"83.7%"`) to
+/// hundredths of a percent, rounded half away from zero. A negative, non
+/// finite or grouped value is `None`.
+pub fn parse_percent(s: &str) -> Option<u64> {
+    let pct: f64 = s.trim().strip_suffix('%')?.trim().parse().ok()?;
+    (pct.is_finite() && pct >= 0.0).then(|| (pct * 100.0).round() as u64)
+}
+
+/// A share string from the JSON report in display form
+/// ([`format_percent_display`]); text that is no share stays as it is.
+pub fn display_percent(s: &str) -> String {
+    parse_percent(s).map_or_else(|| s.to_string(), format_percent_display)
+}
+
 /// `1234567` as `1,234,567`.
 fn group_thousands(value: u64) -> String {
     let digits = value.to_string();
@@ -506,6 +532,26 @@ mod parse_tests {
             assert_eq!(format_count_display(count), shown);
         }
         assert_eq!(parse_count("1,000"), None);
+    }
+
+    #[test]
+    fn test_percent_display_and_parse() {
+        for (raw, hundredths, shown) in [
+            ("0.00%", 0, "0.00%"),
+            ("83.7%", 8370, "83.70%"),
+            ("12.345%", 1235, "12.35%"),
+            ("999.99%", 99_999, "999.99%"),
+            ("6768.20%", 676_820, "6,768.20%"),
+            ("8854690.63%", 885_469_063, "8,854,690.63%"),
+        ] {
+            assert_eq!(parse_percent(raw), Some(hundredths), "{raw:?}");
+            assert_eq!(format_percent_display(hundredths), shown);
+            assert_eq!(display_percent(raw), shown);
+        }
+        for raw in ["1,000.00%", "-1%", "inf%", "12.34", "N/A"] {
+            assert_eq!(parse_percent(raw), None, "{raw:?}");
+            assert_eq!(display_percent(raw), raw);
+        }
     }
 
     #[test]

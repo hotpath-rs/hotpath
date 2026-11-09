@@ -1,7 +1,7 @@
 use crate::json::JsonFunctionsList;
 use crate::output::{
-    floor_char_boundary, format_bytes, format_count_display, format_percentile_header,
-    format_percentile_key, shorten_function_name, MAX_LOG_LEN,
+    display_percent, floor_char_boundary, format_bytes, format_count_display,
+    format_percentile_header, format_percentile_key, shorten_function_name, MAX_LOG_LEN,
 };
 use crate::shared::Section;
 use crate::table::{Cell, Table};
@@ -180,7 +180,7 @@ pub(crate) fn display_functions_table_to<W: Write>(writer: &mut W, list: &JsonFu
         }
 
         row_cells.push(Cell::new(&value(&entry.total)));
-        row_cells.push(Cell::new(&entry.percent_total));
+        row_cells.push(Cell::new(&display_percent(&entry.percent_total)));
 
         table.add_row(row_cells);
     }

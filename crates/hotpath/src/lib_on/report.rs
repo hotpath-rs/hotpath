@@ -22,7 +22,7 @@ use crate::json::{
 };
 use crate::mutexes::{compare_mutex_entries, MutexEntry, MUTEXES_STATE};
 use crate::output::{
-    format_bytes, format_count_display, format_duration, format_percentile_header,
+    display_percent, format_bytes, format_count_display, format_duration, format_percentile_header,
     format_percentile_key, format_rate, Precision,
 };
 use crate::output_on::{format_bytes_per_sec, format_throughput, write_section_header};
@@ -660,10 +660,10 @@ pub(crate) fn report_sql_table(
             row.push(Cell::new(&format_duration(entry.percentile_nanos(p))));
         }
         row.push(Cell::new(&format_duration(entry.total_nanos)));
-        row.push(Cell::new(&format_sql_percent(
+        row.push(Cell::new(&display_percent(&format_sql_percent(
             entry.total_nanos,
             reference_total,
-        )));
+        ))));
         table.add_row(row);
     }
 
@@ -828,10 +828,10 @@ pub(crate) fn report_http_table(
             row.push(Cell::new(&format_duration(entry.percentile_nanos(p))));
         }
         row.push(Cell::new(&format_duration(entry.total_nanos)));
-        row.push(Cell::new(&format_sql_percent(
+        row.push(Cell::new(&display_percent(&format_sql_percent(
             entry.total_nanos,
             reference_total,
-        )));
+        ))));
         table.add_row(row);
     }
 
@@ -1017,10 +1017,10 @@ pub(crate) fn report_server_table(
             row.push(Cell::new(&format_duration(entry.percentile_nanos(p))));
         }
         row.push(Cell::new(&format_duration(entry.total_nanos)));
-        row.push(Cell::new(&format_sql_percent(
+        row.push(Cell::new(&display_percent(&format_sql_percent(
             entry.total_nanos,
             reference_total,
-        )));
+        ))));
         table.add_row(row);
     }
 
@@ -1612,12 +1612,18 @@ pub(crate) fn report_threads_table(writer: &mut dyn Write, limit: usize) {
     table.add_row(header);
 
     for thread in &threads_json.data {
-        let cpu_pct_max = thread.cpu_percent_max.as_deref().unwrap_or("-");
-        let cpu_pct_avg = thread.cpu_percent_avg.as_deref().unwrap_or("-");
+        let cpu_pct_max = thread
+            .cpu_percent_max
+            .as_deref()
+            .map_or_else(|| "-".to_string(), display_percent);
+        let cpu_pct_avg = thread
+            .cpu_percent_avg
+            .as_deref()
+            .map_or_else(|| "-".to_string(), display_percent);
         let mut row = vec![
             Cell::new(&thread.name),
-            Cell::new(cpu_pct_max),
-            Cell::new(cpu_pct_avg),
+            Cell::new(&cpu_pct_max),
+            Cell::new(&cpu_pct_avg),
         ];
         if has_alloc {
             row.push(Cell::new(thread.alloc_bytes.as_deref().unwrap_or("-")));

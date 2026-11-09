@@ -164,7 +164,7 @@ fn render_cpu_table(frame: &mut Frame, app: &mut App, area: Rect) {
         Row::new(vec![
             Cell::from(short_name),
             Cell::from(hotpath::format_count_display(entry.samples)),
-            Cell::from(entry.percent.clone()),
+            Cell::from(hotpath::display_percent(&entry.percent)),
         ])
     });
 

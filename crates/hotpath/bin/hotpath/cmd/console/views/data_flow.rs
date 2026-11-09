@@ -661,7 +661,7 @@ pub(crate) fn render_sql_panel(
                 ));
             }
             cells.push(Cell::from(entry.total.clone()));
-            cells.push(Cell::from(entry.percent_total.clone()));
+            cells.push(Cell::from(hotpath::display_percent(&entry.percent_total)));
             Row::new(cells)
         })
         .collect();
@@ -762,7 +762,7 @@ pub(crate) fn render_http_panel(
                 ));
             }
             cells.push(Cell::from(entry.total.clone()));
-            cells.push(Cell::from(entry.percent_total.clone()));
+            cells.push(Cell::from(hotpath::display_percent(&entry.percent_total)));
             Row::new(cells)
         })
         .collect();
@@ -929,7 +929,7 @@ fn render_server_alloc_table(
                         ));
                     }
                     cells.push(Cell::from(alloc.total.clone()));
-                    cells.push(Cell::from(alloc.percent_total.clone()));
+                    cells.push(Cell::from(hotpath::display_percent(&alloc.percent_total)));
                 }
                 None => {
                     for _ in 0..(4 + percentile_keys.len()) {
@@ -1046,7 +1046,7 @@ fn render_server_timing_table(
                 ));
             }
             cells.push(Cell::from(entry.total.clone()));
-            cells.push(Cell::from(entry.percent_total.clone()));
+            cells.push(Cell::from(hotpath::display_percent(&entry.percent_total)));
             Row::new(cells)
         })
         .collect();
