@@ -11,13 +11,16 @@ on:
 # Cargo's runner, which merges the native report into its own. A regression fails the `hotpath / drain-criterion` check
 # run, not the job.
 #
-# Pushes and same-repository pull requests upload in process with the job's
-# OIDC token. Fork pull requests get no `id-token: write`, so they write the
-# merged report to an artifact and `cloud-benchmark-relay.yml` uploads it.
+# Pushes upload in process with the job's OIDC token: the push baseline.
+# Pull requests, forks and same-repository ones alike, run
+# `cloud-paired-benchmark.yml`: the base and head commits measured in one job
+# on one runner. Its two reports reach hotpath-cloud as one same-runner pair
+# through `cloud-benchmark-relay.yml`, which verifies the baseline first and
+# otherwise relays the head alone against the push baseline.
 jobs:
   upload:
-    name: cloud drain criterion benchmark (upload)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    name: cloud drain criterion benchmark (push)
+    if: github.event_name == 'push'
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 20
     permissions:
@@ -32,9 +35,6 @@ jobs:
       BENCH_ARGS: -p test-drain-criterion --bench drain --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
     steps:
       - uses: actions/checkout@v4
-        with:
-          # The pull request's head commit, not the default merge commit.
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Record rustc version
         id: rustc
@@ -84,68 +84,33 @@ jobs:
           jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .meta.criterion.benchmark == "drain/lockstep"' \
             "$HOTPATH_META_OUTPUT_PATH" > /dev/null
 
-  report:
-    name: cloud drain criterion benchmark (fork pull request)
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-26.04-arm
-    timeout-minutes: 20
+  paired:
+    name: cloud drain criterion benchmark (pull request)
+    if: github.event_name == 'pull_request'
     permissions:
       contents: read
-    env:
-      HOTPATH_META_BENCHMARK: drain-criterion
-      HOTPATH_META_OUTPUT_FORMAT: json
-      HOTPATH_META_CRITERION_ITERATIONS: 5
-      # Identical in every `cargo bench`, so both runs use the one build.
-      BENCH_ARGS: -p test-drain-criterion --bench drain --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # The pull request's head commit, not the default merge commit.
-          ref: ${{ github.event.pull_request.head.sha }}
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Record rustc version
-        id: rustc
-        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
-      - name: Record runner CPU and image
-        id: host
-        # Commas would split the user metadata, so they are stripped.
-        run: |
-          echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
-          echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: cloud-drain-criterion-benchmark
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-          cache-on-failure: true
-      # Released Valgrind misattributes inclusive instruction counts on arm64;
-      # this build fixes it (unofficial fork, hotpath-rs/valgrind).
-      - uses: hotpath-rs/setup-valgrind@v1.1.0
-        with:
-          version: 3.28.0.hotpath-rs-2
-      - name: Build drain criterion benchmark
-        run: cargo bench $BENCH_ARGS --no-run
-      - name: Run drain criterion benchmark natively
-        env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=bench,valgrind=3.28.0.hotpath-rs-2
-          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
-        run: cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
-      # A failed merge fails the job before the artifact upload, so the relay
-      # never posts a report that is not merged.
-      - name: Run drain criterion benchmark under Callgrind and write the merged report
-        env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=bench,valgrind=3.28.0.hotpath-rs-2
-          HOTPATH_META_OUTPUT_PATH: ${{ github.workspace }}/report.json
-          HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
-          HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=${{ runner.temp }}/callgrind.out.%p
-        run: |
-          cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
-          test -s "$HOTPATH_META_OUTPUT_PATH"
-          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .meta.criterion.benchmark == "drain/lockstep"' \
-            "$HOTPATH_META_OUTPUT_PATH" > /dev/null
-      - uses: actions/upload-artifact@v4
-        with:
-          name: hotpath-report
-          path: report.json
-          retention-days: 1
-          if-no-files-found: error
+    # A newer commit of the pull request supersedes a running benchmark; the
+    # relay skips a cancelled run.
+    concurrency:
+      group: drain-criterion-benchmark-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    uses: ./.github/workflows/cloud-paired-benchmark.yml
+    with:
+      benchmark: drain-criterion
+      runs-on: ubuntu-26.04-arm
+      # Both revisions, each natively and under Callgrind.
+      timeout-minutes: 40
+      prefix: HOTPATH_META
+      valgrind: hotpath-rs
+      valgrind-version: 3.28.0.hotpath-rs-2
+      profile: bench
+      env: |
+        HOTPATH_META_CRITERION_ITERATIONS=5
+        BENCH_ARGS=-p test-drain-criterion --bench drain --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
+      build: >-
+        cargo bench $BENCH_ARGS --no-run
+      run: cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
+      callgrind: >-
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=$CALLGRIND_OUT" cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
+      check: >-
+        .meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .meta.criterion.benchmark == "drain/lockstep"

@@ -29,6 +29,7 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 - The cloud path (upload or JSON output with the feature on) ignores display limits and renders exact precision; the live metrics server never does.
 - Tests: `tests/cloud_*.rs` (against a `mockito` server).
 - `cloud_api::MAX_REPORT_BYTES` is the server's body limit; the relay action (`hotpath-rs/hotpath-relay`, `scripts/upload.sh`) keeps a shell copy, synced by hand.
+- Cloud benchmark PRs: `.github/workflows/cloud-paired-benchmark.yml` runs base then head in one job; `cloud-benchmark-relay.yml` uploads the pair. Nothing a PR controls may run before its "Check out the head revision" step (the relay's `head_step`, keep the names in sync).
 
 ## Macros
 

@@ -1,0 +1,210 @@
+name: Cloud paired benchmark
+
+on:
+  workflow_call:
+    inputs:
+      benchmark:
+        description: hotpath-cloud series, the same as the push job's.
+        type: string
+        required: true
+      runs-on:
+        type: string
+        required: true
+      timeout-minutes:
+        type: number
+        required: true
+      prefix:
+        description: Environment variable prefix of the profiler, HOTPATH or HOTPATH_META.
+        type: string
+        required: true
+      valgrind:
+        description: "`apt` (Ubuntu package), `hotpath-rs` (hotpath-rs/setup-valgrind) or empty for a native-only benchmark."
+        type: string
+        default: ""
+      valgrind-version:
+        type: string
+        default: ""
+      profile:
+        description: Cargo profile, recorded in the user metadata.
+        type: string
+        required: true
+      env:
+        description: Extra `NAME=value` lines exported for every build and run.
+        type: string
+        default: ""
+      build:
+        description: Builds the benchmark, run from the revision's workspace root.
+        type: string
+        required: true
+      run:
+        description: Runs the benchmark natively; writes to the prefix's OUTPUT_PATH.
+        type: string
+        required: true
+      callgrind:
+        description: >-
+          Runs the benchmark under Callgrind with the Callgrind dump at
+          $CALLGRIND_OUT, merging the native report. Empty for native only.
+        type: string
+        default: ""
+      check:
+        description: jq expression every merged report must satisfy.
+        type: string
+        required: true
+      base-sha:
+        description: Commit measured as the baseline; the pull request's base when empty.
+        type: string
+        default: ""
+      head-sha:
+        description: Commit measured as the head; the pull request's head when empty.
+        type: string
+        default: ""
+      artifact-suffix:
+        description: >-
+          Appended to both artifact names, for several calls in one run (the
+          noise experiment). Empty for pull requests: the relay expects the
+          plain names.
+        type: string
+        default: ""
+
+# The pull request path of the cloud benchmarks: the pull request's base and
+# head commits measured one after the other in this one job, so on one
+# runner, and relayed as one same-runner pair by `cloud-benchmark-relay.yml`.
+#
+# Order is the security boundary (hotpath-relay README, "Same-runner
+# baselines"). A `pull_request` run executes the pull request's own copy of
+# this file, so the relay trusts the baseline only when the pull request
+# changes no workflow file, and only when the baseline artifact was uploaded
+# before "Check out the head revision" started. So everything before that step
+# runs trusted code only: the base commit, pinned actions, no cache (a cache
+# a pull request run wrote could poison the base build) and no file of the
+# pull request. Its baseline step may fail (a benchmark the pull request
+# adds): then there is no baseline artifact and the relay compares the head
+# against the historical baseline instead.
+#
+# No `id-token: write` and read-only contents: the job runs pull request
+# code and uploads nothing itself.
+permissions:
+  contents: read
+
+jobs:
+  paired:
+    name: base and head on one runner
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+    env:
+      BENCHMARK: ${{ inputs.benchmark }}
+      PREFIX: ${{ inputs.prefix }}
+      EXTRA_ENV: ${{ inputs.env }}
+      BUILD: ${{ inputs.build }}
+      RUN: ${{ inputs.run }}
+      CALLGRIND: ${{ inputs.callgrind }}
+      CHECK: ${{ inputs.check }}
+      # Builds and measures the revision checked out at $GITHUB_WORKSPACE/$1
+      # into $RUNNER_TEMP/$1/report.json: natively, then under Callgrind
+      # merging the native report. Outputs of one revision never mix with
+      # the other's: each has its own checkout, target directory and empty
+      # output directory, and no upload is configured.
+      BENCH_REVISION: |
+        set -euo pipefail
+        rev=$1
+        out="$RUNNER_TEMP/$rev"
+        rm -rf "$out"
+        mkdir -p "$out"
+        cd "$GITHUB_WORKSPACE/$rev"
+        while IFS= read -r line; do
+          if [ -n "$line" ]; then export "${line?}"; fi
+        done <<< "$EXTRA_ENV"
+        export "${PREFIX}_BENCHMARK=$BENCHMARK" "${PREFIX}_OUTPUT_FORMAT=json"
+        export "${PREFIX}_USER_METADATA=$USER_METADATA"
+        unset "${PREFIX}_UPLOAD"
+        bash -c "$BUILD"
+        export "${PREFIX}_OUTPUT_PATH=$out/native.json"
+        bash -c "$RUN"
+        test -s "$out/native.json"
+        if [ -n "$CALLGRIND" ]; then
+          export CALLGRIND_OUT="$out/callgrind.out.%p"
+          export "${PREFIX}_CALLGRIND_OUT_FILE=$CALLGRIND_OUT"
+          export "${PREFIX}_MERGE_REPORT=$out/native.json"
+          export "${PREFIX}_OUTPUT_PATH=$out/report.json"
+          bash -c "$CALLGRIND"
+        else
+          cp "$out/native.json" "$out/report.json"
+        fi
+        test -s "$out/report.json"
+        jq -e "$CHECK" "$out/report.json" > /dev/null
+        # The report names the commit this checkout measured.
+        jq -e --arg sha "$(git rev-parse HEAD)" '.meta.git.sha == $sha' "$out/report.json" > /dev/null
+    steps:
+      - name: Check out the base revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base-sha || github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Record rustc version and runner
+        # Commas would split the user metadata, so they are stripped.
+        env:
+          PROFILE: ${{ inputs.profile }}
+          VALGRIND_VERSION: ${{ inputs.valgrind-version }}
+        run: |
+          rustc_version=$(rustc --version | cut -d' ' -f2)
+          cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')
+          metadata="runner=${RUNNER_OS}-${RUNNER_ARCH},cpu=$cpu,image=${ImageOS}-${ImageVersion},toolchain=stable,rustc=$rustc_version,profile=$PROFILE"
+          if [ -n "$VALGRIND_VERSION" ]; then
+            metadata="$metadata,valgrind=$VALGRIND_VERSION"
+          fi
+          echo "USER_METADATA=$metadata" >> "$GITHUB_ENV"
+      - name: Install valgrind
+        if: inputs.valgrind == 'apt'
+        env:
+          VERSION: ${{ inputs.valgrind-version }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y "valgrind=1:${VERSION}-0ubuntu1"
+          valgrind --version
+      # Released Valgrind misattributes inclusive instruction counts on arm64;
+      # this build fixes it (unofficial fork, hotpath-rs/valgrind). Verified
+      # against the action release's checksums, no cache.
+      - uses: hotpath-rs/setup-valgrind@v1.1.0
+        if: inputs.valgrind == 'hotpath-rs'
+        with:
+          version: ${{ inputs.valgrind-version }}
+      - name: Benchmark the base revision
+        id: base
+        continue-on-error: true
+        run: bash -c "$BENCH_REVISION" bench base
+      # Named after the attempt and the base commit, which the relay checks
+      # against GitHub's records: the name is set here, before any pull
+      # request code runs.
+      - name: Upload the baseline report
+        if: steps.base.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hotpath-baseline-${{ github.run_attempt }}-${{ inputs.base-sha || github.event.pull_request.base.sha }}${{ inputs.artifact-suffix }}
+          path: ${{ runner.temp }}/base/report.json
+          retention-days: 1
+          if-no-files-found: error
+      - name: Note the missing baseline
+        if: steps.base.outcome != 'success'
+        run: echo "::warning::the base revision could not be benchmarked, so the head is compared against the historical baseline"
+      # The relay requires the baseline artifact to be finalized before this
+      # step starts (`head_step` of hotpath-relay); keep the name in sync.
+      - name: Check out the head revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.head-sha || github.event.pull_request.head.sha }}
+          path: head
+          persist-credentials: false
+      - name: Benchmark the head revision
+        run: |
+          bash -c "$BENCH_REVISION" bench head
+          cp "$RUNNER_TEMP/head/report.json" report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hotpath-report${{ inputs.artifact-suffix }}
+          path: report.json
+          retention-days: 1
+          if-no-files-found: error

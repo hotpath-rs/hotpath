@@ -1,0 +1,96 @@
+name: Cloud paired noise experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: Independent jobs per benchmark (each on its own runner).
+        type: choice
+        options: ["10", "20"]
+        default: "10"
+
+# Measures how noisy same-runner comparisons are: every job runs
+# `cloud-paired-benchmark.yml` with the same commit as baseline and head, so
+# any difference is noise. Within one job that is the same-runner noise; a
+# head of one job against the baseline of another is the noise of the
+# historical approach (another runner, possibly another CPU). Nothing is
+# uploaded to hotpath-cloud (a pair of one commit is not a pull request);
+# `scripts/paired_noise.py` analyses the downloaded artifacts:
+#
+#   gh run download <run id> -D noise && python3 scripts/paired_noise.py noise
+#
+# x86 (`drain`) and ARM (`drain-criterion`), the inputs of their benchmark
+# workflows' pull request jobs. Manual only: 2 x jobs runner jobs per run.
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      jobs: ${{ steps.jobs.outputs.jobs }}
+    steps:
+      - id: jobs
+        env:
+          JOBS: ${{ inputs.jobs }}
+        run: echo "jobs=$(jq -cn --argjson n "$JOBS" '[range(1; $n + 1)]')" >> "$GITHUB_OUTPUT"
+
+  drain:
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.setup.outputs.jobs) }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/cloud-paired-benchmark.yml
+    with:
+      benchmark: drain
+      runs-on: ubuntu-26.04
+      timeout-minutes: 40
+      prefix: HOTPATH_META
+      valgrind: apt
+      valgrind-version: 3.26.0
+      profile: release
+      build: >-
+        cargo build -q --release -p hotpath-drain --example throughput --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
+      run: target/release/examples/throughput
+      callgrind: >-
+        valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file="$CALLGRIND_OUT" target/release/examples/throughput
+      check: >-
+        .meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0)
+      base-sha: ${{ github.sha }}
+      head-sha: ${{ github.sha }}
+      artifact-suffix: -drain-${{ matrix.job }}
+
+  drain-criterion:
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.setup.outputs.jobs) }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/cloud-paired-benchmark.yml
+    with:
+      benchmark: drain-criterion
+      runs-on: ubuntu-26.04-arm
+      timeout-minutes: 40
+      prefix: HOTPATH_META
+      valgrind: hotpath-rs
+      valgrind-version: 3.28.0.hotpath-rs-2
+      profile: bench
+      env: |
+        HOTPATH_META_CRITERION_ITERATIONS=5
+        BENCH_ARGS=-p test-drain-criterion --bench drain --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
+      build: >-
+        cargo bench $BENCH_ARGS --no-run
+      run: cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
+      callgrind: >-
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=$CALLGRIND_OUT" cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
+      check: >-
+        .meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .meta.criterion.benchmark == "drain/lockstep"
+      base-sha: ${{ github.sha }}
+      head-sha: ${{ github.sha }}
+      artifact-suffix: -drain-criterion-${{ matrix.job }}

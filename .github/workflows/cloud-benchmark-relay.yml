@@ -7,25 +7,31 @@ on:
 
 permissions: {}
 
-# Uploads the `hotpath-report` artifact of each benchmark's pull request run
-# through the hotpath-relay action. The series is looked up from the workflow
-# name, so keep the lookup in sync with `workflows:`.
+# Uploads the reports of each benchmark's pull request run through the
+# hotpath-relay action: the `hotpath-report` artifact (the head) and, when the
+# relay can verify it, the `hotpath-baseline-<attempt>-<base sha>` artifact
+# (the base commit, measured first in the same job by
+# `cloud-paired-benchmark.yml`) as one same-runner pair. A baseline it cannot
+# verify is dropped and the head compared against the push baseline. The
+# series is looked up from the workflow name, so keep the lookup in sync with
+# `workflows:`.
 jobs:
   relay:
     # Only successful pull request runs have a report to relay; the action
-    # checks this too, so this only saves starting a runner. The drain
-    # criterion and dedup benchmarks upload same-repository pull requests in
-    # process and write an artifact only for forks.
+    # checks this too, so this only saves starting a runner. Every pull
+    # request uploads through here, same-repository ones too: only this
+    # job, defined on the default branch, can check where a baseline came
+    # from.
     if: >-
       github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      ((github.event.workflow_run.name != 'Cloud drain criterion benchmark' &&
-      github.event.workflow_run.name != 'Cloud dedup benchmark') ||
-      github.event.workflow_run.head_repository.full_name != github.repository)
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       actions: read
+      # The files the pull request changes, for the baseline check; nothing
+      # is checked out.
+      contents: read
       id-token: write
       pull-requests: read
     concurrency:
@@ -35,6 +41,9 @@ jobs:
       group: hotpath-relay-${{ github.event.workflow_run.name }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
       cancel-in-progress: true
     steps:
-      - uses: hotpath-rs/hotpath-relay@v1.0.0
+      # Pinned to the commit of the paired-baselines branch until a relay
+      # release carries `baseline_artifact_prefix`.
+      - uses: hotpath-rs/hotpath-relay@d650d54ecf32bd4503fd2287601a9bc8995bee06
         with:
+          baseline_artifact_prefix: hotpath-baseline
           benchmark: ${{ fromJSON('{"Cloud drain benchmark":"drain","Cloud meta benchmark":"meta","Cloud drain criterion benchmark":"drain-criterion","Cloud dedup benchmark":"dedup"}')[github.event.workflow_run.name] }}
