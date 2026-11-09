@@ -1861,7 +1861,7 @@ dependencies = [
 
 [[package]]
 name = "hotpath"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "arc-swap",
  "async-channel",
@@ -1923,18 +1923,18 @@ dependencies = [
 
 [[package]]
 name = "hotpath-drain"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "hotpath-meta",
 ]
 
 [[package]]
 name = "hotpath-drain-meta"
-version = "0.31.1"
+version = "0.31.2"
 
 [[package]]
 name = "hotpath-macros"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1943,7 +1943,7 @@ dependencies = [
 
 [[package]]
 name = "hotpath-macros-meta"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1952,7 +1952,7 @@ dependencies = [
 
 [[package]]
 name = "hotpath-meta"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "arc-swap",
  "async-channel",
