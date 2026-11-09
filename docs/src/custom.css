@@ -114,14 +114,19 @@
     transform-box: fill-box;
     transform-origin: center;
     opacity: 0;
+}
+
+/* Chromium runs SVG animations under a display: none parent, so the hearts
+   would finish at page load. Attach the animation only while jumping. */
+.ferris-hero.jumping .ferris-heart {
     animation: ferris-heart-float 1.2s ease-out forwards;
 }
 
-.ferris-heart:nth-child(2) {
+.ferris-hero.jumping .ferris-heart:nth-child(2) {
     animation-delay: 0.15s;
 }
 
-.ferris-heart:nth-child(3) {
+.ferris-hero.jumping .ferris-heart:nth-child(3) {
     animation-delay: 0.3s;
 }
 
