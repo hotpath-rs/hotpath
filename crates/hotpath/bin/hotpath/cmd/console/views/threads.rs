@@ -112,8 +112,14 @@ pub(crate) fn render_threads_panel(
     let rows: Vec<Row> = threads
         .iter()
         .map(|thread| {
-            let cpu_percent_str = thread.cpu_percent.as_deref().unwrap_or("-");
-            let cpu_percent_max_str = thread.cpu_percent_max.as_deref().unwrap_or("-");
+            let cpu_percent_str = thread
+                .cpu_percent
+                .as_deref()
+                .map_or_else(|| "-".to_string(), hotpath::display_percent);
+            let cpu_percent_max_str = thread
+                .cpu_percent_max
+                .as_deref()
+                .map_or_else(|| "-".to_string(), hotpath::display_percent);
 
             let (alloc_str, dealloc_str, diff_str) = if alloc_enabled {
                 (
@@ -127,7 +133,10 @@ pub(crate) fn render_threads_panel(
 
             let status_str = format!("{:<8} ({})", thread.status, thread.status_code);
 
-            let cpu_percent_avg_str = thread.cpu_percent_avg.as_deref().unwrap_or("-");
+            let cpu_percent_avg_str = thread
+                .cpu_percent_avg
+                .as_deref()
+                .map_or_else(|| "-".to_string(), hotpath::display_percent);
 
             Row::new(vec![
                 Cell::from(truncate_right(&thread.name, thread_width)),

@@ -1612,12 +1612,18 @@ pub(crate) fn report_threads_table(writer: &mut dyn Write, limit: usize) {
     table.add_row(header);
 
     for thread in &threads_json.data {
-        let cpu_pct_max = thread.cpu_percent_max.as_deref().unwrap_or("-");
-        let cpu_pct_avg = thread.cpu_percent_avg.as_deref().unwrap_or("-");
+        let cpu_pct_max = thread
+            .cpu_percent_max
+            .as_deref()
+            .map_or_else(|| "-".to_string(), display_percent);
+        let cpu_pct_avg = thread
+            .cpu_percent_avg
+            .as_deref()
+            .map_or_else(|| "-".to_string(), display_percent);
         let mut row = vec![
             Cell::new(&thread.name),
-            Cell::new(cpu_pct_max),
-            Cell::new(cpu_pct_avg),
+            Cell::new(&cpu_pct_max),
+            Cell::new(&cpu_pct_avg),
         ];
         if has_alloc {
             row.push(Cell::new(thread.alloc_bytes.as_deref().unwrap_or("-")));
