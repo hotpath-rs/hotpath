@@ -9,11 +9,9 @@ pr_check = "fail"
 [functions]
 min_percent_total = 0.5
 
-# The producer hot path allocates a fresh chunk each time one fills: 24 B per
-# push and 23.1 MB over the run. Any growth past that is a breach.
 [[functions.budgets]]
 match = "hotpath_drain::EventProducer::push"
-alloc = { avg = "25 B", total = "24 MB" }
+alloc = { avg = "2 B", total = "1.5 MB" }
 calls = { min = 1000000, max = 1000000 }
 
 [functions.alloc]
