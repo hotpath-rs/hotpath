@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.2] - 2026-11-09
+
+### 🚀 Features
+
+- Support metadata queries in CLI
+
+- MCP endpoint registry
+
+- Support select arg for list_reports CLI
+
+- Support select arg for get_diff CLI
+
+- Make report entry ids optional
+
+- Support precise API flag
+
+
+### 🐛 Bug Fixes
+
+- Implement Debug for wrapper types
+
+- Unify hotpath-cloud naming
+
+- Thread status display
+
+- Make cloud --select filter report and diff data
+
+- Percentage formatting
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.31.2
+
+
 ## [0.31.1] - 2026-11-06
 
 ### 🚀 Features
