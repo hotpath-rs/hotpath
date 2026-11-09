@@ -253,7 +253,7 @@ pub fn parse_percent(s: &str) -> Option<u64> {
 
 /// A share string from the JSON report in display form
 /// ([`format_percent_display`]); text that is no share stays as it is.
-pub(crate) fn display_percent(s: &str) -> String {
+pub fn display_percent(s: &str) -> String {
     parse_percent(s).map_or_else(|| s.to_string(), format_percent_display)
 }
 

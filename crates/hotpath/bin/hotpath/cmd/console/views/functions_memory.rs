@@ -93,7 +93,7 @@ pub(crate) fn render_functions_table(frame: &mut Frame, app: &mut App, area: Rec
         }
 
         cells.push(Cell::from(mode.display_value(&func.total)));
-        cells.push(Cell::from(func.percent_total.clone()));
+        cells.push(Cell::from(hotpath::display_percent(&func.percent_total)));
 
         Row::new(cells)
     });
