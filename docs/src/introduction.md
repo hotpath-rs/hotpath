@@ -413,6 +413,7 @@ Explore the docs for customization options and advanced profiling features.
 - [Live MCP Server](./mcp.html) - LLM queries of a running application's profiling data via Model Context Protocol
 - [hotpath-cloud MCP Server and REST API](./mcp_api.html) - AI assistant access to stored CI reports
 - [Cargo flamegraph alternatives](/blog/sampling_comparison) - when to use `hotpath` vs sampling profilers like perf and samply
+- [Rust performance regression testing](/blog/rust-performance-benchmarking) - why benchmarks are noisy on GitHub Actions and how deterministic metrics catch regressions
 - [Configuration](./configuration.html) - explore all config options
 
 ## Building in public

@@ -45,7 +45,7 @@ message = "too many SQL queries per request, check for N+1 calls"
 
 ## Catch CPU regressions despite noisy CI
 
-Reliable regression detection starts with repeatable measurements. Shared CI runners make wall-clock benchmarks noisy, potentially hiding small performance changes. For CPU-bound benchmarks with deterministic workloads, the recommended CI setup runs the benchmark under Valgrind [Callgrind](callgrind.md) and compares executed CPU instructions. In our own CI benchmarks, instruction counts typically vary by **less than 0.5%** between runs, even on shared GitHub runners.
+Reliable regression detection starts with repeatable measurements. Shared CI runners make wall-clock benchmarks noisy, potentially hiding small performance changes. For CPU-bound benchmarks with deterministic workloads, the recommended CI setup runs the benchmark under Valgrind [Callgrind](callgrind.md) and compares executed CPU instructions. In our own CI benchmarks, instruction counts typically vary by **less than 0.5%** between runs, even on shared GitHub runners ([see the 100-run analysis](/blog/rust-performance-benchmarking#counting-cpu-instructions-with-callgrind)).
 
 Instruction counts measure computational work, not execution time: a higher count usually, but not always, means slower code. [Merged reports](ci_integration.md#profiling-modes) combine them with native timing, allocations, and other profiling metrics, so you can see what changed and where to look.
 

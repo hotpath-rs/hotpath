@@ -1,5 +1,7 @@
 # hotpath-cloud MCP Server and REST API
 
+[![Claude MCP Directory](https://img.shields.io/badge/Claude-MCP%20Directory-D97757?logo=claude&logoColor=white)](https://claude.ai/directory/hotpath-cloud)
+
 The hotpath-cloud MCP server connects AI assistants such as Claude, ChatGPT, Codex and Cursor to the Rust profiling reports your CI uploads. With it, an assistant can:
 
 - analyze stored profiling and benchmark reports,

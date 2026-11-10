@@ -81,7 +81,7 @@ Metrics: `avg` and `total` instructions per function. Callgrind counts have no p
 
 Counts depend on the environment: when the two reports differ in Valgrind version, `rustc` or OS, or one side lacks the Valgrind version, the section is still compared and judged, but the comment and every view carry an `environment mismatch` alert and its regressions never fail the check, since the changes may come from the environment rather than the code. Pin all three in CI, see [CI integration](ci_integration.md#profiling-modes). Instruction counts of an ARM64 Linux report are only accepted from the patched Valgrind build, see [ARM64 runners](ci_integration.md#arm64-runners).
 
-The built-in 2% suits deterministic single-threaded workloads. Thread interleaving moves the counts of concurrent code between runs of one commit by an amount that depends on the workload, so run the benchmark a few times, measure that spread and set `min_percent_change` above it; 3% is a conservative start.
+The built-in 2% suits deterministic single-threaded workloads. Thread interleaving moves the counts of concurrent code between runs of one commit by an amount that depends on the workload, so run the benchmark a few times, measure that spread and set `min_percent_change` above it; 3% is a conservative start. The [`drain` benchmark policy](/blog/rust-performance-benchmarking#performance-regression-policies-and-budgets) shows these thresholds on a multithreaded benchmark.
 
 In a merged report (native timing + Callgrind instruction counts in one report, the [recommended CI mode](ci_integration.md#profiling-modes)), the instruction counts are judged here and the native timing comes with them:
 

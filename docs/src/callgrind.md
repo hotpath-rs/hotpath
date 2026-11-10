@@ -1,6 +1,6 @@
 # Deterministic instruction counts with Callgrind
 
-Wall-clock benchmarks are noisy, especially in GitHub Actions CI. CPU frequency scaling, scheduling, and shared runners can introduce significant variance, making small performance regressions difficult to detect.
+Wall-clock benchmarks are noisy, especially in GitHub Actions CI. CPU frequency scaling, scheduling, and shared runners can introduce significant variance, making small performance regressions difficult to detect. In [100 runs of an unchanged benchmark on GitHub Actions](/blog/rust-performance-benchmarking#why-benchmarks-are-noisy-on-github-actions-runners), wall-clock time varied almost 3x, while instruction counts varied by about 0.13%.
 
 `hotpath-rs` can count executed instructions instead of measuring elapsed time, using [Valgrind's Callgrind](https://valgrind.org/docs/manual/cl-manual.html).
 
