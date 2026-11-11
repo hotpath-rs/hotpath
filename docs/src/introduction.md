@@ -150,10 +150,6 @@ function ferrisHappyJump() {
 
 [hotpath-rs](https://github.com/hotpath-rs/hotpath) is an easy-to-configure Rust performance profiling toolkit that shows exactly where your code spends time, burns CPU, and allocates memory. 
 
-It helps you distinguish between functions that are slow because they wait on I/O and those that are CPU-intensive. Instrument functions, channels, futures, streams, SQL queries, HTTP calls, and byte-level I/O to find bottlenecks and focus optimizations where they matter most. Get actionable insights into time, memory, and async data flow with minimal setup. For noise-free CI benchmarks, it can also count executed CPU instructions with [Callgrind](callgrind.md) instead of measuring wall-clock time.
-
-<div style="clear: both;"></div>
-
 <div class="trusted-by">
   <p class="trusted-by-tagline">Used by <a href="/adoption">{{#adoption_count}} open-source projects</a>, including:</p>
   <div class="trusted-by-grid">
@@ -183,6 +179,10 @@ It helps you distinguish between functions that are slow because they wait on I/
     </a>
   </div>
 </div>
+
+`hotpath-rs` helps you distinguish between functions that are slow because they wait on I/O and those that are CPU-intensive. Instrument functions, channels, futures, streams, SQL queries, HTTP calls, and byte-level I/O to find bottlenecks and focus optimizations where they matter most. Get actionable insights into time, memory, and async data flow with minimal setup. For noise-free CI benchmarks, it can also count executed CPU instructions with [Callgrind](callgrind.md) instead of measuring wall-clock time.
+
+<div style="clear: both;"></div>
 
 You can use it to produce one-off performance (timing, memory or CPU) reports:
 
