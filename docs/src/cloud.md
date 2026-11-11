@@ -17,6 +17,8 @@ The [GitHub Actions integration](ci_integration.md) compares benchmark results a
 
 <img loading="lazy" src="{{#asset-hash images/cloud-pr-comment.webp}}" alt="hotpath-cloud pull request comment">
 
+Want to understand how it works under the hood? Read [Rust Benchmarking: How to Detect Performance Regressions in CI](/blog/rust-performance-benchmarking) for real benchmark results and practical advice on detecting regressions in CI.
+
 ## Focus on performance changes that matter
 
 Not every performance change should count as a regression. A [regression policy](regression_policy.md) defines how much each metric must change before it is flagged, filtering out insignificant changes. [Performance budgets](performance_budgets.md) enforce application-specific limits regardless of the baseline, such as a hot path that must never allocate or a cap on SQL queries per request.
