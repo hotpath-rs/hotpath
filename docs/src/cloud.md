@@ -6,8 +6,6 @@
 
 Compare each PR's benchmark results against its baseline to find functions that execute more CPU instructions, allocate more memory, or trigger additional SQL queries. Set performance budgets and get actionable feedback directly in GitHub PRs.
 
-**Open beta:** Free to use. Public repositories will remain free. Paid plans for private repositories will be introduced after beta.
-
 <div class="cta-row">
   <a class="agent-pill cta-link" target="_blank" href="/app">Get started</a>
   <a class="agent-pill cta-link cta-secondary" target="_blank" href="https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a124b3-d1f1-72ea-87ce-95057a276319/diff">See example performance diff</a>
