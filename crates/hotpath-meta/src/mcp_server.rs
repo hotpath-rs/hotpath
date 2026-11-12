@@ -167,7 +167,7 @@ Use this first to identify performance hotspots. Look for high percentile values
         log_debug("Tool called: functions_timing");
 
         match get_functions_timing_json() {
-            Some(formatted) => Ok(CallToolResult::success(vec![Content::text(to_json(
+            Some(formatted) => Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                 &formatted,
             )?)])),
             None => Ok(worker_not_ready()),
@@ -198,10 +198,10 @@ Returns error if hotpath-alloc-meta feature is not enabled. Cross-reference with
         log_debug("Tool called: functions_alloc");
 
         match get_functions_alloc_json() {
-            Some(Some(formatted)) => Ok(CallToolResult::success(vec![Content::text(to_json(
-                &formatted,
-            )?)])),
-            Some(None) => Ok(CallToolResult::error(vec![Content::text(
+            Some(Some(formatted)) => Ok(CallToolResult::success(vec![ContentBlock::text(
+                to_json(&formatted)?,
+            )])),
+            Some(None) => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "Memory profiling not available - enable hotpath-alloc-meta feature",
             )])),
             None => Ok(worker_not_ready()),
@@ -226,13 +226,13 @@ Use functions_cpu_snapshot to trigger an on-demand capture, then poll this tool 
         #[cfg(feature = "hotpath-cpu-meta")]
         {
             let envelope = crate::functions::cpu::get_cpu_envelope();
-            Ok(CallToolResult::success(vec![Content::text(to_json(
+            Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                 &envelope,
             )?)]))
         }
 
         #[cfg(not(feature = "hotpath-cpu-meta"))]
-        Ok(CallToolResult::error(vec![Content::text(
+        Ok(CallToolResult::error(vec![ContentBlock::text(
             "CPU profiling not available - enable hotpath-cpu-meta feature",
         )]))
     }
@@ -250,18 +250,18 @@ Returns error if a snapshot is already in progress or the hotpath-cpu-meta featu
         #[cfg(feature = "hotpath-cpu-meta")]
         {
             if crate::functions::cpu::try_spawn_snapshot() {
-                Ok(CallToolResult::success(vec![Content::text(
+                Ok(CallToolResult::success(vec![ContentBlock::text(
                     r#"{"status":"capturing"}"#,
                 )]))
             } else {
-                Ok(CallToolResult::error(vec![Content::text(
+                Ok(CallToolResult::error(vec![ContentBlock::text(
                     "Snapshot already in progress",
                 )]))
             }
         }
 
         #[cfg(not(feature = "hotpath-cpu-meta"))]
-        Ok(CallToolResult::error(vec![Content::text(
+        Ok(CallToolResult::error(vec![ContentBlock::text(
             "CPU profiling not available - enable hotpath-cpu-meta feature",
         )]))
     }
@@ -289,7 +289,7 @@ Use to track channel throughput and identify stalled, backed-up, or closed chann
         log_debug("Tool called: channels");
 
         let channels = get_channels_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &channels,
         )?)]))
     }
@@ -311,7 +311,7 @@ Use to track stream throughput and identify stalled streams."#)]
         log_debug("Tool called: streams");
 
         let streams = get_streams_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &streams,
         )?)]))
     }
@@ -333,7 +333,7 @@ High poll counts can indicate futures that wake frequently without making progre
         log_debug("Tool called: futures");
 
         let futures = get_futures_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &futures,
         )?)]))
     }
@@ -355,7 +355,7 @@ High wait times indicate lock contention; high acquire times indicate long criti
         log_debug("Tool called: rw_locks");
 
         let rw_locks = crate::rw_locks::get_rw_locks_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &rw_locks,
         )?)]))
     }
@@ -377,7 +377,7 @@ High wait times indicate lock contention; high acquire times indicate long criti
         log_debug("Tool called: mutexes");
 
         let mutexes = crate::mutexes::get_mutexes_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &mutexes,
         )?)]))
     }
@@ -403,7 +403,9 @@ Async durations span first poll to Ready, so they include async waiting time. I/
         log_debug("Tool called: io");
 
         let io = crate::io::get_io_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(&io)?)]))
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
+            &io,
+        )?)]))
     }
 
     #[tool(description = r#"Get execution-time metrics for captured SQL queries.
@@ -425,7 +427,9 @@ Use sql_logs with a query id to get recent individual executions."#)]
         log_debug("Tool called: sql");
 
         let sql = crate::sql::get_sql_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(&sql)?)]))
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
+            &sql,
+        )?)]))
     }
 
     #[tool(description = r#"Get detailed execution logs for a specific SQL query.
@@ -439,11 +443,11 @@ Returns a JSON object with id and logs: recent executions, each with index, time
             Some(logs) => {
                 let current_elapsed_ns = get_current_elapsed_ns();
                 let formatted = JsonSqlLogsList::from_logs(&logs, current_elapsed_ns);
-                Ok(CallToolResult::success(vec![Content::text(to_json(
+                Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                     &formatted,
                 )?)]))
             }
-            None => Ok(CallToolResult::error(vec![Content::text(
+            None => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "SQL query not found",
             )])),
         }
@@ -471,7 +475,7 @@ Use http_logs with an endpoint id to get recent individual requests."#
         log_debug("Tool called: http");
 
         let http = crate::http::get_http_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &http,
         )?)]))
     }
@@ -489,11 +493,11 @@ Returns a JSON object with id and logs: recent requests, each with index, timest
             Some(logs) => {
                 let current_elapsed_ns = get_current_elapsed_ns();
                 let formatted = JsonHttpLogsList::from_logs(&logs, current_elapsed_ns);
-                Ok(CallToolResult::success(vec![Content::text(to_json(
+                Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                     &formatted,
                 )?)]))
             }
-            None => Ok(CallToolResult::error(vec![Content::text(
+            None => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "HTTP endpoint not found",
             )])),
         }
@@ -520,7 +524,7 @@ Requires wrapping the router with hotpath_meta::axum!(...) (or adding hotpath_me
         log_debug("Tool called: server");
 
         let server = crate::server::get_server_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &server,
         )?)]))
     }
@@ -541,11 +545,11 @@ Returns a JSON object with id and logs: recent requests, each with index, timest
             Some(logs) => {
                 let current_elapsed_ns = get_current_elapsed_ns();
                 let formatted = JsonHttpLogsList::from_logs(&logs, current_elapsed_ns);
-                Ok(CallToolResult::success(vec![Content::text(to_json(
+                Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                     &formatted,
                 )?)]))
             }
-            None => Ok(CallToolResult::error(vec![Content::text(
+            None => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "Server route not found",
             )])),
         }
@@ -572,13 +576,13 @@ Sampled at configurable interval (HOTPATH_META_THREADS_INTERVAL_MS env var, defa
         #[cfg(feature = "threads")]
         {
             let threads = crate::threads::get_threads_json(crate::output::Precision::Display);
-            Ok(CallToolResult::success(vec![Content::text(to_json(
+            Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                 &threads,
             )?)]))
         }
 
         #[cfg(not(feature = "threads"))]
-        Ok(CallToolResult::error(vec![Content::text(
+        Ok(CallToolResult::error(vec![ContentBlock::text(
             "Thread monitoring not available - enable threads feature",
         )]))
     }
@@ -600,11 +604,11 @@ Returns a JSON object with function_name, location, total_invocations, and logs:
             Some(Some(logs)) => {
                 let current_elapsed_ns = get_current_elapsed_ns();
                 let formatted = JsonFunctionTimingLogsList::from_logs(&logs, current_elapsed_ns);
-                Ok(CallToolResult::success(vec![Content::text(to_json(
+                Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                     &formatted,
                 )?)]))
             }
-            Some(None) => Ok(CallToolResult::error(vec![Content::text(format!(
+            Some(None) => Ok(CallToolResult::error(vec![ContentBlock::text(format!(
                 "Function with id {} not found",
                 function_id
             ))])),
@@ -631,11 +635,11 @@ Returns a JSON object with function_name, location, total_invocations, and logs:
             Some(Some(logs)) => {
                 let current_elapsed_ns = get_current_elapsed_ns();
                 let formatted = JsonFunctionAllocLogsList::from_logs(&logs, current_elapsed_ns);
-                Ok(CallToolResult::success(vec![Content::text(to_json(
+                Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                     &formatted,
                 )?)]))
             }
-            Some(None) => Ok(CallToolResult::error(vec![Content::text(
+            Some(None) => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "Memory profiling not available - enable hotpath-alloc-meta feature",
             )])),
             None => Ok(worker_not_ready()),
@@ -656,11 +660,11 @@ Returns a JSON object with id, sent_logs (index, timestamp, ago, delay, message,
             Some(logs) => {
                 let current_elapsed_ns = get_current_elapsed_ns();
                 let formatted = JsonChannelLogsList::from_logs(&logs, current_elapsed_ns);
-                Ok(CallToolResult::success(vec![Content::text(to_json(
+                Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                     &formatted,
                 )?)]))
             }
-            None => Ok(CallToolResult::error(vec![Content::text(
+            None => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "Channel not found",
             )])),
         }
@@ -680,11 +684,11 @@ Returns a JSON object with id and logs: recent yield events, each with index, ti
             Some(logs) => {
                 let current_elapsed_ns = get_current_elapsed_ns();
                 let formatted = JsonStreamLogsList::from_logs(&logs, current_elapsed_ns);
-                Ok(CallToolResult::success(vec![Content::text(to_json(
+                Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                     &formatted,
                 )?)]))
             }
-            None => Ok(CallToolResult::error(vec![Content::text(
+            None => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "Stream not found",
             )])),
         }
@@ -703,11 +707,11 @@ Returns a JSON object with id, call_count, total_polls, total_poll_duration_ns, 
         match get_future_logs_list(future_id) {
             Some(calls) => {
                 let formatted = JsonFutureLogsList::from(&calls);
-                Ok(CallToolResult::success(vec![Content::text(to_json(
+                Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                     &formatted,
                 )?)]))
             }
-            None => Ok(CallToolResult::error(vec![Content::text(
+            None => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "Future not found",
             )])),
         }
@@ -728,7 +732,7 @@ Use gauges to track numeric values that change over time like queue sizes, conne
         log_debug("Tool called: gauges");
 
         let gauges = get_debug_gauge_entries_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &gauges,
         )?)]))
     }
@@ -744,10 +748,10 @@ Returns a JSON object with key, total_logs, and logs: recent value updates, each
         log_debug(&format!("Tool called: gauge_logs({})", gauge_id));
 
         match get_debug_gauge_logs(gauge_id) {
-            Some(logs) => Ok(CallToolResult::success(vec![Content::text(to_json(
+            Some(logs) => Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                 &logs,
             )?)])),
-            None => Ok(CallToolResult::error(vec![Content::text(
+            None => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "Gauge not found",
             )])),
         }
@@ -760,7 +764,7 @@ Returns a JSON array of entries, each with id, entry_type ("dbg"), source, sourc
         log_debug("Tool called: dbg_entries");
 
         let entries = get_debug_dbg_entries_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &entries,
         )?)]))
     }
@@ -772,7 +776,7 @@ Returns a JSON array of entries, each with id, entry_type ("val"), expression (t
         log_debug("Tool called: val_entries");
 
         let entries = get_debug_val_entries_json();
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &entries,
         )?)]))
     }
@@ -785,10 +789,10 @@ Returns a JSON object with source, expression, total_logs, and logs: recent valu
         log_debug(&format!("Tool called: dbg_logs({})", debug_id));
 
         match get_dbg_logs(debug_id) {
-            Some(logs) => Ok(CallToolResult::success(vec![Content::text(to_json(
+            Some(logs) => Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                 &logs,
             )?)])),
-            None => Ok(CallToolResult::error(vec![Content::text(
+            None => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "Debug entry not found",
             )])),
         }
@@ -802,10 +806,10 @@ Returns a JSON object with key, total_logs, and logs: recent value updates, each
         log_debug(&format!("Tool called: val_logs({})", debug_id));
 
         match get_val_logs(debug_id) {
-            Some(logs) => Ok(CallToolResult::success(vec![Content::text(to_json(
+            Some(logs) => Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                 &logs,
             )?)])),
-            None => Ok(CallToolResult::error(vec![Content::text(
+            None => Ok(CallToolResult::error(vec![ContentBlock::text(
                 "Value entry not found",
             )])),
         }
@@ -822,19 +826,19 @@ Returns a JSON object with num_workers, num_alive_tasks, global_queue_depth, opt
         #[cfg(feature = "tokio")]
         match crate::tokio_runtime::get_runtime_json() {
             Some(snapshot) => {
-                return Ok(CallToolResult::success(vec![Content::text(to_json(
+                return Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
                     &snapshot,
                 )?)]));
             }
             None => {
-                return Ok(CallToolResult::error(vec![Content::text(
+                return Ok(CallToolResult::error(vec![ContentBlock::text(
                     "Tokio runtime metrics not available - use hotpath_meta::tokio_runtime!() to start collection",
                 )]));
             }
         }
 
         #[cfg(not(feature = "tokio"))]
-        Ok(CallToolResult::error(vec![Content::text(
+        Ok(CallToolResult::error(vec![ContentBlock::text(
             "Tokio runtime metrics not available - enable tokio feature",
         )]))
     }
@@ -853,7 +857,7 @@ Use to check if the profiler is running and how long it has been active."#)]
             uptime: format_duration(get_current_elapsed_ns()),
             pid: std::process::id(),
         };
-        Ok(CallToolResult::success(vec![Content::text(to_json(
+        Ok(CallToolResult::success(vec![ContentBlock::text(to_json(
             &status,
         )?)]))
     }
@@ -865,12 +869,12 @@ fn get_current_elapsed_ns() -> u64 {
 
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for HotPathMcpServer {
-    fn get_info(&self) -> ServerInfo {
+    fn get_info(&self) -> ServerConfig {
         let mut server_info = Implementation::default();
         server_info.name = "hotpath-meta".into();
         server_info.version = env!("CARGO_PKG_VERSION").into();
 
-        let mut info = ServerInfo::default();
+        let mut info = ServerConfig::default();
         info.protocol_version = ProtocolVersion::V_2024_11_05;
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.server_info = server_info;
@@ -882,7 +886,7 @@ impl ServerHandler for HotPathMcpServer {
 }
 
 fn worker_not_ready() -> CallToolResult {
-    CallToolResult::error(vec![Content::text(
+    CallToolResult::error(vec![ContentBlock::text(
         crate::metrics_server::WORKER_NOT_READY_MSG,
     )])
 }
@@ -935,7 +939,7 @@ pub(crate) fn start_mcp_server_once() {
 
                     let mut config = StreamableHttpServerConfig::default();
                     config.sse_keep_alive = Some(Duration::from_secs(15));
-                    config.stateful_mode = true;
+                    config.legacy_session_mode = true;
                     config.cancellation_token = cancellation_token.clone();
 
                     let service = StreamableHttpService::new(

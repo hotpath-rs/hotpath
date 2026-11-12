@@ -116,7 +116,7 @@ sqlx = { version = "0.9", default-features = false, features = ["sqlite", "runti
 diesel = { version = "2.3", default-features = false, optional = true }
 libsqlite3-sys = { version = "0.30", features = ["bundled"], optional = true }
 prost = { version = "0.14", optional = true }
-rmcp = { version = "1.4", features = ["server", "transport-streamable-http-server", "transport-streamable-http-server-session"], optional = true }
+rmcp = { version = "3.10", features = ["server", "transport-streamable-http-server", "transport-streamable-http-server-session"], optional = true }
 schemars = { version = "1", optional = true }
 axum = { version = "0.8", default-features = false, optional = true }
 criterion = { version = "0.8", default-features = false, optional = true }
