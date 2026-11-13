@@ -166,6 +166,19 @@ macro_rules! future {
 use crate::Format;
 use crate::Section;
 
+/// No-op without the `hotpath-meta` feature: nothing is measured, so the sink is
+/// dropped and never called.
+///
+/// # Errors
+///
+/// Never fails; the signature matches the enabled implementation.
+#[inline]
+pub fn set_function_sink(
+    _sink: impl crate::FunctionSink,
+) -> Result<(), crate::FunctionSinkAlreadySet> {
+    Ok(())
+}
+
 #[inline]
 pub fn measure_sync_log<T: std::fmt::Debug, F: FnOnce() -> T>(
     _measurement_loc: &'static str,

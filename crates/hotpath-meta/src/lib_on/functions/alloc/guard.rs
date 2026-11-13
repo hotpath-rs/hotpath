@@ -3,6 +3,8 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 
 use crate::instant::Instant;
+use crate::lib_on::functions::sink::SinkScope;
+use crate::ScopeKind;
 
 #[derive(Debug, Default)]
 pub(crate) struct AsyncAllocBridge {
@@ -159,6 +161,7 @@ pub struct MeasurementGuardSync {
     start: Option<Instant>,
     skipped: bool,
     caller_scoped: bool,
+    sink: Option<SinkScope>,
 }
 
 impl MeasurementGuardSync {
@@ -183,6 +186,9 @@ impl MeasurementGuardSync {
         if caller_scoped {
             crate::lib_on::caller_stack::push_caller(name);
         }
+        // Entered before the clock read so hotpath's own timing stays inside
+        // the sink scope and never includes the sink call.
+        let sink = SinkScope::enter(name, ScopeKind::of_guard(caller_scoped), skipped);
 
         Self {
             name,
@@ -191,6 +197,7 @@ impl MeasurementGuardSync {
             start: sampled_start(wrapper, skipped),
             skipped,
             caller_scoped,
+            sink,
         }
     }
 }
@@ -204,6 +211,9 @@ impl Drop for MeasurementGuardSync {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        if let Some(sink) = self.sink.take() {
+            sink.exit(self.name);
+        }
         let duration_ns = self
             .start
             .map(|start| end.duration_since(start).as_nanos() as u64);
@@ -240,6 +250,7 @@ pub struct MeasurementGuardAsync {
     start: Option<Instant>,
     skipped: bool,
     alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+    sink: Option<SinkScope>,
 }
 
 impl MeasurementGuardAsync {
@@ -250,6 +261,7 @@ impl MeasurementGuardAsync {
         skipped: bool,
         alloc_bridge: Option<Arc<AsyncAllocBridge>>,
     ) -> Self {
+        let sink = SinkScope::enter(name, ScopeKind::Async, skipped);
         Self {
             name,
             wrapper,
@@ -257,6 +269,7 @@ impl MeasurementGuardAsync {
             start: sampled_start(wrapper, skipped),
             skipped,
             alloc_bridge,
+            sink,
         }
     }
 }
@@ -270,6 +283,9 @@ impl Drop for MeasurementGuardAsync {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        if let Some(sink) = self.sink.take() {
+            sink.exit(self.name);
+        }
         let duration_ns = self
             .start
             .map(|start| end.duration_since(start).as_nanos() as u64);
@@ -300,6 +316,7 @@ pub(crate) struct MeasurementGuardSyncWithLog {
     finished: bool,
     skipped: bool,
     caller_scoped: bool,
+    sink: Option<SinkScope>,
 }
 
 impl MeasurementGuardSyncWithLog {
@@ -315,6 +332,9 @@ impl MeasurementGuardSyncWithLog {
         if caller_scoped {
             crate::lib_on::caller_stack::push_caller(name);
         }
+        // Entered before the clock read so hotpath's own timing stays inside
+        // the sink scope and never includes the sink call.
+        let sink = SinkScope::enter(name, ScopeKind::of_guard(caller_scoped), skipped);
 
         Self {
             name,
@@ -324,6 +344,7 @@ impl MeasurementGuardSyncWithLog {
             finished: false,
             skipped,
             caller_scoped,
+            sink,
         }
     }
 
@@ -336,6 +357,9 @@ impl MeasurementGuardSyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        if let Some(sink) = self.sink.take() {
+            sink.exit(self.name);
+        }
         let duration_ns = self
             .start
             .map(|start| end.duration_since(start).as_nanos() as u64);
@@ -375,6 +399,9 @@ impl Drop for MeasurementGuardSyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        if let Some(sink) = self.sink.take() {
+            sink.exit(self.name);
+        }
         let duration_ns = self
             .start
             .map(|start| end.duration_since(start).as_nanos() as u64);
@@ -414,6 +441,7 @@ pub struct MeasurementGuardAsyncWithLog {
     finished: bool,
     skipped: bool,
     alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+    sink: Option<SinkScope>,
 }
 
 impl MeasurementGuardAsyncWithLog {
@@ -424,6 +452,7 @@ impl MeasurementGuardAsyncWithLog {
         skipped: bool,
         alloc_bridge: Option<Arc<AsyncAllocBridge>>,
     ) -> Self {
+        let sink = SinkScope::enter(name, ScopeKind::Async, skipped);
         Self {
             name,
             wrapper,
@@ -432,6 +461,7 @@ impl MeasurementGuardAsyncWithLog {
             finished: false,
             skipped,
             alloc_bridge,
+            sink,
         }
     }
 
@@ -444,6 +474,9 @@ impl MeasurementGuardAsyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        if let Some(sink) = self.sink.take() {
+            sink.exit(self.name);
+        }
         let duration_ns = self
             .start
             .map(|start| end.duration_since(start).as_nanos() as u64);
@@ -476,6 +509,9 @@ impl Drop for MeasurementGuardAsyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        if let Some(sink) = self.sink.take() {
+            sink.exit(self.name);
+        }
         let duration_ns = self
             .start
             .map(|start| end.duration_since(start).as_nanos() as u64);
