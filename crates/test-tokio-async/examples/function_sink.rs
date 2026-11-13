@@ -183,7 +183,10 @@ async fn main() {
         );
         verify(&events);
     } else {
-        assert!(events.is_empty(), "sink called without the hotpath-sink feature");
+        assert!(
+            events.is_empty(),
+            "sink called without the hotpath-sink feature"
+        );
     }
     println!("function_sink ok: {} events", events.len());
 }
