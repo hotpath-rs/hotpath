@@ -1,14 +1,6 @@
 default:
     @just --list
 
-# Run benchmark for current state
-bench:
-    bash scripts/bench.sh
-
-# Run benchmark for current state (meta profiler)
-bench_meta:
-    bash scripts/bench_meta.sh
-
 # Run all tests
 test_all:
     cargo run -p test-all-features --example all_noop

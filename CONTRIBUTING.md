@@ -8,29 +8,15 @@
 
 ## `meta` crates explained
 
-Project maintains a complete copy of `hotpath` (`hotpath-meta`), `hotpath-macros` (`hotpath-macros-meta`) and `hotpath-drain` (`hotpath-drain-meta`). All changes must be mirrored in their corresponding `-meta` crates. This adds some maintenance overhead, but it allows to benchmark the library using itself, which is an invaluable source of performance data and optimization insights.
+Project maintains a complete copy of `hotpath` (`hotpath-meta`), `hotpath-macros` (`hotpath-macros-meta`) and `hotpath-drain` (`hotpath-drain-meta`). This adds some maintenance overhead, but it allows to benchmark the library using itself, which is an invaluable source of performance data and optimization insights.
 
-A full copy is needed because a crate cannot depend on itself. Extracting shared core is also impractical, because `hotpath` uses a custom instrumentation logic (like `#[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure_all)]` calls). If you have ideas for a cleaner way to implement self-profiling without full crate duplication, I'm open to suggestions.
+A full copy is needed because a crate cannot depend on itself. Extracting shared core is also impractical, because `hotpath` uses a custom instrumentation logic (like `#[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure_all)]` calls). 
+
+Every PR must mirror its changes to the `-meta` crates, because the CI performance benchmarks depend on them. They profile the library using `hotpath-meta` crate to measure the performance impact of each change.
 
 To mirror changes from the source crates into the meta crates, you can use the [`syncmeta`](dev_skills/syncmeta/SKILL.md) LLM skill. It applies diffs from `hotpath`/`hotpath-macros`/`hotpath-drain` to their meta counterparts while preserving meta-specific naming (feature flags, env vars, crate imports).
 
 ## Benchmarking `hotpath` 
-
-### Self benchmarks
-
-Install [just](https://github.com/casey/just) and run:
-
-```bash
-just bench_meta
-```
-
-Starts a hotpath TUI for 5 seconds, gathers performance metrics and prints the report on exit. 
-
-- `HOTPATH_TUI_TAB` - set values from 1 to 6, to open a different TUI tab and execute different codepaths in the benchmark (default `1`)
-- `HOTPATH_BENCH_RELEASE` - set to `true` to run benchmarks with `--release` profile (default `false`)
-- `HOTPATH_TUI_REFRESH_INTERVAL_MS` - configure data refresh interval, lower values will produce more data (default `10`)
-- `HOTPATH_TUI_AUTO_EXPAND_LOGS` - Auto-open the logs panel once initial data arrives and pin selection to the given table index. Set to an integer (e.g. `0` for the first row, `2` for the third) (default: unset). 
-- `HOTPATH_META_FOCUS` - filter which methods appear in the benchmark report by name. Plain text does substring matching; wrap in `/pattern/` for regex (e.g. `HOTPATH_META_FOCUS="/^(compute|process)/"`).
 
 ### Overhead benchmarks
 
