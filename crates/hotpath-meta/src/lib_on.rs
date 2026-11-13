@@ -107,6 +107,7 @@ macro_rules! impl_lock_debug {
 pub(crate) use impl_lock_debug;
 
 pub use functions::allocator::CountingAllocator;
+#[cfg(feature = "hotpath-sink-meta")]
 pub use functions::sink::set_function_sink;
 pub use functions::{
     measure_async, measure_async_future, measure_async_future_log, measure_async_log,

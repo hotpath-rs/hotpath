@@ -3,7 +3,9 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 
 use crate::instant::Instant;
+#[cfg(feature = "hotpath-sink-meta")]
 use crate::lib_on::functions::sink::SinkScope;
+#[cfg(feature = "hotpath-sink-meta")]
 use crate::ScopeKind;
 
 #[derive(Debug, Default)]
@@ -161,6 +163,7 @@ pub struct MeasurementGuardSync {
     start: Option<Instant>,
     skipped: bool,
     caller_scoped: bool,
+    #[cfg(feature = "hotpath-sink-meta")]
     sink: Option<SinkScope>,
 }
 
@@ -188,6 +191,7 @@ impl MeasurementGuardSync {
         }
         // Entered before the clock read so hotpath's own timing stays inside
         // the sink scope and never includes the sink call.
+        #[cfg(feature = "hotpath-sink-meta")]
         let sink = SinkScope::enter(name, ScopeKind::of_guard(caller_scoped), skipped);
 
         Self {
@@ -197,6 +201,7 @@ impl MeasurementGuardSync {
             start: sampled_start(wrapper, skipped),
             skipped,
             caller_scoped,
+            #[cfg(feature = "hotpath-sink-meta")]
             sink,
         }
     }
@@ -211,6 +216,7 @@ impl Drop for MeasurementGuardSync {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink-meta")]
         if let Some(sink) = self.sink.take() {
             sink.exit(self.name);
         }
@@ -250,6 +256,7 @@ pub struct MeasurementGuardAsync {
     start: Option<Instant>,
     skipped: bool,
     alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+    #[cfg(feature = "hotpath-sink-meta")]
     sink: Option<SinkScope>,
 }
 
@@ -261,6 +268,7 @@ impl MeasurementGuardAsync {
         skipped: bool,
         alloc_bridge: Option<Arc<AsyncAllocBridge>>,
     ) -> Self {
+        #[cfg(feature = "hotpath-sink-meta")]
         let sink = SinkScope::enter(name, ScopeKind::Async, skipped);
         Self {
             name,
@@ -269,6 +277,7 @@ impl MeasurementGuardAsync {
             start: sampled_start(wrapper, skipped),
             skipped,
             alloc_bridge,
+            #[cfg(feature = "hotpath-sink-meta")]
             sink,
         }
     }
@@ -283,6 +292,7 @@ impl Drop for MeasurementGuardAsync {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink-meta")]
         if let Some(sink) = self.sink.take() {
             sink.exit(self.name);
         }
@@ -316,6 +326,7 @@ pub(crate) struct MeasurementGuardSyncWithLog {
     finished: bool,
     skipped: bool,
     caller_scoped: bool,
+    #[cfg(feature = "hotpath-sink-meta")]
     sink: Option<SinkScope>,
 }
 
@@ -334,6 +345,7 @@ impl MeasurementGuardSyncWithLog {
         }
         // Entered before the clock read so hotpath's own timing stays inside
         // the sink scope and never includes the sink call.
+        #[cfg(feature = "hotpath-sink-meta")]
         let sink = SinkScope::enter(name, ScopeKind::of_guard(caller_scoped), skipped);
 
         Self {
@@ -344,6 +356,7 @@ impl MeasurementGuardSyncWithLog {
             finished: false,
             skipped,
             caller_scoped,
+            #[cfg(feature = "hotpath-sink-meta")]
             sink,
         }
     }
@@ -357,6 +370,7 @@ impl MeasurementGuardSyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink-meta")]
         if let Some(sink) = self.sink.take() {
             sink.exit(self.name);
         }
@@ -399,6 +413,7 @@ impl Drop for MeasurementGuardSyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink-meta")]
         if let Some(sink) = self.sink.take() {
             sink.exit(self.name);
         }
@@ -441,6 +456,7 @@ pub struct MeasurementGuardAsyncWithLog {
     finished: bool,
     skipped: bool,
     alloc_bridge: Option<Arc<AsyncAllocBridge>>,
+    #[cfg(feature = "hotpath-sink-meta")]
     sink: Option<SinkScope>,
 }
 
@@ -452,6 +468,7 @@ impl MeasurementGuardAsyncWithLog {
         skipped: bool,
         alloc_bridge: Option<Arc<AsyncAllocBridge>>,
     ) -> Self {
+        #[cfg(feature = "hotpath-sink-meta")]
         let sink = SinkScope::enter(name, ScopeKind::Async, skipped);
         Self {
             name,
@@ -461,6 +478,7 @@ impl MeasurementGuardAsyncWithLog {
             finished: false,
             skipped,
             alloc_bridge,
+            #[cfg(feature = "hotpath-sink-meta")]
             sink,
         }
     }
@@ -474,6 +492,7 @@ impl MeasurementGuardAsyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink-meta")]
         if let Some(sink) = self.sink.take() {
             sink.exit(self.name);
         }
@@ -509,6 +528,7 @@ impl Drop for MeasurementGuardAsyncWithLog {
 
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink-meta")]
         if let Some(sink) = self.sink.take() {
             sink.exit(self.name);
         }

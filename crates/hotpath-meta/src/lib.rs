@@ -227,6 +227,8 @@ pub use shared::{env_flag, Format, IntoF64, Section};
 
 mod function_sink;
 pub use function_sink::{FunctionSink, FunctionSinkAlreadySet, ScopeKind};
+#[cfg(not(feature = "hotpath-sink-meta"))]
+pub use function_sink::set_function_sink;
 
 #[doc(hidden)]
 pub mod dev_logging;
