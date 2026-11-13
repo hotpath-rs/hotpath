@@ -104,12 +104,12 @@ impl<M> EventQueue<M> {
             // chunk in the ring stays allocated until `EventQueue::drop`.
             let chunk = unsafe { &*chunk_ptr };
             let len = chunk.len.load(Ordering::Acquire);
-            for i in consumed..len {
+            for slot in &chunk.slots[consumed..len] {
                 // SAFETY: the `Acquire` load of `len` synchronizes with the
                 // producer's `Release` publish, so slots `..len` are
                 // initialized; slots below `consumed` were already read out
                 // and are never touched twice (consumer-only cursor).
-                out.push(unsafe { (*chunk.slots[i].get()).assume_init_read() });
+                out.push(unsafe { (*slot.get()).assume_init_read() });
             }
             consumed = len;
             if len == CHUNK_SIZE {
@@ -151,11 +151,11 @@ impl<M> Drop for EventQueue<M> {
             // ring is live and owned by this queue.
             let chunk = unsafe { &mut *chunk_ptr };
             let len = *chunk.len.get_mut();
-            for i in consumed..len {
+            for slot in &chunk.slots[consumed..len] {
                 // SAFETY: slots `consumed..len` were initialized by the
                 // producer and never read out, so each holds a live `M` that
                 // is dropped exactly once here.
-                unsafe { (*chunk.slots[i].get()).assume_init_drop() };
+                unsafe { (*slot.get()).assume_init_drop() };
             }
             consumed = 0;
             let next = *chunk.next.get_mut();
