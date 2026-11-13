@@ -8,7 +8,7 @@ Compare each PR's benchmark results against its baseline to find functions that 
 
 <div class="cta-row">
   <a class="agent-pill cta-link" target="_blank" href="/app">Get started</a>
-  <a class="agent-pill cta-link cta-secondary" target="_blank" href="https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a124b3-d1f1-72ea-87ce-95057a276319/diff">See example performance diff</a>
+  <a class="agent-pill cta-link cta-secondary" target="_blank" href="https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a1846c-6da4-7cf6-a648-275e812a76b9/diff">See example performance diff</a>
 </div>
 
 The [GitHub Actions integration](ci_integration.md) compares benchmark results against a baseline and posts a PR comment whenever a significant regression or improvement is detected:
