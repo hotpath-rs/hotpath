@@ -1,6 +1,10 @@
 use crate::instant::Instant;
 
+#[cfg(feature = "hotpath-sink-meta")]
+use crate::lib_on::functions::sink::SinkScope;
 use crate::output_on::format_debug_truncated;
+#[cfg(feature = "hotpath-sink-meta")]
+use crate::ScopeKind;
 
 /// Wrapper guards are never sampled - their exact total is the `%` denominator.
 /// Unsampled guards skip the start clock read and send a `None` duration;
@@ -26,6 +30,8 @@ pub struct MeasurementGuard {
     tid: u64,
     skipped: bool,
     caller_scoped: bool,
+    #[cfg(feature = "hotpath-sink-meta")]
+    sink: Option<SinkScope>,
 }
 
 impl MeasurementGuard {
@@ -48,6 +54,10 @@ impl MeasurementGuard {
         if caller_scoped {
             crate::lib_on::caller_stack::push_caller(name);
         }
+        // Entered before the clock read so hotpath's own timing stays inside
+        // the sink scope and never includes the sink call.
+        #[cfg(feature = "hotpath-sink-meta")]
+        let sink = SinkScope::enter(name, ScopeKind::of_guard(caller_scoped), skipped);
         Self {
             name,
             start: sampled_start(wrapper, skipped),
@@ -59,6 +69,8 @@ impl MeasurementGuard {
             },
             skipped,
             caller_scoped,
+            #[cfg(feature = "hotpath-sink-meta")]
+            sink,
         }
     }
 }
@@ -70,6 +82,10 @@ impl Drop for MeasurementGuard {
             return;
         }
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink-meta")]
+        if let Some(sink) = self.sink.take() {
+            sink.exit(self.name);
+        }
         let duration_ns = self
             .start
             .map(|start| end.duration_since(start).as_nanos() as u64);
@@ -100,6 +116,8 @@ pub struct MeasurementGuardWithLog {
     finished: bool,
     skipped: bool,
     caller_scoped: bool,
+    #[cfg(feature = "hotpath-sink-meta")]
+    sink: Option<SinkScope>,
 }
 
 impl MeasurementGuardWithLog {
@@ -121,6 +139,10 @@ impl MeasurementGuardWithLog {
         if caller_scoped {
             crate::lib_on::caller_stack::push_caller(name);
         }
+        // Entered before the clock read so hotpath's own timing stays inside
+        // the sink scope and never includes the sink call.
+        #[cfg(feature = "hotpath-sink-meta")]
+        let sink = SinkScope::enter(name, ScopeKind::of_guard(caller_scoped), skipped);
         Self {
             name,
             start: sampled_start(wrapper, skipped),
@@ -133,6 +155,8 @@ impl MeasurementGuardWithLog {
             finished: false,
             skipped,
             caller_scoped,
+            #[cfg(feature = "hotpath-sink-meta")]
+            sink,
         }
     }
 
@@ -143,6 +167,10 @@ impl MeasurementGuardWithLog {
             return;
         }
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink-meta")]
+        if let Some(sink) = self.sink.take() {
+            sink.exit(self.name);
+        }
         let duration_ns = self
             .start
             .map(|start| end.duration_since(start).as_nanos() as u64);
@@ -171,6 +199,10 @@ impl Drop for MeasurementGuardWithLog {
             return;
         }
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink-meta")]
+        if let Some(sink) = self.sink.take() {
+            sink.exit(self.name);
+        }
         let duration_ns = self
             .start
             .map(|start| end.duration_since(start).as_nanos() as u64);
