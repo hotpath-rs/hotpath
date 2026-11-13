@@ -20,6 +20,7 @@ pub(crate) mod callgrind;
 pub use callgrind::{register_callgrind_marker, CallgrindFuture};
 
 pub(crate) mod allocator;
+pub(crate) mod sink;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "hotpath-alloc")] {

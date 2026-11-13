@@ -178,6 +178,44 @@ fn main() {
 
 If `hotpath` feature is disabled, the code inside block will still execute.
 
+## Function sink
+
+`hotpath::set_function_sink` installs a callback that sees every `#[measure]` and `measure_block!` scope as it runs, instead of only the aggregated report. Use it to feed individual calls into an external recorder, such as a timeline viewer or a tracing bridge.
+
+```rust
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use hotpath::{FunctionSink, ScopeKind};
+
+#[derive(Default)]
+struct Timeline {
+    next: AtomicU64,
+}
+
+impl FunctionSink for Timeline {
+    fn enter(&self, name: &'static str, kind: ScopeKind) -> u64 {
+        // record the start of `name`
+        self.next.fetch_add(1, Ordering::Relaxed)
+    }
+
+    fn exit(&self, name: &'static str, kind: ScopeKind, token: u64) {
+        // record the end of the scope started by `token`
+    }
+}
+
+#[hotpath::main]
+fn main() {
+    hotpath::set_function_sink(Timeline::default()).unwrap();
+    // ...
+}
+```
+
+- Both methods run inline on the instrumented thread, so keep them cheap and non-blocking.
+- `ScopeKind::Sync` scopes are sync function bodies: `exit` runs on the thread that called `enter`, and they nest strictly per thread. `ScopeKind::Async` scopes (`async fn`, `measure_block!`, the `#[main]` wrapper) can suspend across `.await` and exit on another thread. Pair those by the token `enter` returned.
+- The sink is called whether or not a guard is alive and regardless of time sampling. Scopes filtered out by `HOTPATH_FOCUS` are not reported, and neither are scopes entered before the sink was installed.
+- Only one sink can be installed per process. A second call returns `FunctionSinkAlreadySet`. Without the `hotpath` feature the call is a no-op and the sink is never called.
+- With no sink installed, each scope pays for one extra atomic load.
+
 ## Memory and allocations profiling
 
 In addition to time-based profiling, `hotpath` can track memory allocations. This feature uses a custom global allocator from [allocation-counter crate](https://github.com/fornwall/allocation-counter) to intercept all memory allocations and provides detailed statistics about memory usage per function. The [Rust memory profiling guide](/blog/profiling-rust-guide#memory-allocations) uses this report to remove `String` clone allocations.

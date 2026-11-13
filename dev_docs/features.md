@@ -8,6 +8,7 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 - **Attribute macros** and their parameters: doc comments in `crates/hotpath-macros/src/lib.rs`.
 - **Declarative macros**: `crates/hotpath/src/lib_on.rs`; wrapper macros (`channel!`, `stream!`, `io!`, ...) are `#[macro_export]` in the matching `lib_on/<subsystem>.rs`. Every macro has a no-op twin in `lib_off.rs`.
 - **Builder API**: `HotpathGuardBuilder` in `lib_on/hotpath_guard.rs`.
+- **Function sink**: public types in `src/function_sink.rs`, the static and the per-guard `SinkScope` in `lib_on/functions/sink.rs`; every guard in `functions/timing/guard.rs` and `functions/alloc/guard.rs` must enter it on build and exit it on drop/finish.
 - **Environment variables**: user-facing reference in `docs/src/configuration.md`; find parse sites with `rg 'HOTPATH_' crates/hotpath/src crates/hotpath/bin`.
 - **Report JSON types**: `crates/hotpath/src/json.rs` and `src/json/formatted.rs`; report builders in `lib_on/report.rs`.
 

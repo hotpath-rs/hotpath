@@ -301,5 +301,8 @@ pub mod wrap {
 mod shared;
 pub use shared::{env_flag, Format, IntoF64, Section};
 
+mod function_sink;
+pub use function_sink::{FunctionSink, FunctionSinkAlreadySet, ScopeKind};
+
 #[doc(hidden)]
 pub mod dev_logging;
