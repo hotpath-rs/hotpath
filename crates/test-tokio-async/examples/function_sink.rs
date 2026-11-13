@@ -3,7 +3,7 @@
 //! scope reports the expected `ScopeKind`.
 //!
 //! Run with:
-//!   cargo run -p test-tokio-async --example function_sink --features hotpath
+//!   cargo run -p test-tokio-async --example function_sink --features hotpath-sink
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -176,14 +176,14 @@ async fn main() {
     }
 
     let events = events().lock().unwrap();
-    if cfg!(feature = "hotpath") {
+    if cfg!(feature = "hotpath-sink") {
         assert_eq!(
             hotpath::set_function_sink(OtherSink),
             Err(hotpath::FunctionSinkAlreadySet)
         );
         verify(&events);
     } else {
-        assert!(events.is_empty(), "sink called with profiling disabled");
+        assert!(events.is_empty(), "sink called without the hotpath-sink feature");
     }
     println!("function_sink ok: {} events", events.len());
 }

@@ -182,6 +182,13 @@ If `hotpath` feature is disabled, the code inside block will still execute.
 
 `hotpath::set_function_sink` installs a callback that sees every `#[measure]` and `measure_block!` scope as it runs, instead of only the aggregated report. Use it to feed individual calls into an external recorder, such as a timeline viewer or a tracing bridge.
 
+The sink is behind its own feature, so builds that do not use it carry no sink state in their measurement guards:
+
+```toml
+[features]
+hotpath-sink = ["hotpath", "hotpath/hotpath-sink"]
+```
+
 ```rust
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -213,8 +220,9 @@ fn main() {
 - Both methods run inline on the instrumented thread, so keep them cheap and non-blocking.
 - `ScopeKind::Sync` scopes are sync function bodies: `exit` runs on the thread that called `enter`, and they nest strictly per thread. `ScopeKind::Async` scopes (`async fn`, `measure_block!`, the `#[main]` wrapper) can suspend across `.await` and exit on another thread. Pair those by the token `enter` returned.
 - The sink is called whether or not a guard is alive and regardless of time sampling. Scopes filtered out by `HOTPATH_FOCUS` are not reported, and neither are scopes entered before the sink was installed.
-- Only one sink can be installed per process. A second call returns `FunctionSinkAlreadySet`. Without the `hotpath` feature the call is a no-op and the sink is never called.
-- With no sink installed, each scope pays for one extra atomic load.
+- Only one sink can be installed per process. A second call returns `FunctionSinkAlreadySet`.
+- Without the `hotpath-sink` feature, `set_function_sink` is a no-op that drops the sink, so the call site needs no feature gate.
+- With `hotpath-sink` enabled but no sink installed, each scope pays for one extra atomic load.
 
 ## Memory and allocations profiling
 

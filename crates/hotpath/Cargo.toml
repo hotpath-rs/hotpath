@@ -74,6 +74,9 @@ hotpath-cpu = ["hotpath", "hotpath-macros/hotpath-cpu", "dep:object", "dep:rustc
 hotpath-callgrind = ["hotpath", "hotpath-macros/hotpath-callgrind"]
 hotpath-mcp = ["hotpath", "dep:rmcp", "dep:tokio", "tokio/rt", "tokio/net", "dep:axum", "axum/http1", "axum/tokio", "dep:tokio-util", "dep:schemars"]
 hotpath-prometheus = ["hotpath", "dep:prost"]
+# Calls the `FunctionSink` installed with `set_function_sink` on every measured
+# scope. Off by default: without it the guards carry no sink state at all.
+hotpath-sink = ["hotpath"]
 
 [dependencies]
 arc-swap = { version = "1.7", optional = true }
@@ -138,7 +141,7 @@ quanta = { version = "0.12", optional = true }
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
 
 [package.metadata.docs.rs]
-features = ["hotpath-alloc"]
+features = ["hotpath-alloc", "hotpath-sink"]
 
 [dev-dependencies]
 tokio = { version = "1.47", features = ["rt", "rt-multi-thread", "macros", "sync", "time"] }

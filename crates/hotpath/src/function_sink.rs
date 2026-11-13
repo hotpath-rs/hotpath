@@ -19,7 +19,8 @@ pub enum ScopeKind {
 
 /// Receives every measured function scope while it runs.
 ///
-/// Install one per process with [`set_function_sink`](crate::set_function_sink).
+/// Install one per process with [`set_function_sink`](crate::set_function_sink),
+/// which only reports scopes when the `hotpath-sink` feature is enabled.
 /// Both methods run inline on the instrumented thread, so they must be cheap
 /// and must never block. They are called whether or not a
 /// [`HotpathGuard`](crate::HotpathGuard) is alive and regardless of time
@@ -63,3 +64,16 @@ impl std::fmt::Display for FunctionSinkAlreadySet {
 }
 
 impl std::error::Error for FunctionSinkAlreadySet {}
+
+/// No-op without the `hotpath-sink` feature: no scope is reported, so the sink
+/// is dropped and never called. The signature matches the enabled
+/// implementation, so callers need no feature gate of their own.
+///
+/// # Errors
+///
+/// Never fails.
+#[cfg(not(feature = "hotpath-sink"))]
+#[inline]
+pub fn set_function_sink(_sink: impl FunctionSink) -> Result<(), FunctionSinkAlreadySet> {
+    Ok(())
+}

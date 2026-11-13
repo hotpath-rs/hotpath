@@ -12,15 +12,21 @@ pub mod tests {
             .stdout()
     }
 
-    // cargo run -p test-tokio-async --example function_sink --features hotpath
+    // cargo run -p test-tokio-async --example function_sink --features hotpath-sink
     #[test]
     fn test_function_sink_timing() {
-        assert!(run("hotpath").contains("function_sink ok: 132 events"));
+        assert!(run("hotpath-sink").contains("function_sink ok: 132 events"));
     }
 
-    // cargo run -p test-tokio-async --example function_sink --features hotpath-alloc
+    // cargo run -p test-tokio-async --example function_sink --features hotpath-alloc,hotpath-sink
     #[test]
     fn test_function_sink_alloc() {
-        assert!(run("hotpath-alloc").contains("function_sink ok: 132 events"));
+        assert!(run("hotpath-alloc,hotpath-sink").contains("function_sink ok: 132 events"));
+    }
+
+    // cargo run -p test-tokio-async --example function_sink --features hotpath
+    #[test]
+    fn test_function_sink_off_without_feature() {
+        assert!(run("hotpath").contains("function_sink ok: 0 events"));
     }
 }

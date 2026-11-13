@@ -1,7 +1,9 @@
 use crate::instant::Instant;
 
+#[cfg(feature = "hotpath-sink")]
 use crate::lib_on::functions::sink::SinkScope;
 use crate::output_on::format_debug_truncated;
+#[cfg(feature = "hotpath-sink")]
 use crate::ScopeKind;
 
 /// Wrapper guards are never sampled - their exact total is the `%` denominator.
@@ -28,6 +30,7 @@ pub struct MeasurementGuard {
     tid: u64,
     skipped: bool,
     caller_scoped: bool,
+    #[cfg(feature = "hotpath-sink")]
     sink: Option<SinkScope>,
 }
 
@@ -54,6 +57,7 @@ impl MeasurementGuard {
         }
         // Entered before the clock read so hotpath's own timing stays inside
         // the sink scope and never includes the sink call.
+        #[cfg(feature = "hotpath-sink")]
         let sink = SinkScope::enter(name, ScopeKind::of_guard(caller_scoped), skipped);
         Self {
             name,
@@ -66,6 +70,7 @@ impl MeasurementGuard {
             },
             skipped,
             caller_scoped,
+            #[cfg(feature = "hotpath-sink")]
             sink,
         }
     }
@@ -78,6 +83,7 @@ impl Drop for MeasurementGuard {
             return;
         }
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink")]
         if let Some(sink) = self.sink.take() {
             sink.exit(self.name);
         }
@@ -111,6 +117,7 @@ pub struct MeasurementGuardWithLog {
     finished: bool,
     skipped: bool,
     caller_scoped: bool,
+    #[cfg(feature = "hotpath-sink")]
     sink: Option<SinkScope>,
 }
 
@@ -136,6 +143,7 @@ impl MeasurementGuardWithLog {
         }
         // Entered before the clock read so hotpath's own timing stays inside
         // the sink scope and never includes the sink call.
+        #[cfg(feature = "hotpath-sink")]
         let sink = SinkScope::enter(name, ScopeKind::of_guard(caller_scoped), skipped);
         Self {
             name,
@@ -149,6 +157,7 @@ impl MeasurementGuardWithLog {
             finished: false,
             skipped,
             caller_scoped,
+            #[cfg(feature = "hotpath-sink")]
             sink,
         }
     }
@@ -160,6 +169,7 @@ impl MeasurementGuardWithLog {
             return;
         }
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink")]
         if let Some(sink) = self.sink.take() {
             sink.exit(self.name);
         }
@@ -191,6 +201,7 @@ impl Drop for MeasurementGuardWithLog {
             return;
         }
         let end = Instant::now();
+        #[cfg(feature = "hotpath-sink")]
         if let Some(sink) = self.sink.take() {
             sink.exit(self.name);
         }
