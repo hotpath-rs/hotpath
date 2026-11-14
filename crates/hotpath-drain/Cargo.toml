@@ -1,6 +1,6 @@
 [package]
 name = "hotpath-drain"
-version = "0.31.2"
+version = "0.31.3"
 edition = "2021"
 repository = "https://github.com/hotpath-rs/hotpath"
 homepage = "https://hotpath.rs"
