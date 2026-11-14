@@ -99,3 +99,13 @@ Replace `OWNER/NAME` with your GitHub repository. The page opens once the hotpat
 
 - **Public repositories:** free, now and after the beta. `hotpath-cloud` will always offer a free plan for public repositories.
 - **Private repositories:** free during the open beta. Paid plans for private repositories will be introduced after the beta.
+
+### Limits
+
+Every repository, public or private, currently has these limits:
+
+- **Benchmarks:** 8 per repository.
+- **Performance budgets:** 20 budget rules per policy file.
+- **Reports:** the 1,000 most recent reports of each repository are kept. Older reports are deleted, except each benchmark's latest report and latest baseline.
+
+Higher limits will be available once paid plans are introduced.

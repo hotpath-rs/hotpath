@@ -216,7 +216,7 @@ Trimmed answer:
 How to read it:
 
 - `verdict` covers the comparison and the [budgets](performance_budgets.md) together. `judged` says whether anything was judged, `regressed` whether a judged section regressed or a budget broke.
-- `result.status` is `compared`, `no_baseline` or `unreadable`. Budgets are checked without a baseline too.
+- `result.status` is `compared`, `no_baseline`, `baseline_deleted` or `unreadable`. `baseline_deleted` means the report was compared at upload, but its baseline has since been deleted under the repository's [report limit](cloud.md#limits); its `deleted_at` says when, and the verdict recorded at upload stands. Budgets are checked without a baseline too.
 - Each section is one section of the [regression policy](regression_policy.md). A row's `outcome` is `regression`, `improvement`, `added` or `removed`, and its `cells` are the values that explain it. A cell with `crossed` went past the policy's `min_percent_change`, `up` or `down`.
 - Values are strings formatted as the comment shows them, with their `unit`. `change_percent` is the exact number to reason about.
 - `budgets.findings` lists the broken budget checks, each with its entry, `actual`, `limit` and the rule's `message`.

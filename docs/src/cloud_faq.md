@@ -23,7 +23,7 @@ hotpath-cloud is free to use during the open beta. Paid plans will be introduced
 
 ## How long are benchmark reports kept?
 
-The retention policy will be finalized after the beta. Every plan, including the free one, will keep at least a few hundred of the most recent benchmark reports.
+Each repository keeps its 1,000 most recent benchmark reports; older ones are deleted. Higher limits will be available once paid plans are introduced. See [Limits](cloud.md#limits).
 
 ## What happens to my CI if the hotpath-cloud backend is down?
 
