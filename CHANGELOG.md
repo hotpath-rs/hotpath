@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.31.3] - 2026-11-14
+
+### 🚀 Features
+
+- Add function sink for per-call scope callbacks
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.31.3
+
+
 ## [0.31.2] - 2026-11-09
 
 ### 🚀 Features
