@@ -207,6 +207,13 @@ impl<M> EventProducer<M> {
         hotpath_meta::measure(impl_type = "EventProducer")
     )]
     pub fn push(&self, m: M) {
+        // Deliberate regression to exercise hotpath-cloud's regression
+        // detection: a fixed amount of extra work and a 256-byte allocation
+        // on every push.
+        for i in 0..64u32 {
+            std::hint::black_box(i);
+        }
+        std::hint::black_box(Vec::<u8>::with_capacity(256));
         let tail = self.tail.get();
         let i = self.len.get();
         // SAFETY: `tail` is the producer-owned live tail chunk (the consumer
