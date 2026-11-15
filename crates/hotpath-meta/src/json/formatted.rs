@@ -1306,6 +1306,14 @@ pub struct JsonGitInfo {
     /// authorizes from the upload credential, never from this.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub repository: Option<String>,
+    /// Committer timestamp of `sha`, RFC 3339 UTC on the wire. Omitted when
+    /// git cannot resolve the commit from the checkout.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "time::serde::rfc3339::option"
+    )]
+    pub committed_at: Option<OffsetDateTime>,
 }
 
 /// How the run was produced. Field names are provider-neutral; `provider` is

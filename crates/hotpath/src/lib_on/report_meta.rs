@@ -153,10 +153,13 @@ fn merge_git_info(
     let Some(ci) = ci else {
         return local;
     };
-    let (sha, local_ref, repository) = match local {
-        Some(git) => (Some(git.sha), git.r#ref, git.repository),
-        None => (None, None, None),
+    let (sha, local_ref, repository, committed_at) = match local {
+        Some(git) => (Some(git.sha), git.r#ref, git.repository, git.committed_at),
+        None => (None, None, None, None),
     };
+    // The local sha wins whenever there is one, so `committed_at` (read for
+    // that sha) always describes the final sha; a sha only the environment
+    // names gets no timestamp.
     let sha = sha.or_else(|| ci.sha.clone())?;
     let describes_checkout = ci.sha.as_deref() == Some(sha.as_str());
 
@@ -169,6 +172,7 @@ fn merge_git_info(
         base_sha: ci.base_sha.clone().filter(|base| base != &sha),
         repository: repository.or_else(|| ci.repository.clone()),
         sha,
+        committed_at,
     })
 }
 
@@ -252,6 +256,7 @@ mod tests {
         const CI_SHA: &str = "2222222222222222222222222222222222222222";
         const BASE_SHA: &str = "3333333333333333333333333333333333333333";
         const HEAD_SHA: &str = "4444444444444444444444444444444444444444";
+        const COMMITTED_AT: time::OffsetDateTime = datetime!(2026-11-15 14:30:00 UTC);
 
         fn detached_local(sha: &str) -> JsonGitInfo {
             JsonGitInfo {
@@ -259,6 +264,7 @@ mod tests {
                 r#ref: None,
                 base_sha: None,
                 repository: Some("hotpath-rs/hotpath".to_string()),
+                committed_at: Some(COMMITTED_AT),
             }
         }
 
@@ -311,6 +317,8 @@ mod tests {
             assert_eq!(git.sha, LOCAL_SHA);
             assert_eq!(git.r#ref, None);
             assert_eq!(git.base_sha.as_deref(), Some(BASE_SHA));
+            // The timestamp was read for the checked-out sha, which won.
+            assert_eq!(git.committed_at, Some(COMMITTED_AT));
         }
 
         /// A job that checked out the base commit is measuring the base, so it
@@ -357,6 +365,8 @@ mod tests {
             assert_eq!(git.r#ref.as_deref(), Some("refs/pull/42/merge"));
             assert_eq!(git.base_sha.as_deref(), Some(BASE_SHA));
             assert_eq!(git.repository.as_deref(), Some("pawurb/other-name"));
+            // Nothing read the commit the environment names.
+            assert_eq!(git.committed_at, None);
 
             assert!(merge_git_info(None, None).is_none());
         }
@@ -368,7 +378,10 @@ mod tests {
                 os: "macos-aarch64".to_string(),
                 created_at: datetime!(2026-08-27 10:15:42 UTC),
                 source_root: Some(String::new()),
-                git: Some(detached_local(LOCAL_SHA)),
+                git: Some(JsonGitInfo {
+                    committed_at: None,
+                    ..detached_local(LOCAL_SHA)
+                }),
                 ci: None,
                 benchmark: None,
                 policy: None,
@@ -411,12 +424,15 @@ mod tests {
             };
             let sent = meta.policy.clone();
             let json = serde_json::to_string(&meta).unwrap();
+            let wire: serde_json::Value = serde_json::from_str(&json).unwrap();
+            assert_eq!(wire["git"]["committed_at"], "2026-11-15T14:30:00Z");
             let back: JsonMeta = serde_json::from_str(&json).unwrap();
 
             let git = back.git.expect("git info");
             assert_eq!(git.sha, LOCAL_SHA);
             assert_eq!(git.base_sha.as_deref(), Some(BASE_SHA));
             assert_eq!(git.repository.as_deref(), Some("hotpath-rs/hotpath"));
+            assert_eq!(git.committed_at, Some(COMMITTED_AT));
             let ci = back.ci.expect("ci info");
             assert_eq!(ci.provider, "github-actions");
             assert_eq!(ci.event, "pull_request");
@@ -443,6 +459,7 @@ mod tests {
             let git = meta.git.expect("git info");
             assert_eq!(git.base_sha, None);
             assert_eq!(git.repository, None);
+            assert_eq!(git.committed_at, None);
             assert!(meta.ci.is_none());
             assert!(meta.benchmark.is_none());
             assert!(meta.policy.is_none());

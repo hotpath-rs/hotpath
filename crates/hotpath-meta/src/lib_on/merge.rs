@@ -456,6 +456,7 @@ mod tests {
                 r#ref: Some("refs/pull/7/merge".to_string()),
                 base_sha: Some("b0b0".to_string()),
                 repository: Some("o/r".to_string()),
+                committed_at: None,
             }),
             ci: Some(JsonCiInfo {
                 provider: "github-actions".to_string(),
