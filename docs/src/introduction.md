@@ -418,4 +418,4 @@ Explore the docs for customization options and advanced profiling features.
 
 ## Building in public
 
-[Follow @pawelurbanekcom on X](https://x.com/pawelurbanekcom) or [subscribe to the mailing list](https://eepurl.com/dhuFg5) for development updates, new releases and performance tips.
+[Follow @pawelurbanekcom on X](https://x.com/pawelurbanekcom) or <a href="https://eepurl.com/dhuFg5" target="_blank" rel="noopener noreferrer" data-newsletter-open>subscribe to the mailing list</a> for development updates, new releases and performance tips.

@@ -16,7 +16,9 @@ The website uses cookies. They are used only to keep you logged in and to rememb
 
 We use Ahrefs Web Analytics to collect anonymized website visits data on the documentation and blog pages. It does not use cookies and does not store any personally identifiable information.
 
-The service is hosted on Amazon Web Services in the United States (us-east-1), behind Cloudflare.
+The blog offers an optional email newsletter. If you subscribe, your email address and marketing consent are stored by Mailchimp (Intuit Inc., United States), which we use to send the newsletter. The newsletter is shared with pawelurbanek.com. The signup form loads its scripts from Mailchimp's servers only after you open it. We process this data based on your consent, which you can withdraw at any time with the unsubscribe link in any newsletter email or by contacting us. Your data is kept until you unsubscribe. Mailchimp handles it under its own [privacy policy](https://www.intuit.com/privacy/statement/).
+
+The service is hosted on Amazon Web Services in the United States (us-east-1), and Hetzner US datacenter, behind Cloudflare.
 
 We process your account and connection data because it is necessary to provide the service to you, and access logs based on our legitimate interest in operating and securing the service.
 
