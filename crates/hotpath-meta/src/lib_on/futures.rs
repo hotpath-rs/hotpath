@@ -174,7 +174,7 @@ impl From<&FutureEntry> for JsonFutureEntry {
             id: Some(stats.id),
             source: source.to_string(),
             label,
-            has_custom_label: stats.label.is_some(),
+            labeled: stats.label.is_some(),
             call_count: stats.logs_count,
             total_polls: stats.total_polls(),
             sampled_polls: stats.sampled_polls,

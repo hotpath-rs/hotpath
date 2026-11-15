@@ -90,4 +90,60 @@ mod tests {
         assert!(names.contains(&"shared"), "{names:?}");
         assert!(names.contains(&"shared-block"), "{names:?}");
     }
+
+    // cargo run -p test-all-features --example unique_labels --features hotpath
+    #[test]
+    fn test_labeled_marks_user_named_entries() {
+        let report = Example::new("test-all-features", "unique_labels").report();
+
+        let functions = report.functions_timing.expect("No functions section");
+        let labeled: Vec<(&str, bool)> = functions
+            .data
+            .iter()
+            .map(|e| (e.name.as_str(), e.labeled))
+            .collect();
+        for (name, expected) in [
+            ("shared", true),
+            ("shared-block", true),
+            ("shared-block-runtime", true),
+            ("unique_labels::unlabeled", false),
+            ("main", false),
+        ] {
+            assert!(labeled.contains(&(name, expected)), "{name}: {labeled:?}");
+        }
+
+        let channels = report.channels.expect("No channels section");
+        let channels: Vec<(&str, bool)> = channels
+            .data
+            .iter()
+            .map(|e| (e.label.as_str(), e.labeled))
+            .collect();
+        assert!(channels.contains(&("shared", true)), "{channels:?}");
+        assert!(channels.contains(&("shared-runtime", true)), "{channels:?}");
+        assert!(
+            channels.iter().any(|&(_, labeled)| !labeled),
+            "{channels:?}"
+        );
+
+        let streams = report.streams.expect("No streams section");
+        assert!(streams.data.iter().all(|e| e.labeled), "{:?}", streams.data);
+        let futures = report.futures.expect("No futures section");
+        assert!(futures.data.iter().all(|e| e.labeled));
+        let mutexes = report.mutexes.expect("No mutexes section");
+        assert!(mutexes.data.iter().all(|e| e.labeled));
+        let rw_locks = report.rw_locks.expect("No rw_locks section");
+        assert!(rw_locks.data.iter().all(|e| e.labeled));
+        let io = report.io.expect("No io section");
+        assert!(io.data.iter().all(|e| e.labeled));
+    }
+
+    #[test]
+    fn test_labeled_defaults_to_false_when_absent() {
+        let entry: hotpath::json::JsonFunctionEntry = serde_json::from_value(serde_json::json!({
+            "name": "f", "calls": 1, "sampled_calls": 1, "avg": "1 ns", "total": "1 ns",
+            "percent_total": "100.00%"
+        }))
+        .unwrap();
+        assert!(!entry.labeled);
+    }
 }

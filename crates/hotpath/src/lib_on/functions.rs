@@ -410,24 +410,41 @@ pub(crate) static FUNCTIONS_STATE: OnceLock<
 pub(crate) static FUNCTIONS_QUERY_TX: OnceLock<crossbeam_channel::Sender<FunctionsQuery>> =
     OnceLock::new();
 
-static CPU_LABEL_ALIASES: OnceLock<crate::lib_on::MetaRwLock<HashMap<&'static str, &'static str>>> =
-    OnceLock::new();
+static FUNCTION_LABELS: OnceLock<
+    crate::lib_on::MetaRwLock<HashMap<&'static str, Option<&'static str>>>,
+> = OnceLock::new();
 
 #[doc(hidden)]
-pub fn register_cpu_label_alias(label: &'static str, symbol: &'static str) {
+pub fn register_function_label(label: &'static str, symbol: Option<&'static str>) {
     let _suspend = crate::lib_on::SuspendAllocTracking::new();
-    let map = CPU_LABEL_ALIASES
-        .get_or_init(|| crate::lib_on::meta_rw_lock!("cpu_label_aliases", HashMap::new()));
+    let map = FUNCTION_LABELS
+        .get_or_init(|| crate::lib_on::meta_rw_lock!("function_labels", HashMap::new()));
     if let Ok(mut w) = map.write() {
-        w.entry(label).or_insert(symbol);
+        let slot = w.entry(label).or_insert(symbol);
+        if slot.is_none() {
+            *slot = symbol;
+        }
     }
+}
+
+pub(crate) fn is_labeled(name: &str) -> bool {
+    FUNCTION_LABELS
+        .get()
+        .and_then(|m| m.read().ok().map(|g| g.contains_key(name)))
+        .unwrap_or(false)
 }
 
 #[cfg(feature = "hotpath-cpu")]
 pub(crate) fn get_cpu_label_aliases() -> HashMap<&'static str, &'static str> {
-    CPU_LABEL_ALIASES
+    FUNCTION_LABELS
         .get()
-        .and_then(|m| m.read().ok().map(|g| g.clone()))
+        .and_then(|m| {
+            m.read().ok().map(|g| {
+                g.iter()
+                    .filter_map(|(&label, &symbol)| Some((label, symbol?)))
+                    .collect()
+            })
+        })
         .unwrap_or_default()
 }
 

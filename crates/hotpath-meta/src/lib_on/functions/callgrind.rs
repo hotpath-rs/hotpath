@@ -330,6 +330,7 @@ pub(crate) fn build_icount_list(
                 total: ir.to_string(),
                 percent_total: format!("{percentage:.2}%"),
                 location: crate::lib_on::locations::lookup_location(name),
+                labeled: crate::lib_on::functions::is_labeled(name),
             }
         })
         .collect();

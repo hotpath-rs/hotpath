@@ -98,6 +98,8 @@ pub struct JsonFunctionEntry {
     pub percent_total: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<JsonLocation>,
+    #[serde(default)]
+    pub labeled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -134,6 +136,8 @@ pub struct JsonFunctionCpuEntry {
     pub name: String,
     pub samples: u64,
     pub percent: String,
+    #[serde(default)]
+    pub labeled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -338,7 +342,8 @@ pub struct JsonChannelEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    pub has_custom_label: bool,
+    #[serde(default)]
+    pub labeled: bool,
     pub channel_type: String,
     /// `None` for aggregated entries (`instances > 1`): their instances open
     /// and close independently, so no single state applies. Rendered as `-`.
@@ -388,7 +393,8 @@ pub struct JsonRwLockEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    pub has_custom_label: bool,
+    #[serde(default)]
+    pub labeled: bool,
     pub type_name: String,
     pub read_count: u64,
     pub write_count: u64,
@@ -424,7 +430,8 @@ pub struct JsonMutexEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    pub has_custom_label: bool,
+    #[serde(default)]
+    pub labeled: bool,
     pub type_name: String,
     pub count: u64,
     pub sampled_count: u64,
@@ -676,7 +683,8 @@ pub struct JsonIoEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    pub has_custom_label: bool,
+    #[serde(default)]
+    pub labeled: bool,
     pub type_name: String,
     pub read: JsonIoOpStats,
     pub write: JsonIoOpStats,
@@ -812,7 +820,8 @@ pub struct JsonStreamEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    pub has_custom_label: bool,
+    #[serde(default)]
+    pub labeled: bool,
     /// `None` for aggregated entries (`instances > 1`): their instances
     /// complete independently, so no single state applies. Rendered as `-`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -864,7 +873,8 @@ pub struct JsonFutureEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    pub has_custom_label: bool,
+    #[serde(default)]
+    pub labeled: bool,
     pub call_count: u64,
     pub total_polls: u64,
     pub sampled_polls: u64,

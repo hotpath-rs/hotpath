@@ -31,7 +31,7 @@ pub mod tests {
         let agg = streams
             .data
             .iter()
-            .find(|s| !s.has_custom_label)
+            .find(|s| !s.labeled)
             .expect("aggregated entry not found");
         assert_eq!(agg.instances, 4, "4 streams created at the call site");
         assert_eq!(agg.closed_instances, 4, "all streams completed");
