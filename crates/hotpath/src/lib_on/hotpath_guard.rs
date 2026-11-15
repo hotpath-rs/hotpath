@@ -1568,8 +1568,13 @@ impl Drop for HotpathGuard {
                 }
             }
 
+            // Entry ids are session-scoped: the written and uploaded report
+            // carries none, so the size checks measure the final bytes.
             let report = match merge_path {
-                None => Some(report),
+                None => {
+                    report.clear_runtime_ids();
+                    Some(report)
+                }
                 // The workload stopped early: its counts must not be merged
                 // into a complete native report. The panic fails the process.
                 Some(_) if std::thread::panicking() => {
@@ -1590,7 +1595,9 @@ impl Drop for HotpathGuard {
                         _ => None,
                     };
                     let merged = crate::lib_on::merge::apply(report, icount_run, path, output_file)
-                        .and_then(|merged| {
+                        .and_then(|mut merged| {
+                            // The native input carries its own run's ids.
+                            merged.clear_runtime_ids();
                             // Compact, as uploaded and as a relay posts it.
                             let compact = serde_json::to_vec(&merged).map_err(|e| {
                                 crate::lib_on::merge::MergeError::Serialize(e.to_string())

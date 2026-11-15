@@ -508,7 +508,7 @@ pub mod tests {
 
     // Two `channel!` invocations on one physical line (same message type) must
     // register distinct entries: the registration key includes the column, so
-    // the second call site does not reuse the first one's id. The displayed
+    // the second call site does not reuse the first one's entry. The displayed
     // source keeps the plain `file:line` form.
     //
     // cargo run -p test-channels-tokio --example same_line_tokio --features hotpath
@@ -527,7 +527,10 @@ pub mod tests {
             .find(|c| c.name == "same-line-b")
             .expect("same-line-b channel not found");
 
-        assert_ne!(a.id, b.id, "same-line call sites must not share an entry");
+        assert_ne!(
+            a.location, b.location,
+            "same-line call sites must not share an entry"
+        );
         assert_eq!(a.sent_count, 3, "counts must not merge across call sites");
         assert_eq!(b.sent_count, 5, "counts must not merge across call sites");
         assert_eq!(a.channel_type, "bounded[4]");

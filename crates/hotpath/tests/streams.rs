@@ -181,7 +181,7 @@ pub mod tests {
 
     // Two `stream!` invocations on one physical line (same item type) must
     // register distinct entries: the registration key includes the column, so
-    // the second call site does not reuse the first one's id. The displayed
+    // the second call site does not reuse the first one's entry. The displayed
     // source keeps the plain `file:line` form.
     //
     // cargo run -p test-streams --example same_line_streams --features hotpath
@@ -200,7 +200,10 @@ pub mod tests {
             .find(|s| s.name == "same-line-b")
             .expect("same-line-b stream not found");
 
-        assert_ne!(a.id, b.id, "same-line call sites must not share an entry");
+        assert_ne!(
+            a.location, b.location,
+            "same-line call sites must not share an entry"
+        );
         assert_eq!(
             a.items_yielded, 3,
             "counts must not merge across call sites"
