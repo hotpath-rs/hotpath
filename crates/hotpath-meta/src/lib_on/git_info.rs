@@ -1,9 +1,14 @@
 //! Reads `sha`, `ref` and `repository` for the report `meta.git` object
-//! straight from the `.git` directory - never shells out to git. In CI the
-//! environment supplies the same fields more precisely (see `ci_info`); this
-//! reader serves local repo-token uploads and offline reports.
+//! straight from the `.git` directory. Only `committed_at` shells out to git,
+//! since it needs the commit object, which may be packed and is always
+//! compressed. In CI the environment supplies the ref fields more precisely
+//! (see `ci_info`); this reader serves local repo-token uploads and offline
+//! reports.
 
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use time::format_description::well_known::Rfc3339;
+use time::{OffsetDateTime, UtcOffset};
 
 pub(crate) fn read_git_info_at(root: &Path) -> Option<crate::json::JsonGitInfo> {
     let git_dir = resolve_git_dir(root)?;
@@ -19,13 +24,35 @@ pub(crate) fn read_git_info_at(root: &Path) -> Option<crate::json::JsonGitInfo> 
         return None;
     };
     Some(crate::json::JsonGitInfo {
-        sha,
         r#ref: ref_name,
         // TODO: a merge base against the default branch needs a commit-graph
         // walk this pure `.git` reader deliberately does not do.
         base_sha: None,
         repository: origin_repository(&git_dir),
+        committed_at: committed_at(root, &sha),
+        sha,
     })
+}
+
+/// Committer (not author) timestamp of `sha`, in UTC. `None` when git is
+/// missing, refuses the repository (e.g. `safe.directory`), lacks the object
+/// or prints something unparsable - the report is written without it.
+fn committed_at(root: &Path, sha: &str) -> Option<OffsetDateTime> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["show", "--no-patch", "--no-show-signature", "--format=%cI"])
+        .arg(sha)
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = std::str::from_utf8(&output.stdout).ok()?;
+    let committed = OffsetDateTime::parse(stdout.trim(), &Rfc3339).ok()?;
+    Some(committed.to_offset(UtcOffset::UTC))
 }
 
 /// "owner/name" from the `origin` remote's URL, for both the SSH
@@ -141,7 +168,9 @@ fn is_sha(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::lib_on::git_info::{owner_name, read_git_info_at};
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+    use time::macros::datetime;
 
     fn temp_repo(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
@@ -198,6 +227,75 @@ mod tests {
         let info = read_git_info_at(&root).unwrap();
         assert_eq!(info.sha, SHA);
         assert_eq!(info.r#ref, None);
+        // No commit object to read: the field is omitted, the info is not.
+        assert_eq!(info.committed_at, None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Runs git isolated from the user's config (signing, hooks, identity).
+    fn git(dir: &Path, args: &[&str], envs: &[(&str, &str)]) -> String {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args([
+                "-c",
+                "user.name=hotpath",
+                "-c",
+                "user.email=hotpath@example.com",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "core.hooksPath=/dev/null",
+            ])
+            .args(args)
+            .envs(envs.iter().copied())
+            .output()
+            .expect("git");
+        assert!(output.status.success(), "git {args:?}: {output:?}");
+        String::from_utf8(output.stdout).unwrap().trim().to_string()
+    }
+
+    fn commit(dir: &Path, author_date: &str, committer_date: &str) -> String {
+        git(
+            dir,
+            &["commit", "--allow-empty", "--no-verify", "-m", "c"],
+            &[
+                ("GIT_AUTHOR_DATE", author_date),
+                ("GIT_COMMITTER_DATE", committer_date),
+            ],
+        );
+        git(dir, &["rev-parse", "HEAD"], &[])
+    }
+
+    /// Committer date, not author date, of the checked-out commit - also
+    /// when HEAD is detached at an older commit - normalized to UTC.
+    #[test]
+    fn reads_committer_timestamp_of_checked_out_commit() {
+        let root = temp_repo("committed-at");
+        git(&root, &["init", "-q", "-b", "main"], &[]);
+        let first = commit(
+            &root,
+            "2020-01-01T00:00:00+00:00",
+            "2026-11-15T15:30:00+01:00",
+        );
+        let second = commit(
+            &root,
+            "2020-01-02T00:00:00+00:00",
+            "2026-11-16T09:00:00+00:00",
+        );
+
+        let info = read_git_info_at(&root).unwrap();
+        assert_eq!(info.sha, second);
+        assert_eq!(info.r#ref.as_deref(), Some("refs/heads/main"));
+        assert_eq!(info.committed_at, Some(datetime!(2026-11-16 09:00:00 UTC)));
+
+        git(&root, &["checkout", "-q", "--detach", &first], &[]);
+        let info = read_git_info_at(&root).unwrap();
+        assert_eq!(info.sha, first);
+        assert_eq!(info.r#ref, None);
+        let committed_at = info.committed_at.unwrap();
+        assert_eq!(committed_at, datetime!(2026-11-15 14:30:00 UTC));
+        assert!(committed_at.offset().is_utc());
         let _ = std::fs::remove_dir_all(&root);
     }
 
