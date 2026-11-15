@@ -640,10 +640,10 @@ fn render_data_flow_view(frame: &mut Frame, app: &mut App, area: Rect) {
             .selected()
             .and_then(|i| app.channels.data.get(i))
             .and_then(|e| {
-                if e.label.is_empty() {
+                if e.name.is_empty() {
                     e.id.map(|id| id.to_string())
                 } else {
-                    Some(e.label.clone())
+                    Some(e.name.clone())
                 }
             })
             .unwrap_or_else(|| "Unknown".to_string()),
@@ -652,10 +652,10 @@ fn render_data_flow_view(frame: &mut Frame, app: &mut App, area: Rect) {
             .selected()
             .and_then(|i| app.streams.data.get(i))
             .and_then(|e| {
-                if e.label.is_empty() {
+                if e.name.is_empty() {
                     e.id.map(|id| id.to_string())
                 } else {
-                    Some(e.label.clone())
+                    Some(e.name.clone())
                 }
             })
             .unwrap_or_else(|| "Unknown".to_string()),
@@ -664,10 +664,10 @@ fn render_data_flow_view(frame: &mut Frame, app: &mut App, area: Rect) {
             .selected()
             .and_then(|i| app.futures.data.get(i))
             .and_then(|e| {
-                if e.label.is_empty() {
+                if e.name.is_empty() {
                     e.id.map(|id| id.to_string())
                 } else {
-                    Some(e.label.clone())
+                    Some(e.name.clone())
                 }
             })
             .unwrap_or_else(|| "Unknown".to_string()),

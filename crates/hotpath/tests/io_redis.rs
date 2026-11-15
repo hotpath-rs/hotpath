@@ -24,7 +24,7 @@ pub mod tests {
         let redis = io
             .data
             .iter()
-            .find(|e| e.label == "redis")
+            .find(|e| e.name == "redis")
             .expect("No 'redis' entry in io section");
 
         assert!(redis.type_name.contains("TcpStream"));

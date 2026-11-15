@@ -66,7 +66,7 @@ pub mod tests {
 
         assert_contains_all(
             &stdout,
-            &["\"label\": \"bounded\"", "\"label\": \"unbounded\""],
+            &["\"name\": \"bounded\"", "\"name\": \"unbounded\""],
         );
     }
 
@@ -125,7 +125,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-queue")
+            .find(|c| c.name == "wrap-queue")
             .expect("wrap-queue channel not found");
         assert_eq!(entry.sent_count, 50, "expected 50 sends");
         assert_eq!(
@@ -153,7 +153,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "recv-dropped")
+            .find(|c| c.name == "recv-dropped")
             .expect("recv-dropped channel not found");
         assert_eq!(
             entry.state.as_deref(),
@@ -174,7 +174,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "recv-clone-dropped")
+            .find(|c| c.name == "recv-clone-dropped")
             .expect("recv-clone-dropped channel not found");
         assert_eq!(
             entry.state.as_deref(),
@@ -194,7 +194,7 @@ pub mod tests {
         let latency = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-latency")
+            .find(|c| c.name == "wrap-latency")
             .expect("wrap-latency channel not found");
         let delay_avg = latency
             .delay_avg

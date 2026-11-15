@@ -380,7 +380,7 @@ fn rw_lock_to_json(rw_lock: &RwLockEntry, percentiles: &[f64], cloud: bool) -> J
     JsonRwLockEntry {
         id: Some(rw_lock.id),
         source: rw_lock.source.to_string(),
-        label,
+        name: label,
         labeled: rw_lock.label.is_some(),
         type_name: rw_lock.type_name.to_string(),
         read_count: rw_lock.read_count,
@@ -536,7 +536,7 @@ fn mutex_to_json(mutex: &MutexEntry, percentiles: &[f64], cloud: bool) -> JsonMu
     JsonMutexEntry {
         id: Some(mutex.id),
         source: mutex.source.to_string(),
-        label,
+        name: label,
         labeled: mutex.label.is_some(),
         type_name: mutex.type_name.to_string(),
         count: mutex.count,
@@ -1344,7 +1344,7 @@ fn io_to_json(entry: &IoEntry, percentiles: &[f64], cloud: bool) -> JsonIoEntry 
     JsonIoEntry {
         id: Some(entry.id),
         source: entry.source.to_string(),
-        label,
+        name: label,
         labeled: entry.label.is_some(),
         type_name: entry.type_name.to_string(),
         read: io_op_stats_to_json(&entry.read, percentiles, cloud),

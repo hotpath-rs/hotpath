@@ -143,10 +143,10 @@ pub mod tests {
         let stdout = example("basic_json_tokio").stdout();
 
         let sep = path_sep();
-        let json_path = format!("\"label\": \"examples{sep}basic_json_tokio.rs:");
+        let json_path = format!("\"name\": \"examples{sep}basic_json_tokio.rs:");
         let all_expected = [
             json_path.as_str(),
-            "\"label\": \"hello-there\"",
+            "\"name\": \"hello-there\"",
             "\"state\": \"notified\"",
         ];
 
@@ -298,7 +298,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-queue")
+            .find(|c| c.name == "wrap-queue")
             .expect("wrap-queue channel not found");
         assert_eq!(entry.sent_count, 50, "expected 50 sends");
         assert_eq!(
@@ -328,7 +328,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-unbounded")
+            .find(|c| c.name == "wrap-unbounded")
             .expect("wrap-unbounded channel not found");
         assert_eq!(entry.sent_count, 200, "expected 200 sends");
         assert_eq!(entry.received_count, 200, "expected 200 receives");
@@ -352,7 +352,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-concurrent")
+            .find(|c| c.name == "wrap-concurrent")
             .expect("wrap-concurrent channel not found");
         assert!(
             entry.received_count <= entry.sent_count,
@@ -378,7 +378,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "recv-dropped")
+            .find(|c| c.name == "recv-dropped")
             .expect("recv-dropped channel not found");
         assert_eq!(
             entry.state.as_deref(),
@@ -400,7 +400,7 @@ pub mod tests {
             let entry = channels
                 .data
                 .iter()
-                .find(|c| c.label == label)
+                .find(|c| c.name == label)
                 .unwrap_or_else(|| panic!("{label} channel not found"));
             assert_eq!(entry.sent_count, 2, "expected 2 sends on {label}");
             assert_eq!(entry.received_count, 2, "expected 2 receives on {label}");
@@ -424,7 +424,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-recv-many")
+            .find(|c| c.name == "wrap-recv-many")
             .expect("wrap-recv-many channel not found");
         assert_eq!(entry.sent_count, 60, "expected 60 sends");
         assert_eq!(entry.received_count, 60, "expected 60 receives");
@@ -437,7 +437,7 @@ pub mod tests {
         let unbounded = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-recv-many-unbounded")
+            .find(|c| c.name == "wrap-recv-many-unbounded")
             .expect("wrap-recv-many-unbounded channel not found");
         assert_eq!(unbounded.sent_count, 30, "expected 30 sends");
         assert_eq!(unbounded.received_count, 30, "expected 30 receives");
@@ -455,7 +455,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-blocking")
+            .find(|c| c.name == "wrap-blocking")
             .expect("wrap-blocking channel not found");
         assert_eq!(entry.sent_count, 25, "expected 25 sends");
         assert_eq!(entry.received_count, 25, "expected 25 receives");
@@ -473,7 +473,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-send-timeout")
+            .find(|c| c.name == "wrap-send-timeout")
             .expect("wrap-send-timeout channel not found");
         assert_eq!(entry.sent_count, 5, "timed-out send must not be counted");
         assert_eq!(
@@ -499,7 +499,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-poll-recv")
+            .find(|c| c.name == "wrap-poll-recv")
             .expect("wrap-poll-recv channel not found");
         assert_eq!(entry.sent_count, 30, "expected 30 sends");
         assert_eq!(entry.received_count, 30, "expected 30 receives");
@@ -519,12 +519,12 @@ pub mod tests {
         let a = channels
             .data
             .iter()
-            .find(|c| c.label == "same-line-a")
+            .find(|c| c.name == "same-line-a")
             .expect("same-line-a channel not found");
         let b = channels
             .data
             .iter()
-            .find(|c| c.label == "same-line-b")
+            .find(|c| c.name == "same-line-b")
             .expect("same-line-b channel not found");
 
         assert_ne!(a.id, b.id, "same-line call sites must not share an entry");

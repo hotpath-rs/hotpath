@@ -37,11 +37,11 @@ pub mod tests {
             &stdout,
             &[
                 "\"mutexes\"",
-                "\"label\":\"counter\"",
+                "\"name\":\"counter\"",
                 // The deprecated wrap constructor registers via Location::caller();
                 // its auto label must keep the file:line form (the line must not be
                 // eaten by the registration key's column strip).
-                "\"label\":\"examples/basic_mutex_std.rs:",
+                "\"name\":\"examples/basic_mutex_std.rs:",
                 "\"count\":6",
                 "\"wait_avg\"",
                 "\"acquire_avg\"",
@@ -58,6 +58,6 @@ pub mod tests {
     fn test_created_ordering_output() {
         let stdout = example("created_ordering").json().stdout();
 
-        assert_contains_all(&stdout, &["\"label\":\"target\"", "\"count\":100"]);
+        assert_contains_all(&stdout, &["\"name\":\"target\"", "\"count\":100"]);
     }
 }

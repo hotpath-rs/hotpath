@@ -178,7 +178,7 @@ impl From<&StreamStats> for JsonStreamEntry {
         JsonStreamEntry {
             id: Some(stats.id),
             source: stats.source.to_string(),
-            label,
+            name: label,
             labeled: stats.label.is_some(),
             state: stats.display_state().map(|s| s.as_str().to_string()),
             instances: stats.instances,

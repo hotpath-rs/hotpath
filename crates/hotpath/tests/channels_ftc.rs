@@ -42,9 +42,9 @@ pub mod tests {
         let stdout = example("basic_json_ftc").stdout();
 
         let all_expected = [
-            "\"label\": \"unbounded\"",
-            "\"label\": \"bounded\"",
-            "\"label\": \"oneshot\"",
+            "\"name\": \"unbounded\"",
+            "\"name\": \"bounded\"",
+            "\"name\": \"oneshot\"",
             "\"state\": \"notified\"",
         ];
 

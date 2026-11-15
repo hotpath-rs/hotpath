@@ -38,7 +38,7 @@ pub mod tests {
             &stdout,
             &[
                 "\"rw_locks\"",
-                "\"label\":\"counter\"",
+                "\"name\":\"counter\"",
                 "\"read_count\":6",
                 "\"write_count\":3",
                 "\"read_wait_avg\"",

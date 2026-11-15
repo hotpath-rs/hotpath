@@ -38,11 +38,11 @@ pub mod tests {
             &stdout,
             &[
                 "\"rw_locks\"",
-                "\"label\":\"counter\"",
+                "\"name\":\"counter\"",
                 // The deprecated wrap constructor registers via Location::caller();
                 // its auto label must keep the file:line form (the line must not be
                 // eaten by the registration key's column strip).
-                "\"label\":\"examples/basic_rw_lock_std.rs:",
+                "\"name\":\"examples/basic_rw_lock_std.rs:",
                 "\"read_count\":6",
                 "\"write_count\":3",
                 "\"read_wait_avg\"",

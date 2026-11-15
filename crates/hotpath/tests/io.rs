@@ -27,7 +27,7 @@ pub mod tests {
     fn entry<'a>(io: &'a JsonIoList, label: &str) -> &'a JsonIoEntry {
         io.data
             .iter()
-            .find(|e| e.label == label)
+            .find(|e| e.name == label)
             .unwrap_or_else(|| panic!("No '{label}' entry in io section"))
     }
 
@@ -90,10 +90,7 @@ pub mod tests {
         assert_eq!(looped.read.count, 2);
         assert_eq!(looped.read.bytes, 6);
         assert_eq!(
-            io.data
-                .iter()
-                .filter(|e| e.label.contains("looped"))
-                .count(),
+            io.data.iter().filter(|e| e.name.contains("looped")).count(),
             1,
             "Same-site wrappers must not create separate entries"
         );
