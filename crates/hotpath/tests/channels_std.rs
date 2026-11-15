@@ -43,7 +43,7 @@ pub mod tests {
     fn test_basic_json_output() {
         let stdout = example("basic_json_std").stdout();
 
-        let all_expected = ["\"label\": \"unbounded\"", "\"label\": \"bounded\""];
+        let all_expected = ["\"name\": \"unbounded\"", "\"name\": \"bounded\""];
 
         assert_contains_all(&stdout, &all_expected);
     }
@@ -107,7 +107,7 @@ pub mod tests {
             channels
                 .data
                 .iter()
-                .find(|c| c.label == label)
+                .find(|c| c.name == label)
                 .unwrap_or_else(|| panic!("channel {label:?} not found"));
         }
     }
@@ -123,7 +123,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-queue")
+            .find(|c| c.name == "wrap-queue")
             .expect("wrap-queue channel not found");
         assert_eq!(entry.sent_count, 50, "expected 50 sends");
         assert_eq!(
@@ -153,7 +153,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-unbounded")
+            .find(|c| c.name == "wrap-unbounded")
             .expect("wrap-unbounded channel not found");
         assert_eq!(entry.sent_count, 200, "expected 200 sends");
         assert_eq!(entry.received_count, 200, "expected 200 receives");
@@ -177,7 +177,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "wrap-concurrent")
+            .find(|c| c.name == "wrap-concurrent")
             .expect("wrap-concurrent channel not found");
         assert!(
             entry.received_count <= entry.sent_count,
@@ -203,7 +203,7 @@ pub mod tests {
         let entry = channels
             .data
             .iter()
-            .find(|c| c.label == "recv-dropped")
+            .find(|c| c.name == "recv-dropped")
             .expect("recv-dropped channel not found");
         assert_eq!(
             entry.state.as_deref(),

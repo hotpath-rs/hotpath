@@ -395,7 +395,8 @@ pub struct JsonChannelEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
     pub source: String,
-    pub label: String,
+    #[serde(alias = "label")]
+    pub name: String,
     #[serde(default)]
     pub labeled: bool,
     pub channel_type: String,
@@ -446,7 +447,8 @@ pub struct JsonRwLockEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
     pub source: String,
-    pub label: String,
+    #[serde(alias = "label")]
+    pub name: String,
     #[serde(default)]
     pub labeled: bool,
     pub type_name: String,
@@ -483,7 +485,8 @@ pub struct JsonMutexEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
     pub source: String,
-    pub label: String,
+    #[serde(alias = "label")]
+    pub name: String,
     #[serde(default)]
     pub labeled: bool,
     pub type_name: String,
@@ -736,7 +739,8 @@ pub struct JsonIoEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
     pub source: String,
-    pub label: String,
+    #[serde(alias = "label")]
+    pub name: String,
     #[serde(default)]
     pub labeled: bool,
     pub type_name: String,
@@ -873,7 +877,8 @@ pub struct JsonStreamEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
     pub source: String,
-    pub label: String,
+    #[serde(alias = "label")]
+    pub name: String,
     #[serde(default)]
     pub labeled: bool,
     /// `None` for aggregated entries (`instances > 1`): their instances
@@ -926,7 +931,8 @@ pub struct JsonFutureEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
     pub source: String,
-    pub label: String,
+    #[serde(alias = "label")]
+    pub name: String,
     #[serde(default)]
     pub labeled: bool,
     pub call_count: u64,
@@ -1462,6 +1468,27 @@ mod parse_tests {
         let written = serde_json::to_value(&flat).unwrap();
         assert_eq!(written["percentiles"]["p99"], "3 ns");
         assert!(written.get("p99").is_none());
+    }
+
+    #[test]
+    fn entry_name_reads_legacy_label_key() {
+        let entry = |key: &str| {
+            serde_json::json!({
+                "source": "src/main.rs:10", key: "jobs", "type_name": "u8",
+                "count": 1, "sampled_count": 1, "wait_avg": "1 ns", "acquire_avg": "1 ns",
+                "wait_percentiles": {}, "acquire_percentiles": {},
+                "location": {"file": "src/main.rs", "line": 10, "column": 1}, "iter": 0
+            })
+        };
+        for key in ["name", "label"] {
+            let mutex: JsonMutexEntry = serde_json::from_value(entry(key)).unwrap();
+            assert_eq!(mutex.name, "jobs", "{key}");
+        }
+        let written =
+            serde_json::to_value(serde_json::from_value::<JsonMutexEntry>(entry("label")).unwrap())
+                .unwrap();
+        assert_eq!(written["name"], "jobs");
+        assert!(written.get("label").is_none());
     }
 
     #[test]

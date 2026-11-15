@@ -110,13 +110,13 @@ mod tests {
 
         let mutexes = report.mutexes.expect("mutexes section");
         for entry in &mutexes.data {
-            assert_exact_duration(&entry.wait_avg, &format!("{} wait_avg", entry.label));
-            assert_exact_duration(&entry.acquire_avg, &format!("{} acquire_avg", entry.label));
+            assert_exact_duration(&entry.wait_avg, &format!("{} wait_avg", entry.name));
+            assert_exact_duration(&entry.acquire_avg, &format!("{} acquire_avg", entry.name));
         }
         let channels = report.channels.expect("channels section");
         for entry in &channels.data {
             let delay_avg = entry.delay_avg.as_deref().expect("delay_avg");
-            assert_exact_duration(delay_avg, &format!("{} delay_avg", entry.label));
+            assert_exact_duration(delay_avg, &format!("{} delay_avg", entry.name));
         }
 
         let threads = report.threads.expect("threads section");

@@ -37,7 +37,7 @@ pub mod tests {
             &stdout,
             &[
                 "\"mutexes\"",
-                "\"label\":\"counter\"",
+                "\"name\":\"counter\"",
                 "\"count\":6",
                 "\"wait_avg\"",
                 "\"acquire_avg\"",

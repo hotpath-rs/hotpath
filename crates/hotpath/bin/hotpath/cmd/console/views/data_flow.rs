@@ -152,7 +152,7 @@ pub(crate) fn render_channels_panel(
             );
             let mut cells = vec![
                 Cell::from(type_text).style(Style::default().fg(Color::Cyan)),
-                Cell::from(truncate_left(&entry.label, label_width)),
+                Cell::from(truncate_left(&entry.name, label_width)),
                 Cell::from(hotpath::format_count_display(entry.instances)),
                 {
                     let state = entry.state.as_deref().unwrap_or("-");
@@ -238,7 +238,7 @@ pub(crate) fn render_streams_panel(
         .iter()
         .map(|entry| {
             Row::new(vec![
-                Cell::from(truncate_left(&entry.label, label_width)),
+                Cell::from(truncate_left(&entry.name, label_width)),
                 Cell::from(hotpath::format_count_display(entry.instances)),
                 {
                     let state = entry.state.as_deref().unwrap_or("-");
@@ -300,7 +300,7 @@ pub(crate) fn render_futures_panel(
     let rows: Vec<Row> = entries
         .iter()
         .map(|entry| {
-            let display_label = hotpath::shorten_function_name(&entry.label);
+            let display_label = hotpath::shorten_function_name(&entry.name);
             let avg_total = if entry.total_polls > 0 && entry.sampled_polls == 0 {
                 "N/A".to_string()
             } else {
@@ -457,7 +457,7 @@ fn render_rw_locks_subtable(
             };
 
             let mut cells = vec![
-                Cell::from(truncate_left(&entry.label, label_width)),
+                Cell::from(truncate_left(&entry.name, label_width)),
                 Cell::from(hotpath::format_count_display(count)),
                 Cell::from(wait_avg.clone()),
             ];
@@ -545,7 +545,7 @@ pub(crate) fn render_mutexes_panel(
         .iter()
         .map(|entry| {
             let mut cells = vec![
-                Cell::from(truncate_left(&entry.label, label_width)),
+                Cell::from(truncate_left(&entry.name, label_width)),
                 Cell::from(hotpath::format_count_display(entry.count)),
                 Cell::from(entry.wait_avg.clone()),
             ];
@@ -1189,7 +1189,7 @@ fn render_io_bytes_subtable(
             };
 
             let mut cells = vec![
-                Cell::from(truncate_left(&entry.label, label_width)),
+                Cell::from(truncate_left(&entry.name, label_width)),
                 Cell::from(hotpath::format_count_display(u64::from(entry.instances))),
                 Cell::from(hotpath::format_count_display(stats.count)),
                 Cell::from(hotpath::format_bytes(stats.bytes)),

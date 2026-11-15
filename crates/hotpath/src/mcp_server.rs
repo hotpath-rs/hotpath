@@ -274,7 +274,7 @@ Returns error if a snapshot is already in progress or the hotpath-cpu feature is
 
 Returns a JSON object with current_elapsed_ns, percentiles, and data: one entry per channel call site, each with:
 - id: channel id, input for channel_logs
-- label, labeled, source, location: identification
+- name, labeled, source, location: identification
 - channel_type: "bounded[N]", "unbounded", "oneshot", or "pending" (not yet initialized)
 - state: "active", "closed", or "notified"; omitted for aggregated entries (instances > 1)
 - instances / closed_instances: channel instances aggregated into the entry and how many have closed
@@ -301,7 +301,7 @@ Use to track channel throughput and identify stalled, backed-up, or closed chann
 
 Returns a JSON object with current_elapsed_ns and data: one entry per stream call site, each with:
 - id: stream id, input for stream_logs
-- label, labeled, source, location: identification
+- name, labeled, source, location: identification
 - state: "active" or "closed"; omitted for aggregated entries (instances > 1)
 - instances / closed_instances: stream instances aggregated into the entry and how many have completed
 - items_yielded: count of items produced
@@ -323,7 +323,7 @@ Use to track stream throughput and identify stalled streams."#)]
 
 Returns a JSON object with current_elapsed_ns and data: one entry per future, each with:
 - id: future id, input for future_logs
-- label, labeled, source, location: identification
+- name, labeled, source, location: identification
 - call_count: number of future invocations observed
 - total_polls: cumulative number of poll calls across invocations; sampled_polls: polls that were timed
 - total_poll_duration_ns: cumulative poll time in nanoseconds
@@ -345,7 +345,7 @@ High poll counts can indicate futures that wake frequently without making progre
         description = r#"Get wait and acquire-time metrics for all monitored RwLocks.
 
 Returns a JSON object with current_elapsed_ns, percentiles, and data: one entry per lock, each with:
-- id, label, labeled, source, location, type_name: identification
+- id, name, labeled, source, location, type_name: identification
 - read_count / write_count: number of read and write acquisitions; read_sampled_count / write_sampled_count: acquisitions that were timed
 - read_wait_avg / write_wait_avg and read_wait_percentiles / write_wait_percentiles: formatted time blocked before the lock was granted
 - read_acquire_avg / write_acquire_avg and read_acquire_percentiles / write_acquire_percentiles: formatted time the lock was held, granted to released
@@ -367,7 +367,7 @@ High wait times indicate lock contention; high acquire times indicate long criti
         description = r#"Get wait and acquire-time metrics for all monitored Mutexes.
 
 Returns a JSON object with current_elapsed_ns, percentiles, and data: one entry per mutex, each with:
-- id, label, labeled, source, location, type_name: identification
+- id, name, labeled, source, location, type_name: identification
 - count: number of lock acquisitions; sampled_count: acquisitions that were timed
 - wait_avg and wait_percentiles: formatted time blocked before the lock was granted
 - acquire_avg and acquire_percentiles: formatted time the lock was held, granted to released
@@ -389,7 +389,7 @@ High wait times indicate lock contention; high acquire times indicate long criti
         description = r#"Get byte-level I/O metrics for all instrumented Read/Write/AsyncRead/AsyncWrite values.
 
 Returns a JSON object with current_elapsed_ns, percentiles, and data: one entry per wrapper call site, each with:
-- id, label, labeled, source, location, type_name: identification
+- id, name, labeled, source, location, type_name: identification
 - instances: wrapper instances aggregated into the entry
 - read, write, flush, shutdown: per-operation stats, each with:
   - count / sampled_count: completed operations and operations that were timed

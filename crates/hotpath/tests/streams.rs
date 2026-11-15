@@ -44,7 +44,7 @@ pub mod tests {
             let entry = streams
                 .data
                 .iter()
-                .find(|s| s.label == label)
+                .find(|s| s.name == label)
                 .unwrap_or_else(|| panic!("per-instance entry {label} not found"));
             assert_eq!(entry.instances, 1);
             assert_eq!(entry.items_yielded, 2);
@@ -192,12 +192,12 @@ pub mod tests {
         let a = streams
             .data
             .iter()
-            .find(|s| s.label == "same-line-a")
+            .find(|s| s.name == "same-line-a")
             .expect("same-line-a stream not found");
         let b = streams
             .data
             .iter()
-            .find(|s| s.label == "same-line-b")
+            .find(|s| s.name == "same-line-b")
             .expect("same-line-b stream not found");
 
         assert_ne!(a.id, b.id, "same-line call sites must not share an entry");

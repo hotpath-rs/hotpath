@@ -67,7 +67,7 @@ mod tests {
 
         // The literal arms hand the label on to the runtime unchanged.
         let channels = report.channels.expect("No channels section");
-        let channel_labels: Vec<&str> = channels.data.iter().map(|e| e.label.as_str()).collect();
+        let channel_labels: Vec<&str> = channels.data.iter().map(|e| e.name.as_str()).collect();
         assert!(channel_labels.contains(&"shared"), "{channel_labels:?}");
         assert!(
             channel_labels.contains(&"shared-runtime"),
@@ -75,15 +75,15 @@ mod tests {
         );
 
         let streams = report.streams.expect("No streams section");
-        assert!(streams.data.iter().any(|e| e.label == "shared"));
+        assert!(streams.data.iter().any(|e| e.name == "shared"));
         let futures = report.futures.expect("No futures section");
-        assert!(futures.data.iter().any(|e| e.label == "shared"));
+        assert!(futures.data.iter().any(|e| e.name == "shared"));
         let mutexes = report.mutexes.expect("No mutexes section");
-        assert!(mutexes.data.iter().any(|e| e.label == "shared"));
+        assert!(mutexes.data.iter().any(|e| e.name == "shared"));
         let rw_locks = report.rw_locks.expect("No rw_locks section");
-        assert!(rw_locks.data.iter().any(|e| e.label == "shared"));
+        assert!(rw_locks.data.iter().any(|e| e.name == "shared"));
         let io = report.io.expect("No io section");
-        assert!(io.data.iter().any(|e| e.label == "shared"));
+        assert!(io.data.iter().any(|e| e.name == "shared"));
 
         let functions = report.functions_timing.expect("No functions section");
         let names: Vec<&str> = functions.data.iter().map(|e| e.name.as_str()).collect();
@@ -116,7 +116,7 @@ mod tests {
         let channels: Vec<(&str, bool)> = channels
             .data
             .iter()
-            .map(|e| (e.label.as_str(), e.labeled))
+            .map(|e| (e.name.as_str(), e.labeled))
             .collect();
         assert!(channels.contains(&("shared", true)), "{channels:?}");
         assert!(channels.contains(&("shared-runtime", true)), "{channels:?}");

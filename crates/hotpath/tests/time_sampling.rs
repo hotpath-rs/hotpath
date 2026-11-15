@@ -216,11 +216,11 @@ pub mod tests {
         let futures = report.futures.expect("No futures section");
         assert!(futures.data.iter().any(|e| e.total_polls > 0));
         for entry in &futures.data {
-            assert_eq!(entry.sampled_polls, 0, "sampled polls for {}", entry.label);
+            assert_eq!(entry.sampled_polls, 0, "sampled polls for {}", entry.name);
             assert_eq!(
                 entry.total_poll_duration_ns, 0,
                 "duration recorded for {}",
-                entry.label
+                entry.name
             );
         }
     }
