@@ -85,21 +85,75 @@ fn lookup_location(name: &str) -> Option<JsonLocation> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(from = "JsonFunctionEntryWire")]
 pub struct JsonFunctionEntry {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
     pub name: String,
     pub calls: u64,
     pub sampled_calls: u64,
     pub avg: String,
-    #[serde(flatten)]
     pub percentiles: HashMap<String, String>,
     pub total: String,
     pub percent_total: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<JsonLocation>,
-    #[serde(default)]
     pub labeled: bool,
+}
+
+/// Reports written before `percentiles` was nested carry each percentile as
+/// a top-level string key of the entry.
+#[derive(Deserialize)]
+struct JsonFunctionEntryWire {
+    #[serde(default)]
+    id: Option<u32>,
+    name: String,
+    calls: u64,
+    sampled_calls: u64,
+    avg: String,
+    #[serde(default)]
+    percentiles: Option<HashMap<String, String>>,
+    total: String,
+    percent_total: String,
+    #[serde(default)]
+    location: Option<JsonLocation>,
+    #[serde(default)]
+    labeled: bool,
+    #[serde(flatten)]
+    rest: HashMap<String, FlatValue>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum FlatValue {
+    Text(String),
+    Other(serde::de::IgnoredAny),
+}
+
+impl From<JsonFunctionEntryWire> for JsonFunctionEntry {
+    fn from(wire: JsonFunctionEntryWire) -> Self {
+        let percentiles = wire.percentiles.unwrap_or_else(|| {
+            wire.rest
+                .into_iter()
+                .filter_map(|(key, value)| match value {
+                    FlatValue::Text(text) => Some((key, text)),
+                    FlatValue::Other(_) => None,
+                })
+                .collect()
+        });
+        Self {
+            id: wire.id,
+            name: wire.name,
+            calls: wire.calls,
+            sampled_calls: wire.sampled_calls,
+            avg: wire.avg,
+            percentiles,
+            total: wire.total,
+            percent_total: wire.percent_total,
+            location: wire.location,
+            labeled: wire.labeled,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1378,6 +1432,37 @@ impl JsonReport {
 #[cfg(test)]
 mod parse_tests {
     use crate::json::formatted::*;
+
+    #[test]
+    fn function_entry_reads_nested_and_flat_percentiles() {
+        let nested: JsonFunctionEntry = serde_json::from_value(serde_json::json!({
+            "name": "f", "calls": 1, "sampled_calls": 1, "avg": "1 ns",
+            "percentiles": {"p95": "2 ns"}, "total": "1 ns", "percent_total": "100.00%",
+            "labeled": true, "added_later": "x"
+        }))
+        .unwrap();
+        assert_eq!(
+            nested.percentiles,
+            HashMap::from([("p95".into(), "2 ns".into())])
+        );
+        assert!(nested.labeled);
+
+        let flat: JsonFunctionEntry = serde_json::from_value(serde_json::json!({
+            "name": "f", "calls": 1, "sampled_calls": 1, "avg": "1 ns",
+            "p95": "2 ns", "p99": "3 ns", "total": "1 ns", "percent_total": "100.00%",
+            "labeled": true
+        }))
+        .unwrap();
+        assert_eq!(
+            flat.percentiles,
+            HashMap::from([("p95".into(), "2 ns".into()), ("p99".into(), "3 ns".into())])
+        );
+        assert!(flat.labeled);
+
+        let written = serde_json::to_value(&flat).unwrap();
+        assert_eq!(written["percentiles"]["p99"], "3 ns");
+        assert!(written.get("p99").is_none());
+    }
 
     #[test]
     fn run_resolves_explicit_first_then_by_sections() {

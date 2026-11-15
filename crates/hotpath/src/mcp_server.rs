@@ -155,7 +155,8 @@ Returns a JSON object with:
   - id: function id, input for function_timing_logs
   - name: fully qualified function name (e.g. "my_app::db::query")
   - calls: number of invocations; sampled_calls: invocations that were timed
-  - avg and one key per configured percentile (e.g. "p95"): formatted durations of the timed calls
+  - avg: formatted average duration of the timed calls
+  - percentiles: one key per configured percentile (e.g. "p95"), formatted durations of the timed calls
   - total: formatted total duration; exact when sampled_calls == calls, otherwise extrapolated as avg * calls under time sampling
   - percent_total: total as a share of the profiled program's total time (the #[main] wrapper, or the sum of all function totals when the wrapper is excluded); extrapolated like total
   - avg, total, percentiles and percent_total are "-" when no call was timed (sampled_calls == 0)
@@ -186,7 +187,8 @@ Returns a JSON object with the same shape as functions_timing, plus:
   - id: function id, input for function_alloc_logs
   - name: fully qualified function name
   - calls / sampled_calls: invocations and measured invocations
-  - avg and one key per configured percentile (e.g. "p95"): formatted per-call bytes or allocation counts
+  - avg: formatted average per-call bytes or allocation count
+  - percentiles: one key per configured percentile (e.g. "p95"), formatted per-call bytes or allocation counts
   - total: formatted cumulative bytes or allocation count across all calls
   - percent_total: share of total_allocated
   - location: source file, line and column (when known)
