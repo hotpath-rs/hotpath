@@ -99,7 +99,7 @@ mod tests {
         let channel_entry = metrics
             .data
             .iter()
-            .find(|entry| entry.label == "test_channel")
+            .find(|entry| entry.name == "test_channel")
             .expect("test_channel should be in metrics");
 
         assert_eq!(

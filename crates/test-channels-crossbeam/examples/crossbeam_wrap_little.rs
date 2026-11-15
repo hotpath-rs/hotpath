@@ -128,7 +128,7 @@ fn fetch_dwell_nanos(expected: u64) -> std::collections::HashMap<String, u64> {
                             if let Some(avg) =
                                 ch.delay_avg.as_deref().and_then(hotpath::parse_duration)
                             {
-                                out.insert(ch.label, avg);
+                                out.insert(ch.name, avg);
                             }
                         }
                         return out;
