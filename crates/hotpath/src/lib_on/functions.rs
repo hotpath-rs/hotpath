@@ -410,9 +410,6 @@ pub(crate) static FUNCTIONS_STATE: OnceLock<
 pub(crate) static FUNCTIONS_QUERY_TX: OnceLock<crossbeam_channel::Sender<FunctionsQuery>> =
     OnceLock::new();
 
-/// Stats keys the user chose: `#[measure(label)]` labels, mapped to the
-/// symbol of the function they rename (what CPU sampling resolves), and
-/// `measure_block!` labels, which rename no symbol.
 static FUNCTION_LABELS: OnceLock<
     crate::lib_on::MetaRwLock<HashMap<&'static str, Option<&'static str>>>,
 > = OnceLock::new();
@@ -430,7 +427,6 @@ pub fn register_function_label(label: &'static str, symbol: Option<&'static str>
     }
 }
 
-/// Whether `name`, a function stats key, is a label the user chose.
 pub(crate) fn is_labeled(name: &str) -> bool {
     FUNCTION_LABELS
         .get()

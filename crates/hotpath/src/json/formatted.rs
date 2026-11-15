@@ -98,8 +98,6 @@ pub struct JsonFunctionEntry {
     pub percent_total: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<JsonLocation>,
-    /// The user named this entry (`#[measure(label = ...)]` or
-    /// `measure_block!`); its `name` is otherwise the function's path.
     #[serde(default)]
     pub labeled: bool,
 }
@@ -138,7 +136,6 @@ pub struct JsonFunctionCpuEntry {
     pub name: String,
     pub samples: u64,
     pub percent: String,
-    /// Same as [`JsonFunctionEntry::labeled`].
     #[serde(default)]
     pub labeled: bool,
 }
@@ -345,8 +342,6 @@ pub struct JsonChannelEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    /// The user named this entry (`label = ...`); its `label` is otherwise
-    /// derived from the call site.
     #[serde(default)]
     pub labeled: bool,
     pub channel_type: String,
@@ -398,8 +393,6 @@ pub struct JsonRwLockEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    /// The user named this entry (`label = ...`); its `label` is otherwise
-    /// derived from the call site.
     #[serde(default)]
     pub labeled: bool,
     pub type_name: String,
@@ -437,8 +430,6 @@ pub struct JsonMutexEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    /// The user named this entry (`label = ...`); its `label` is otherwise
-    /// derived from the call site.
     #[serde(default)]
     pub labeled: bool,
     pub type_name: String,
@@ -692,8 +683,6 @@ pub struct JsonIoEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    /// The user named this entry (`label = ...`); its `label` is otherwise
-    /// derived from the call site.
     #[serde(default)]
     pub labeled: bool,
     pub type_name: String,
@@ -831,8 +820,6 @@ pub struct JsonStreamEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    /// The user named this entry (`label = ...`); its `label` is otherwise
-    /// derived from the call site.
     #[serde(default)]
     pub labeled: bool,
     /// `None` for aggregated entries (`instances > 1`): their instances
@@ -886,8 +873,6 @@ pub struct JsonFutureEntry {
     pub id: Option<u32>,
     pub source: String,
     pub label: String,
-    /// The user named this entry (`label = ...`); its `label` is otherwise
-    /// derived from the call site.
     #[serde(default)]
     pub labeled: bool,
     pub call_count: u64,

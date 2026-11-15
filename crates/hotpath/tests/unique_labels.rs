@@ -96,8 +96,6 @@ mod tests {
     fn test_labeled_marks_user_named_entries() {
         let report = Example::new("test-all-features", "unique_labels").report();
 
-        // Literal and runtime labels alike; the guard's own entry and a
-        // plain `#[measure]` are named by hotpath.
         let functions = report.functions_timing.expect("No functions section");
         let labeled: Vec<(&str, bool)> = functions
             .data

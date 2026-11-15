@@ -754,8 +754,6 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         None => quote! {},
     };
 
-    // Marks the stats key as user-chosen (`labeled` in the report) and maps
-    // it to the symbol CPU sampling resolves.
     let label_register = if label.is_some() {
         let symbol_loc = match &impl_type {
             Some(ty) => {
