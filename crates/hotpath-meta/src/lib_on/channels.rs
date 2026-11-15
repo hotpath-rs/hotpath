@@ -277,7 +277,7 @@ pub(crate) fn channel_to_json(
         id: Some(stats.id),
         source: stats.source.to_string(),
         label,
-        has_custom_label: stats.label.is_some(),
+        labeled: stats.label.is_some(),
         channel_type: stats.channel_type.to_string(),
         state: stats.display_state().map(|s| s.as_str().to_string()),
         instances: stats.instances,

@@ -715,7 +715,7 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         None => quote! {},
     };
 
-    let cpu_alias_register = if label.is_some() {
+    let label_register = if label.is_some() {
         let symbol_loc = match &impl_type {
             Some(ty) => {
                 quote! { concat!(module_path!(), "::", #ty, "::", stringify!(#fn_ident)) }
@@ -724,9 +724,9 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         };
         quote! {
             {
-                static __HOTPATH_CPU_ALIAS_ONCE: ::std::sync::Once = ::std::sync::Once::new();
-                __HOTPATH_CPU_ALIAS_ONCE.call_once(|| {
-                    hotpath_meta::functions::register_cpu_label_alias(#measurement_loc, #symbol_loc);
+                static __HOTPATH_LABEL_ONCE: ::std::sync::Once = ::std::sync::Once::new();
+                __HOTPATH_LABEL_ONCE.call_once(|| {
+                    hotpath_meta::functions::register_function_label(#measurement_loc, Some(#symbol_loc));
                 });
             }
         }
@@ -832,7 +832,7 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         #vis #sig {
             #marker_items
             #unique_label_check
-            #cpu_alias_register
+            #label_register
             #loc_register
             #wrapped_body
         }

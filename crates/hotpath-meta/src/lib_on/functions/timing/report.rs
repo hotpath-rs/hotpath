@@ -95,6 +95,7 @@ pub(crate) fn build_functions_list(
                     format!("{:.2}%", percentage)
                 },
                 location: crate::lib_on::locations::lookup_location(s.name),
+                labeled: crate::lib_on::functions::is_labeled(s.name),
             }
         })
         .collect();

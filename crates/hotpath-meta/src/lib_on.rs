@@ -251,6 +251,7 @@ macro_rules! measure_block {
                 != __hotpath_label_ptr
             {
                 $crate::register_location(__hotpath_label, &__HOTPATH_LOC);
+                $crate::functions::register_function_label(__hotpath_label, None);
                 __HOTPATH_LAST_LABEL
                     .store(__hotpath_label_ptr, std::sync::atomic::Ordering::Relaxed);
             }
