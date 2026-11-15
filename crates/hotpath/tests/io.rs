@@ -277,7 +277,7 @@ pub mod tests {
 
     // Two `io!` invocations on one physical line wrapping the same concrete
     // type must register distinct entries: the registration key includes the
-    // column, so the second call site does not reuse the first one's id. The
+    // column, so the second call site does not reuse the first one's entry. The
     // displayed source keeps the plain `file:line` form.
     //
     // cargo run -p test-io --example same_line_io --features hotpath (json)
@@ -288,7 +288,10 @@ pub mod tests {
         let a = entry(&io, "same-line-a");
         let b = entry(&io, "same-line-b");
 
-        assert_ne!(a.id, b.id, "same-line call sites must not share an entry");
+        assert_ne!(
+            a.location, b.location,
+            "same-line call sites must not share an entry"
+        );
         assert_eq!(a.read.bytes, 30, "bytes must not merge across call sites");
         assert_eq!(b.read.bytes, 70, "bytes must not merge across call sites");
         assert_eq!(a.instances, 1);

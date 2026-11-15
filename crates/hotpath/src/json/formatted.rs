@@ -1432,6 +1432,37 @@ impl JsonReport {
         }
     }
 
+    /// Drops the entry ids, which only address entries within one profiling
+    /// session (TUI selection, `/<section>/<id>/logs` lookups), so a
+    /// persisted or uploaded report carries none.
+    pub(crate) fn clear_runtime_ids(&mut self) {
+        fn clear<T>(list: Option<&mut Vec<T>>, id: impl Fn(&mut T) -> &mut Option<u32>) {
+            for entry in list.into_iter().flatten() {
+                *id(entry) = None;
+            }
+        }
+        for functions in [
+            &mut self.functions_timing,
+            &mut self.functions_alloc,
+            &mut self.functions_icount,
+        ] {
+            clear(functions.as_mut().map(|l| &mut l.data), |e| &mut e.id);
+        }
+        if let Some(JsonFunctionsCpu::Ok(cpu)) = &mut self.functions_cpu {
+            clear(Some(&mut cpu.data), |e| &mut e.id);
+        }
+        clear(self.channels.as_mut().map(|l| &mut l.data), |e| &mut e.id);
+        clear(self.streams.as_mut().map(|l| &mut l.data), |e| &mut e.id);
+        clear(self.futures.as_mut().map(|l| &mut l.data), |e| &mut e.id);
+        clear(self.rw_locks.as_mut().map(|l| &mut l.data), |e| &mut e.id);
+        clear(self.mutexes.as_mut().map(|l| &mut l.data), |e| &mut e.id);
+        clear(self.sql.as_mut().map(|l| &mut l.data), |e| &mut e.id);
+        clear(self.http.as_mut().map(|l| &mut l.data), |e| &mut e.id);
+        clear(self.server.as_mut().map(|l| &mut l.data), |e| &mut e.id);
+        clear(self.io.as_mut().map(|l| &mut l.data), |e| &mut e.id);
+        clear(self.debug.as_mut().map(|l| &mut l.entries), |e| &mut e.id);
+    }
+
     /// How this report's measurements were produced; see [`JsonRun::resolve`].
     pub fn run(&self) -> JsonRun {
         JsonRun::resolve(self.meta.run, self.functions_icount.is_some())

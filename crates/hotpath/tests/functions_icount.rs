@@ -10,7 +10,7 @@ pub mod tests {
 
     use crate::common::callgrind::{valgrind_available, RunDir};
     use crate::common::example::{assert_success, Example};
-    use crate::common::report::parse_report;
+    use crate::common::report::{assert_no_entry_ids, parse_report};
 
     const FEATURES: &str = "hotpath,hotpath-callgrind";
 
@@ -394,8 +394,11 @@ pub mod tests {
         assert_success(&output);
         assert_no_temp_files(&dir.0);
 
+        // The native input and the merged output both carry no entry ids.
         let read = |path: &str| -> JsonReport {
-            serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+            let value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+            assert_no_entry_ids(&value);
+            serde_json::from_value(value).unwrap()
         };
         let (native, merged) = (read(&native_path), read(&out));
         assert_eq!(merged.meta.run, Some(hotpath::json::JsonRun::Merged));
