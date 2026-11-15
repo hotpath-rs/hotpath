@@ -145,6 +145,7 @@ pub(crate) fn build_functions_list_alloc(
                 total,
                 percent_total,
                 location: crate::lib_on::locations::lookup_location(s.name),
+                labeled: crate::lib_on::functions::is_labeled(s.name),
             }
         })
         .collect();
@@ -275,6 +276,7 @@ pub(crate) fn build_functions_list_timing(
                     format!("{:.2}%", percentage)
                 },
                 location: crate::lib_on::locations::lookup_location(s.name),
+                labeled: crate::lib_on::functions::is_labeled(s.name),
             }
         })
         .collect();

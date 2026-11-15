@@ -122,6 +122,15 @@ pub mod tests {
             assert_eq!(hotpath::parse_icount(&entry.avg), Some(hundredths));
         }
 
+        for entry in &list.data {
+            assert_eq!(
+                entry.labeled,
+                entry.name == "labeled",
+                "{} labeled",
+                entry.name
+            );
+        }
+
         for (name, calls, spins) in expected {
             let (actual_calls, actual) = total(&list, name);
             assert_eq!(actual_calls, calls, "{name} calls");

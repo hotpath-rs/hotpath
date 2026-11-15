@@ -2,6 +2,7 @@
 //! proving uniqueness is enforced per kind, not globally. `measure_block!`
 //! shares the functions namespace with `#[measure(label)]`, so it gets its own
 //! label. Runtime label expressions are never checked and may repeat a literal.
+//! Unlabeled entries sit beside them to check the report's `labeled` flag.
 //!
 //! Run with:
 //!   cargo run -p test-all-features --example unique_labels --features hotpath
@@ -11,6 +12,11 @@ use std::io::{Read, Write};
 
 #[hotpath::measure(label = "shared")]
 fn measured() {
+    std::hint::black_box(0);
+}
+
+#[hotpath::measure]
+fn unlabeled() {
     std::hint::black_box(0);
 }
 
@@ -30,9 +36,18 @@ async fn main() {
         .build();
 
     measured();
+    unlabeled();
     hotpath::measure_block!("shared-block", {
         std::hint::black_box(0);
     });
+    let block_label: &'static str = std::hint::black_box("shared-block-runtime");
+    hotpath::measure_block!(block_label, {
+        std::hint::black_box(0);
+    });
+
+    let (tx, mut rx) = hotpath::channel!(tokio::sync::mpsc::channel::<u8>(4));
+    tx.send(1).await.unwrap();
+    rx.recv().await.unwrap();
 
     let (tx, mut rx) = hotpath::channel!(tokio::sync::mpsc::channel::<u8>(4), label = "shared");
     tx.send(1).await.unwrap();

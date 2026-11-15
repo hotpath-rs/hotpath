@@ -212,6 +212,7 @@ pub(crate) fn build_cpu_json(
         name: s.name.to_string(),
         samples: s.samples,
         percent: format_percent(s.samples, report.total_samples),
+        labeled: crate::lib_on::functions::is_labeled(s.name),
     };
 
     let mut entries: Vec<JsonFunctionCpuEntry> =
