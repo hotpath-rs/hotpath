@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.32.0] - 2026-11-16
+
+### 🚀 Features
+
+- [**breaking**] Mark labeled resources
+
+- [**breaking**] Unify percentiles under one key
+
+- [**breaking**] Rename label field to name
+
+- Exclude ephemeral IDs from JSON reports
+
+- Add git timestamp to reports
+
+
+### 🐛 Bug Fixes
+
+- Read entry name in examples
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.32.0
+
+
 ## [0.31.3] - 2026-11-14
 
 ### 🚀 Features
