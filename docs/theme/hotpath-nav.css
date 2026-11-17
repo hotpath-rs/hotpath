@@ -147,6 +147,10 @@
     margin: 0;
 }
 
+.site-footer .site-footer-links {
+    margin-bottom: 0.5rem;
+}
+
 .site-footer a,
 .site-footer a:link,
 .site-footer a:visited {

@@ -51,7 +51,7 @@ Authorization requests, codes and tokens are short-lived and deleted automatical
 
 hotpath-cloud provides hosted performance reports, a GitHub integration and related performance analysis services. Using the service requires internet access, a modern web browser and a GitHub account.
 
-By installing the hotpath GitHub App or logging in to the hotpath-cloud dashboard, you agree to abide by these Terms of Service and to comply with all applicable laws and regulations. You may end the agreement at any time by removing the hotpath GitHub App and no longer using the service.
+By installing the hotpath GitHub App or logging in to the hotpath-cloud dashboard, you agree to abide by these Terms of Service and to comply with all applicable laws and regulations. You may end the agreement at any time by removing the hotpath GitHub App and no longer using the service. Removing the app does not cancel a paid subscription: cancel it separately, as described under [Subscriptions](#subscriptions).
 
 You may only use the hotpath-cloud service as permitted by law. We may investigate and/or suspend or terminate our service to you at any time if we find your use of our service violates the agreement and/or any policies.
 
@@ -69,15 +69,19 @@ A paid plan is a monthly subscription for one repository, billed in advance. It 
 
 You can cancel at any time with the link in your Paddle receipt email, on [paddle.net](https://paddle.net), or by contacting support@hotpath.rs. A cancellation takes effect at the end of the billing period already paid for, and nothing is charged after it.
 
-When a subscription ends, the repository returns to the Free plan. Its reports and benchmarks stay available on the dashboard and the Free plan's reports history applies, so the oldest reports beyond its limit are deleted. A private repository on the Free plan no longer accepts new uploads once its free trial is over.
+Uninstalling the hotpath GitHub App or removing a repository from it does not cancel the repository's subscription. To stop billing, cancel the subscription in one of the ways above.
+
+When a subscription ends, the repository returns to the Free plan. Its reports and benchmarks stay available on the dashboard. The previous plan's reports history is kept for 30 days; after that, the oldest reports beyond the Free plan's limit are deleted. A private repository on the Free plan no longer accepts new uploads once its free trial is over.
 
 A private repository's free trial lasts 30 days from its first upload and is offered once per repository. No payment details are needed for it, and nothing is charged when it ends.
 
 ### Refunds
 
-All the purchases are fully refundable within the first two weeks, no questions asked.
+If you are not happy with a paid plan, you get a full refund within 14 days of your initial subscription purchase, no questions asked. This guarantee covers the first payment of a subscription, not each monthly renewal.
 
 To request a refund, contact support@hotpath.rs, or Paddle on [paddle.net](https://paddle.net) or through the link in your receipt email.
+
+This policy does not affect your statutory rights as a consumer.
 
 ### Limitations of use
 
