@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.32.1] - 2026-11-17
+
+### 🚀 Features
+
+- Keep the local commit identity when the checkout cannot be verified
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.32.1
+
+
 ## [0.32.0] - 2026-11-16
 
 ### 🚀 Features
