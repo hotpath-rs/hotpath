@@ -84,22 +84,14 @@ fn checkout_git_root() -> Option<PathBuf> {
     }
 }
 
-/// The git root of the repository the report describes: where its commit
-/// identity is read and its policy file looked up. The verified checkout's
-/// root, else the git root above the working directory. An unverified
-/// checkout (only external source locations, as with the Criterion adapter,
-/// or a nested workspace started from the repository root) withholds source
-/// links, not the commit identity or the policy: the benchmark still runs in
-/// that repository, and a job that checked out another commit than the CI
-/// event names must report the one it built.
+/// Where the commit identity is read and the policy file looked up: the
+/// verified checkout's root, else the git root above the working directory.
+/// Only source links need a verified checkout.
 #[cfg(feature = "hotpath-cloud-meta")]
 fn repository_root(checkout_git_root: Option<PathBuf>, cwd: Option<&Path>) -> Option<PathBuf> {
     checkout_git_root.or_else(|| find_git_root(cwd?))
 }
 
-/// The report's `meta.git`: the commit checked out at `git_root`, merged with
-/// what the CI environment says about the run. No git root, or one whose
-/// `HEAD` cannot be read, leaves the environment as the only source.
 #[cfg(feature = "hotpath-cloud-meta")]
 fn report_git_info(
     git_root: Option<&Path>,
@@ -388,10 +380,8 @@ mod tests {
             assert!(merge_git_info(None, None).is_none());
         }
 
-        /// A Criterion-only benchmark registers no repo-relative location, so
-        /// its checkout is unverified; the identity is still read from the git
-        /// checkout around the working directory, where the job built the PR
-        /// head while `GITHUB_SHA` names the merge commit.
+        /// Criterion-only benchmarks have no repo-relative locations, so the
+        /// checkout is unverified.
         #[test]
         fn unverified_checkout_reports_the_built_commit() {
             let root = temp_repo("unverified-checkout");
@@ -412,7 +402,6 @@ mod tests {
             let git_root = repository_root(None, Some(&cwd));
             assert_eq!(git_root.as_deref(), Some(root.as_path()));
 
-            // Pull request run: the environment names the merge commit.
             let git = report_git_info(git_root.as_deref(), Some(&pull_request_ci(CI_SHA)))
                 .expect("git info");
             assert_eq!(git.sha, head);
@@ -420,7 +409,6 @@ mod tests {
             assert_eq!(git.r#ref, None);
             assert_eq!(git.base_sha.as_deref(), Some(BASE_SHA));
 
-            // Push run: the environment names the commit that was built.
             let push_ci = CiContext {
                 ci: JsonCiInfo {
                     provider: "github-actions".to_string(),
@@ -438,7 +426,6 @@ mod tests {
             assert_eq!(git.r#ref.as_deref(), Some("refs/heads/main"));
             assert_eq!(git.base_sha, None);
 
-            // The verified checkout's root wins over the working directory's.
             let verified = root.join("verified");
             assert_eq!(
                 repository_root(Some(verified.clone()), Some(&cwd)),
@@ -447,7 +434,6 @@ mod tests {
             let _ = std::fs::remove_dir_all(&root);
         }
 
-        /// Outside any git checkout the environment stays the only source.
         #[test]
         fn no_checkout_falls_back_to_ci() {
             let cwd = temp_repo("no-checkout");

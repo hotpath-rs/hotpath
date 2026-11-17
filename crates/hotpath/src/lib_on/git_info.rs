@@ -165,7 +165,6 @@ fn is_sha(s: &str) -> bool {
     (s.len() == 40 || s.len() == 64) && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
-/// Real git repositories for tests of the git identity.
 #[cfg(test)]
 pub(crate) mod test_repo {
     use std::path::{Path, PathBuf};

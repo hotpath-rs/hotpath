@@ -518,8 +518,6 @@ mod tests {
         );
     }
 
-    /// A detached head checkout read locally: no ref, a commit time. Both
-    /// runs read the same identity, so they merge and keep the time.
     #[test]
     fn detached_checkout_identity_merges() {
         let detached = |mut r: JsonReport| {
