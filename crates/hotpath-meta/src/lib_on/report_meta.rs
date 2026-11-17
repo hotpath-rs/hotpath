@@ -32,11 +32,11 @@ pub(crate) fn build_meta(
     cfg_if::cfg_if! {
         if #[cfg(feature = "hotpath-cloud-meta")] {
             let ci = crate::lib_on::ci_info::detect();
-            let git_root = checkout_git_root();
-            let local = git_root
-                .as_deref()
-                .and_then(crate::lib_on::git_info::read_git_info_at);
-            let git = merge_git_info(local, ci.as_ref());
+            let git_root = repository_root(
+                checkout_git_root(),
+                std::env::current_dir().ok().as_deref(),
+            );
+            let git = report_git_info(git_root.as_deref(), ci.as_ref());
             // Set on every report, not only uploads, so a saved JSON says
             // which benchmark it is; the upload path reports invalid names.
             let benchmark = crate::lib_on::cloud::benchmark_name().ok();
@@ -44,7 +44,7 @@ pub(crate) fn build_meta(
             // On every report, not only uploads, so the report file a relay
             // job posts carries the policy too.
             let policy = checkout_policy(
-                policy_root(git_root).as_deref(),
+                git_root.as_deref(),
                 benchmark.as_deref(),
                 ci.is_some(),
             );
@@ -70,13 +70,13 @@ pub(crate) fn build_meta(
     }
 }
 
-/// The git root of the checkout the report describes: where its git identity
-/// is read and its policy file looked up.
+/// The git root of the verified source checkout: the one the report's
+/// relative `location.file` values resolve against.
 #[cfg(feature = "hotpath-cloud-meta")]
 fn checkout_git_root() -> Option<PathBuf> {
-    // A `HOTPATH_META_SOURCE_ROOT` override asserts the runtime checkout is
-    // the source checkout, so its git identity is trusted even when checkout
-    // resolution fails.
+    // A `HOTPATH_META_SOURCE_ROOT` override asserts the runtime checkout is the
+    // source checkout, so its git root is used even when checkout resolution
+    // fails.
     if std::env::var("HOTPATH_META_SOURCE_ROOT").is_ok() {
         find_git_root(&std::env::current_dir().ok()?)
     } else {
@@ -84,13 +84,29 @@ fn checkout_git_root() -> Option<PathBuf> {
     }
 }
 
-/// Where the policy file is looked up: the checkout's git root, else the git
-/// root above the working directory. An unverified checkout (no registered
-/// source locations, or a nested workspace started from the repository root)
-/// withholds source links and the commit identity, not the policy.
+/// The git root of the repository the report describes: where its commit
+/// identity is read and its policy file looked up. The verified checkout's
+/// root, else the git root above the working directory. An unverified
+/// checkout (only external source locations, as with the Criterion adapter,
+/// or a nested workspace started from the repository root) withholds source
+/// links, not the commit identity or the policy: the benchmark still runs in
+/// that repository, and a job that checked out another commit than the CI
+/// event names must report the one it built.
 #[cfg(feature = "hotpath-cloud-meta")]
-fn policy_root(checkout_git_root: Option<PathBuf>) -> Option<PathBuf> {
-    checkout_git_root.or_else(|| find_git_root(&std::env::current_dir().ok()?))
+fn repository_root(checkout_git_root: Option<PathBuf>, cwd: Option<&Path>) -> Option<PathBuf> {
+    checkout_git_root.or_else(|| find_git_root(cwd?))
+}
+
+/// The report's `meta.git`: the commit checked out at `git_root`, merged with
+/// what the CI environment says about the run. No git root, or one whose
+/// `HEAD` cannot be read, leaves the environment as the only source.
+#[cfg(feature = "hotpath-cloud-meta")]
+fn report_git_info(
+    git_root: Option<&Path>,
+    ci: Option<&crate::lib_on::ci_info::CiContext>,
+) -> Option<crate::json::JsonGitInfo> {
+    let local = git_root.and_then(crate::lib_on::git_info::read_git_info_at);
+    merge_git_info(local, ci)
 }
 
 /// The policy file of the checkout, as written; the client never parses it.
@@ -249,7 +265,8 @@ mod tests {
             JsonCiInfo, JsonGitInfo, JsonMeta, JsonPolicy, JsonPullRequest, JsonRun,
         };
         use crate::lib_on::ci_info::CiContext;
-        use crate::lib_on::report_meta::merge_git_info;
+        use crate::lib_on::git_info::test_repo::{commit, git, temp_repo};
+        use crate::lib_on::report_meta::{merge_git_info, report_git_info, repository_root};
         use time::macros::datetime;
 
         const LOCAL_SHA: &str = "1111111111111111111111111111111111111111";
@@ -369,6 +386,83 @@ mod tests {
             assert_eq!(git.committed_at, None);
 
             assert!(merge_git_info(None, None).is_none());
+        }
+
+        /// A Criterion-only benchmark registers no repo-relative location, so
+        /// its checkout is unverified; the identity is still read from the git
+        /// checkout around the working directory, where the job built the PR
+        /// head while `GITHUB_SHA` names the merge commit.
+        #[test]
+        fn unverified_checkout_reports_the_built_commit() {
+            let root = temp_repo("unverified-checkout");
+            git(&root, &["init", "-q", "-b", "main"], &[]);
+            let head = commit(
+                &root,
+                "2020-01-01T00:00:00+00:00",
+                "2026-11-15T15:30:00+01:00",
+            );
+            commit(
+                &root,
+                "2020-01-02T00:00:00+00:00",
+                "2026-11-16T09:00:00+00:00",
+            );
+            git(&root, &["checkout", "-q", "--detach", &head], &[]);
+            let cwd = root.join("crates/torin");
+            std::fs::create_dir_all(&cwd).unwrap();
+            let git_root = repository_root(None, Some(&cwd));
+            assert_eq!(git_root.as_deref(), Some(root.as_path()));
+
+            // Pull request run: the environment names the merge commit.
+            let git = report_git_info(git_root.as_deref(), Some(&pull_request_ci(CI_SHA)))
+                .expect("git info");
+            assert_eq!(git.sha, head);
+            assert_eq!(git.committed_at, Some(COMMITTED_AT));
+            assert_eq!(git.r#ref, None);
+            assert_eq!(git.base_sha.as_deref(), Some(BASE_SHA));
+
+            // Push run: the environment names the commit that was built.
+            let push_ci = CiContext {
+                ci: JsonCiInfo {
+                    provider: "github-actions".to_string(),
+                    event: "push".to_string(),
+                    ..JsonCiInfo::default()
+                },
+                sha: Some(head.clone()),
+                r#ref: Some("refs/heads/main".to_string()),
+                repository: Some("hotpath-rs/hotpath".to_string()),
+                base_sha: None,
+            };
+            let git = report_git_info(git_root.as_deref(), Some(&push_ci)).expect("git info");
+            assert_eq!(git.sha, head);
+            assert_eq!(git.committed_at, Some(COMMITTED_AT));
+            assert_eq!(git.r#ref.as_deref(), Some("refs/heads/main"));
+            assert_eq!(git.base_sha, None);
+
+            // The verified checkout's root wins over the working directory's.
+            let verified = root.join("verified");
+            assert_eq!(
+                repository_root(Some(verified.clone()), Some(&cwd)),
+                Some(verified)
+            );
+            let _ = std::fs::remove_dir_all(&root);
+        }
+
+        /// Outside any git checkout the environment stays the only source.
+        #[test]
+        fn no_checkout_falls_back_to_ci() {
+            let cwd = temp_repo("no-checkout");
+            let git_root = repository_root(None, Some(&cwd));
+            assert_eq!(
+                git_root, None,
+                "temp dir must not sit inside a git checkout"
+            );
+            let git = report_git_info(git_root.as_deref(), Some(&pull_request_ci(CI_SHA)))
+                .expect("git info");
+            assert_eq!(git.sha, CI_SHA);
+            assert_eq!(git.committed_at, None);
+            assert_eq!(git.r#ref.as_deref(), Some("refs/pull/42/merge"));
+            assert!(report_git_info(None, None).is_none());
+            let _ = std::fs::remove_dir_all(&cwd);
         }
 
         #[test]

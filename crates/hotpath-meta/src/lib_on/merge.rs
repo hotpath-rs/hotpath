@@ -518,6 +518,25 @@ mod tests {
         );
     }
 
+    /// A detached head checkout read locally: no ref, a commit time. Both
+    /// runs read the same identity, so they merge and keep the time.
+    #[test]
+    fn detached_checkout_identity_merges() {
+        let detached = |mut r: JsonReport| {
+            let git = r.meta.git.as_mut().unwrap();
+            git.r#ref = None;
+            git.committed_at = Some(time::macros::datetime!(2026-11-15 14:30:00 UTC));
+            r
+        };
+        let merged = merge(detached(native()), detached(own()), IcountRun::Counted).unwrap();
+        let git = merged.meta.git.expect("git info");
+        assert_eq!(git.r#ref, None);
+        assert_eq!(
+            git.committed_at,
+            Some(time::macros::datetime!(2026-11-15 14:30:00 UTC))
+        );
+    }
+
     #[test]
     fn local_runs_without_ci_fields_merge() {
         let local = |mut r: JsonReport| {
