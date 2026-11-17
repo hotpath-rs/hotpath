@@ -77,7 +77,7 @@ A private repository's free trial lasts 30 days from its first upload and is off
 
 ### Refunds
 
-If you are not happy with a paid plan, you get a full refund within 14 days of any payment, no questions asked. This covers the initial subscription purchase and each monthly renewal.
+If you are not happy with a paid plan, you get a full refund within 14 days of your initial subscription purchase, no questions asked. This covers the first payment of a subscription, not the monthly renewals that follow it.
 
 To request a refund, contact support@hotpath.rs, or Paddle on [paddle.net](https://paddle.net) or through the link in your receipt email.
 
