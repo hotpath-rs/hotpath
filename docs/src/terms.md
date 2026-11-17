@@ -18,6 +18,8 @@ We use Ahrefs Web Analytics to collect anonymized website visits data on the doc
 
 The blog offers an optional email newsletter. If you subscribe, your email address and marketing consent are stored by Mailchimp (Intuit Inc., United States), which we use to send the newsletter. The newsletter is shared with pawelurbanek.com. The signup form loads its scripts from Mailchimp's servers only after you open it. We process this data based on your consent, which you can withdraw at any time with the unsubscribe link in any newsletter email or by contacting us. Your data is kept until you unsubscribe. Mailchimp handles it under its own [privacy policy](https://www.intuit.com/privacy/statement/).
 
+Payments for paid plans are processed by Paddle.com, our reseller and Merchant of Record. Paddle receives the purchaser's email address, billing address and payment details and handles them under its own [privacy policy](https://www.paddle.com/legal/privacy). We store the Paddle customer and subscription identifiers of each purchase and its plan and status, to apply the plan to the repository.
+
 The service is hosted on Amazon Web Services in the United States (us-east-1), and Hetzner US datacenter, behind Cloudflare.
 
 We process your account and connection data because it is necessary to provide the service to you, and access logs based on our legitimate interest in operating and securing the service.
@@ -54,6 +56,28 @@ By installing the hotpath GitHub App or logging in to the hotpath-cloud dashboar
 You may only use the hotpath-cloud service as permitted by law. We may investigate and/or suspend or terminate our service to you at any time if we find your use of our service violates the agreement and/or any policies.
 
 These terms cover the hosted service at hotpath.rs only. The open-source hotpath crates keep their own license.
+
+### Payments
+
+Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all our orders. Paddle provides all customer service inquiries and handles returns.
+
+Plans, prices and limits are listed on the [pricing](cloud.md#pricing) page. Prices are in USD and exclude VAT; Paddle adds the sales tax that applies at checkout and issues the invoice.
+
+### Subscriptions
+
+A paid plan is a monthly subscription for one repository, billed in advance. It renews automatically each month until it is cancelled.
+
+You can cancel at any time with the link in your Paddle receipt email, on [paddle.net](https://paddle.net), or by contacting support@hotpath.rs. A cancellation takes effect at the end of the billing period already paid for, and nothing is charged after it.
+
+When a subscription ends, the repository returns to the Free plan. Its reports and benchmarks stay available on the dashboard and the Free plan's reports history applies, so the oldest reports beyond its limit are deleted. A private repository on the Free plan no longer accepts new uploads once its free trial is over.
+
+A private repository's free trial lasts 30 days from its first upload and is offered once per repository. No payment details are needed for it, and nothing is charged when it ends.
+
+### Refunds
+
+All the purchases are fully refundable within the first two weeks, no questions asked.
+
+To request a refund, contact support@hotpath.rs, or Paddle on [paddle.net](https://paddle.net) or through the link in your receipt email.
 
 ### Limitations of use
 
