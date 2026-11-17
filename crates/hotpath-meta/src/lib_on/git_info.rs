@@ -166,13 +166,11 @@ fn is_sha(s: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::lib_on::git_info::{owner_name, read_git_info_at};
+pub(crate) mod test_repo {
     use std::path::{Path, PathBuf};
     use std::process::Command;
-    use time::macros::datetime;
 
-    fn temp_repo(name: &str) -> PathBuf {
+    pub(crate) fn temp_repo(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
             "hotpath-meta-git-info-{}-{}",
             std::process::id(),
@@ -182,6 +180,48 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
+
+    /// Runs git isolated from the user's config (signing, hooks, identity).
+    pub(crate) fn git(dir: &Path, args: &[&str], envs: &[(&str, &str)]) -> String {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args([
+                "-c",
+                "user.name=hotpath",
+                "-c",
+                "user.email=hotpath@example.com",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "core.hooksPath=/dev/null",
+            ])
+            .args(args)
+            .envs(envs.iter().copied())
+            .output()
+            .expect("git");
+        assert!(output.status.success(), "git {args:?}: {output:?}");
+        String::from_utf8(output.stdout).unwrap().trim().to_string()
+    }
+
+    pub(crate) fn commit(dir: &Path, author_date: &str, committer_date: &str) -> String {
+        git(
+            dir,
+            &["commit", "--allow-empty", "--no-verify", "-m", "c"],
+            &[
+                ("GIT_AUTHOR_DATE", author_date),
+                ("GIT_COMMITTER_DATE", committer_date),
+            ],
+        );
+        git(dir, &["rev-parse", "HEAD"], &[])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::lib_on::git_info::test_repo::{commit, git, temp_repo};
+    use crate::lib_on::git_info::{owner_name, read_git_info_at};
+    use time::macros::datetime;
 
     const SHA: &str = "4c36978500000000000000000000000000000000";
 
@@ -230,41 +270,6 @@ mod tests {
         // No commit object to read: the field is omitted, the info is not.
         assert_eq!(info.committed_at, None);
         let _ = std::fs::remove_dir_all(&root);
-    }
-
-    /// Runs git isolated from the user's config (signing, hooks, identity).
-    fn git(dir: &Path, args: &[&str], envs: &[(&str, &str)]) -> String {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(dir)
-            .args([
-                "-c",
-                "user.name=hotpath",
-                "-c",
-                "user.email=hotpath@example.com",
-                "-c",
-                "commit.gpgsign=false",
-                "-c",
-                "core.hooksPath=/dev/null",
-            ])
-            .args(args)
-            .envs(envs.iter().copied())
-            .output()
-            .expect("git");
-        assert!(output.status.success(), "git {args:?}: {output:?}");
-        String::from_utf8(output.stdout).unwrap().trim().to_string()
-    }
-
-    fn commit(dir: &Path, author_date: &str, committer_date: &str) -> String {
-        git(
-            dir,
-            &["commit", "--allow-empty", "--no-verify", "-m", "c"],
-            &[
-                ("GIT_AUTHOR_DATE", author_date),
-                ("GIT_COMMITTER_DATE", committer_date),
-            ],
-        );
-        git(dir, &["rev-parse", "HEAD"], &[])
     }
 
     /// Committer date, not author date, of the checked-out commit - also
