@@ -6,7 +6,7 @@ Budgets live in the same file as the [regression policy](regression_policy.md) r
 
 ## Rules
 
-One `[[<resource>.budgets]]` table per rule, under the resource it limits.
+One `[[<resource>.budgets]]` table per rule, under the resource it limits. A policy file holds at most 20 rules, summed over every resource.
 
 ### Functions
 
