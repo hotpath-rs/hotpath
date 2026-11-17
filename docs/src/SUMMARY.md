@@ -29,6 +29,7 @@
 - [API & MCP](./mcp_api.md)
 - [AI Agents CLI](./agents_cli.md)
 - [FAQ](./cloud_faq.md)
+- [Pricing](./pricing.md)
 
 # More
 

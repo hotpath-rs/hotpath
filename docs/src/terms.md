@@ -61,7 +61,7 @@ These terms cover the hosted service at hotpath.rs only. The open-source hotpath
 
 Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all our orders. Paddle provides all customer service inquiries and handles returns.
 
-Plans, prices and limits are listed on the [pricing](cloud.md#pricing) page. Prices are in USD and exclude VAT; Paddle adds the sales tax that applies at checkout and issues the invoice.
+Plans, prices and limits are listed on the [pricing](pricing.md) page. Prices are in USD and exclude VAT; Paddle adds the sales tax that applies at checkout and issues the invoice.
 
 ### Subscriptions
 

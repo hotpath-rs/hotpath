@@ -19,11 +19,11 @@ Yes. The core `hotpath-rs` library remains open source, and hotpath-cloud is an 
 
 ## Is it free? Will it stay free for open source?
 
-Yes. Public repositories are free, and there will always be a free plan for them. Private repositories get a 30-day free trial and then need a paid plan: Private at $49 or Pro at $99 per repository per month. See [Pricing](cloud.md#pricing).
+Yes. Public repositories are free, and there will always be a free plan for them. Private repositories get a 30-day free trial and then need a paid plan: Private at $49 or Pro at $99 per repository per month. See [Pricing](pricing.md).
 
 ## How long are benchmark reports kept?
 
-Each repository keeps its 1,000 most recent benchmark reports, or 10,000 on the Pro plan; older ones are deleted. See [Limits](cloud.md#limits).
+Each repository keeps its 1,000 most recent benchmark reports, or 10,000 on the Pro plan; older ones are deleted. See [Limits](pricing.md#limits).
 
 ## What happens to my CI if the hotpath-cloud backend is down?
 
