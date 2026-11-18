@@ -15,6 +15,7 @@
 - **Free trial:** each private repository gets one 30-day free trial, starting with its first upload. No card is needed and nothing is charged when it ends. After the trial, uploads are refused until the repository has a plan; its reports stay available on the dashboard.
 - **Subscribing:** open the repository's page on the [dashboard](https://hotpath.rs/app) and choose a plan. Each plan covers one repository.
 - **Payments and refunds:** orders are processed by Paddle, our reseller and Merchant of Record. See [Payments](terms.md#payments), [Subscriptions](terms.md#subscriptions) and [Refunds](terms.md#refunds).
+- **Custom plans:** custom limits and self-hosted plans are available on demand. Contact support@hotpath.rs for more info.
 
 ## Limits
 
