@@ -187,20 +187,20 @@ Trimmed answer:
   "repository": "hotpath-rs/hotpath",
   "reports": [
     {
-      "id": "01a1b2de-8cf9-7a91-a291-fe44b90015da",
-      "benchmark": "random",
+      "id": "01a1adf1-0925-7ad8-b2c4-568be67062a4",
+      "benchmark": "meta",
       "event": "pull_request",
-      "commit_sha": "71b98a75585f1a7cc78ec809ca624b80baef1c0b",
-      "pr_number": 742,
-      "baseline_id": "01a1b2d3-df76-7591-a393-0fca372086a7",
-      "regressed": true,
+      "commit_sha": "a77265a1f615c76032788ff4db8f9dd5b0a9a1bb",
+      "pr_number": 801,
+      "baseline_id": "01a1adef-c63a-7ab8-9211-812448d4fa6b",
+      "regressed": false,
       "failed": false,
-      "policy_path": "hotpath/random-policy.toml",
-      "created_at": "2026-11-06T21:58:11.954835Z",
-      "dashboard_url": "https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/random/reports/01a1b2de-8cf9-7a91-a291-fe44b90015da"
+      "policy_path": "hotpath/meta-policy.toml",
+      "created_at": "2026-11-05T23:00:17.311221Z",
+      "dashboard_url": "https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/meta/reports/01a1adf1-0925-7ad8-b2c4-568be67062a4"
     }
   ],
-  "next_cursor": "AQGhstPfdnWRo5MPyjcghqc"
+  "next_cursor": "AQGhre_GOnq4khGBJEjU-ms"
 }
 ```
 
