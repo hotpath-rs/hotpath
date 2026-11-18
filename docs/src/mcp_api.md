@@ -28,11 +28,10 @@ The server speaks Streamable HTTP. A client can connect and list the tools witho
 
 ### Which repositories you can read
 
-Access follows GitHub and the repository's reports visibility on the <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">dashboard</a>. A repository with the hotpath GitHub App installed is readable when:
+Access follows the repository's visibility on GitHub. A repository with the hotpath GitHub App installed is readable when:
 
-- its reports are public (the default for a public repository): any signed-in user can read them by naming the repository, also when it is not one of theirs,
-- it is private on GitHub and your GitHub user can read it,
-- it is public on GitHub with private reports, and your GitHub user has push permission to it.
+- it is public on GitHub: its reports are public, and any signed-in user can read them by naming the repository, also when it is not one of theirs,
+- it is private on GitHub and your GitHub user can read it.
 
 `list_repos` (and `GET /repos`) is not a directory of every project using hotpath-cloud. It lists only the repositories in the GitHub App installations your GitHub user can see, the same list as <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a>. To read the public reports of another project, pass its `owner/name` to the other tools directly. A repository you cannot read answers `not_found`, the same as one that does not exist.
 
