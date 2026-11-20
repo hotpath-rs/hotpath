@@ -22,12 +22,62 @@
     }
 }
 
-/* Hero Row */
+/* Hero Row: the pill, its note and the SSH demo share the middle column,
+ * centered on the page, and Ferris sits in the left column spanning them.
+ * Ferris has a column of his own, so he can never overlap the text. */
 .hero-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    /* The flexible first and last rows absorb Ferris's extra height, so the
+     * pill, note and SSH demo stay together as a vertically centered stack. */
+    grid-template-rows: 1fr auto auto auto 1fr;
     align-items: center;
-    gap: 2rem;
-    margin: 1.5rem 0 2rem 0;
+    column-gap: 2rem;
+    margin: 2.4rem 0;
+}
+
+.hero-row .ferris-hero {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    justify-self: end;
+}
+
+.hero-row .agent-pill {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0 auto;
+}
+
+.hero-row .hero-cta-note {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+.hero-row .ssh-demo {
+    grid-column: 2;
+    grid-row: 4;
+}
+
+/* Side by side needs room for Ferris on both sides of the middle column, so
+ * the breakpoint follows the content width (narrower with the sidebar open),
+ * not the viewport. */
+main:has(> .hero-row) {
+    container-type: inline-size;
+}
+
+@container (max-width: 680px) {
+    .hero-row {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        margin: 1.5rem 0 2rem 0;
+    }
+
+    .hero-row .ferris-hero {
+        width: 120px;
+        margin-bottom: 1.5rem;
+    }
 }
 
 .ferris-hero {
@@ -136,67 +186,33 @@
     100% { opacity: 0; transform: translateY(-110px) scale(0.9); }
 }
 
-@media (max-width: 768px) {
-    .hero-row {
-        flex-direction: column;
-        align-items: center;
-        gap: 1.5rem;
-    }
-
-    .ferris-hero {
-        width: 120px;
-    }
+/* Short muted explanation right under the AI setup pill */
+.content .hero-cta-note {
+    margin: 1rem 0 0 0;
+    text-align: center;
+    font-size: 1.4rem;
+    color: var(--fg);
+    opacity: 0.7;
 }
 
-/* SSH Demo Terminal */
-.ssh-demo-container {
+/* SSH demo: an inline command under the AI setup pill, styled as the
+ * page's inline code */
+.content .ssh-demo {
+    margin: 1.4rem 0 0 0;
     text-align: center;
 }
 
-.ssh-demo-label {
-    margin-bottom: 1rem;
-}
-
-.terminal-shell {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.75rem;
-    background: #0d0d0d;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    padding: 1rem 1.5rem;
-    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
-    box-shadow:
-        0 4px 24px rgba(0, 0, 0, 0.5),
-        0 0 0 1px rgba(255, 255, 255, 0.03) inset,
-        0 0 50px rgba(255, 180, 84, 0.1);
-    cursor: default;
-}
-
-.terminal-prompt {
-    color: #98c379;
-    font-weight: 700;
-    user-select: none;
-}
-
-.terminal-command {
-    color: #ffb454;
-    letter-spacing: 0.03em;
-    font-weight: 500;
-}
-
-.terminal-copyable {
-    font-size: inherit;
-    line-height: inherit;
-    color: inherit;
+.ssh-demo-command {
+    padding: 0;
+    background: none;
+    border: none;
+    font: inherit;
     cursor: pointer;
-    transition: border-color 0.15s ease;
 }
 
-.terminal-copyable:hover,
-.terminal-copyable:focus-visible {
-    border-color: rgba(255, 180, 84, 0.5);
-    outline: none;
+.ssh-demo-command:focus-visible {
+    outline: 1px solid currentColor;
+    outline-offset: 2px;
 }
 
 .copy-tooltip {
@@ -214,7 +230,7 @@
     background: #f5f5f5;
     color: #111;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 1.2rem;
+    font-size: 1.4rem;
     font-weight: 500;
     white-space: nowrap;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -241,8 +257,8 @@
     gap: 0.75rem;
     margin: 0 auto;
     padding: 0.9rem 2rem;
-    background: #2a1d0f;
-    border: 1px solid rgba(255, 180, 84, 0.55);
+    background: #33230f;
+    border: 1px solid rgba(255, 180, 84, 0.8);
     border-radius: 10px;
     color: #fff;
     font-family: inherit;
@@ -255,7 +271,7 @@
 
 .agent-pill:hover,
 .agent-pill:focus-visible {
-    background: #36250f;
+    background: #3d2a12;
     border-color: #ffb454;
     box-shadow: 0 0 32px rgba(255, 180, 84, 0.2);
     outline: none;
@@ -294,27 +310,9 @@
 }
 
 @media (max-width: 768px) {
-    .ssh-demo-container {
-        max-width: 100%;
-        min-width: 0;
-    }
-
-    .terminal-shell {
-        padding: 0.75rem 1rem;
-    }
-
-    .terminal-copyable {
-        max-width: 100%;
-    }
-
     .agent-pill {
         font-size: 1.15rem;
         padding: 0.65rem 1.25rem;
-    }
-
-    .terminal-copyable .terminal-command {
-        overflow-wrap: anywhere;
-        font-size: clamp(0.7rem, 3.1vw, 1.1rem);
     }
 }
 
@@ -363,7 +361,7 @@
     text-decoration: none;
 }
 
-/* Same dark fill as .terminal-shell so the white label stays readable on
+/* Same dark fill as the .trusted-by-project cards so the white label stays readable on
    the light mdbook themes too */
 .agent-pill.cta-secondary {
     background: #0d0d0d;
@@ -381,6 +379,30 @@
 
 .hero-badges img {
     height: 22px;
+}
+
+/* Two side-by-side "next step" blocks under the hero */
+.hero-paths {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem 2.5rem;
+    margin: 1.5rem 0 2rem 0;
+}
+
+.content .hero-path p {
+    margin: 0 0 0.3rem 0;
+    line-height: 1.5;
+}
+
+.content .hero-path .hero-path-title {
+    font-weight: 600;
+    font-size: 1.15em;
+}
+
+@media (max-width: 768px) {
+    .hero-paths {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Trusted By */
