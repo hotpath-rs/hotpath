@@ -342,18 +342,8 @@ main:has(> .hero-row) {
     opacity: 0.85;
 }
 
-/* Link CTAs styled as the hero's agent pill */
-.cta-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin: 1.5rem 0 2rem 0;
-}
-
-.cta-row .agent-pill {
-    margin: 0;
-}
-
+/* Link CTAs styled as the home page's agent pill (white label on its own
+   dark fill, so it reads on the light mdbook themes too) */
 .content a.cta-link,
 .content a.cta-link:visited,
 .content a.cta-link:hover {
@@ -361,11 +351,87 @@ main:has(> .hero-row) {
     text-decoration: none;
 }
 
-/* Same dark fill as the .trusted-by-project cards so the white label stays readable on
-   the light mdbook themes too */
-.agent-pill.cta-secondary {
-    background: #0d0d0d;
-    border-color: rgba(255, 255, 255, 0.2);
+/* Cloud page hero: the install button with the setup offer and a muted
+   reassurance line right under it */
+.cloud-cta {
+    /* Its own formatting context keeps the whole block beside the floated
+       Ferris instead of wrapping half of it underneath him */
+    display: flow-root;
+    margin: 1.5rem 0 2rem 0;
+}
+
+/* Left edges line up with the offer text, inside its 3px accent border and
+   1.2rem padding */
+.cloud-cta .agent-pill {
+    margin: 1.6rem 0 0 calc(3px + 1.2rem);
+}
+
+/* The hands-on setup offer: its own bold title, tied to the text by a thin
+   amber accent rather than a colored banner */
+.cloud-cta-offer {
+    max-width: 60ch;
+    margin: 0;
+    padding-left: 1.2rem;
+    border-left: 3px solid #ffb454;
+}
+
+.content .cloud-cta-offer p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.content .cloud-cta-offer .cloud-cta-offer-title {
+    margin-bottom: 0.3rem;
+    font-size: 1.9rem;
+    font-weight: 700;
+}
+
+/* The Getting Started install button and its reassurance line, left-aligned
+   with the section text */
+.cloud-install {
+    margin: 1.5rem 0;
+}
+
+.cloud-install .agent-pill {
+    margin: 0;
+}
+
+.content .cloud-install .cloud-cta-meta {
+    margin-left: 0;
+}
+
+/* Compact pricing and permissions reassurance under the install button */
+.content .cloud-cta-meta {
+    margin: 1rem 0 0 calc(3px + 1.2rem);
+    font-size: 1.35rem;
+    color: var(--fg);
+    opacity: 0.75;
+}
+
+.content .cloud-cta-meta a,
+.content .cloud-cta-meta a:visited {
+    color: inherit;
+    text-decoration: underline dotted;
+    text-underline-offset: 0.2em;
+    /* On narrow screens the line breaks between the phrases, not inside one */
+    white-space: nowrap;
+}
+
+
+@media (max-width: 768px) {
+    /* Centered between the headline and the intro, small enough to keep the
+       install button near the top */
+    .ferris-img-cloud {
+        float: none;
+        display: block;
+        width: 40%;
+        max-width: 180px;
+        margin: 0 auto 1rem auto;
+    }
+
+    .cloud-cta {
+        clear: both;
+    }
 }
 
 .hero-badges {

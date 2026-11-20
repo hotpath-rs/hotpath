@@ -1,19 +1,37 @@
 # Detect Rust performance regressions before they ship
 
-<img src="{{#asset-hash images/hotpath-cloud-ferris.webp}}" alt="hotpath-cloud mascot, an angry crab on fire sitting on a cloud" class="ferris-img">
+<img src="{{#asset-hash images/hotpath-cloud-ferris.webp}}" alt="hotpath-cloud mascot, an angry crab on fire sitting on a cloud" class="ferris-img ferris-img-cloud">
 
-`hotpath-cloud` turns profiling data into automated performance reviews for Rust pull requests.
+Catch CPU, memory allocation, and SQL regressions automatically in GitHub pull requests. See exactly what changed before merging.
 
-Compare each PR's benchmark results against its baseline to find functions that execute more CPU instructions, allocate more memory, or trigger additional SQL queries. Set performance budgets and get actionable feedback directly in GitHub PRs.
-
-<div class="cta-row">
-  <a class="agent-pill cta-link" target="_blank" href="/app">Get started</a>
-  <a class="agent-pill cta-link cta-secondary" target="_blank" href="https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a1846c-6da4-7cf6-a648-275e812a76b9/diff">See example performance diff</a>
+<div class="cloud-cta">
+  <div class="cloud-cta-offer">
+    <p class="cloud-cta-offer-title">We'll set it up for you.</p>
+    <p>Select a public Rust repository when installing the GitHub App. We'll open a PR configuring <code>hotpath-cloud</code> <b>within 24 hours</b>. Just review and merge it when ready.</p>
+  </div>
+  <a class="agent-pill cta-link" href="https://github.com/apps/hotpath-rs/installations/new" target="_blank" rel="noopener" onclick="hotpathTrack('github_app_install_click', 'cloud_hero')">
+    <svg class="agent-pill-copy" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.9 1.1.9 2.2v3.3c0 .3.1.7.8.6A12 12 0 0 0 12 .3"/></svg>
+    <span>Install GitHub App</span>
+  </a>
+  <p class="cloud-cta-meta"><a href="/pricing">Free for public repositories</a> · <a href="/cloud_faq#what-data-can-the-github-app-access">No source code access</a></p>
 </div>
 
-The [GitHub Actions integration](ci_integration.md) compares benchmark results against a baseline and posts a PR comment whenever a significant regression or improvement is detected:
+<script>
+// Optional Ahrefs Web Analytics event (the script is often blocked), it must never affect the link.
+function hotpathTrack(name, placement) {
+  try {
+    window.AhrefsAnalytics?.sendEvent(name, { props: { placement: placement } });
+  } catch (_) {}
+}
+</script>
+
+## See what hotpath-cloud adds to your pull requests
+
+When a pull request changes performance in a meaningful way, the [GitHub Actions integration](ci_integration.md) posts a comment comparing it against the baseline:
 
 <img loading="lazy" src="{{#asset-hash images/cloud-pr-comment.webp}}" alt="hotpath-cloud pull request comment">
+
+<a href="https://hotpath.rs/app/repos/hotpath-rs/hotpath/benchmarks/drain/reports/01a1846c-6da4-7cf6-a648-275e812a76b9/diff" target="_blank" rel="noopener">See an example performance diff on the dashboard →</a>
 
 Want to understand how it works under the hood? Read [Rust Benchmarking: How to Detect Performance Regressions in CI](/blog/rust-performance-benchmarking) for real benchmark results and practical advice on detecting regressions in CI.
 
@@ -63,11 +81,27 @@ Every uploaded report is persisted. The dashboard compares each report against i
 
 `hotpath-cloud` requires `hotpath` version `0.30.0` or newer.
 
-Both setups below use the hotpath GitHub App. It asks for minimal permissions: **no access to your source code**, only pull request write access to post comments, and checks to optionally report the status of each benchmark. The only data it gets from your CI is the benchmark reports your workflow uploads.
+### Install the GitHub App (recommended for public repositories)
 
-### AI Setup (Recommended)
+Select a public Rust repository when installing the GitHub App. We'll open a PR configuring `hotpath-cloud` within 24 hours. Just review and merge it when ready.
 
-The quickest way to set up hotpath-cloud is to let your own AI coding agent do it. Paste this prompt into your coding agent, inside your project repo:
+<div class="cloud-install">
+  <a class="agent-pill cta-link" href="https://github.com/apps/hotpath-rs/installations/new" target="_blank" rel="noopener" onclick="hotpathTrack('github_app_install_click', 'getting_started')">
+    <svg class="agent-pill-copy" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.9 1.1.9 2.2v3.3c0 .3.1.7.8.6A12 12 0 0 0 12 .3"/></svg>
+    <span>Install GitHub App</span>
+  </a>
+  <p class="cloud-cta-meta"><a href="/pricing">Free for public repositories</a> · <a href="/cloud_faq#what-data-can-the-github-app-access">No source code access</a></p>
+</div>
+
+The GitHub App asks for minimal permissions: **no access to your source code**, only pull request write access to post comments, and checks to optionally report the status of each benchmark. The only data it gets from your CI is the benchmark reports your workflow uploads.
+
+### Prefer to configure it yourself?
+
+You can also set up `hotpath-cloud` with your AI coding agent or by following the manual integration guide. Our hands-on setup covers public Rust repositories; for a private repository, use one of these self-service setups. Both still need the [GitHub App installed](https://github.com/apps/hotpath-rs/installations/new).
+
+#### AI setup
+
+Paste this prompt into your coding agent, inside your project repo:
 
 ```text
 Set up hotpath-cloud CI in this Rust project using the instructions at https://hotpath.rs/agent/init_cloud
@@ -75,11 +109,11 @@ Set up hotpath-cloud CI in this Rust project using the instructions at https://h
 
 If the project does not use hotpath yet, the agent sets up profiling first. It then picks a benchmark with a fixed workload (asking you when the choice is not obvious), adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md), a GitHub Actions workflow, and runs the benchmark locally to verify the report. For public repositories, it asks whether to benchmark pull requests from forks, which need a [separate setup](ci_integration.md#pull-requests-from-forks).
 
-The agent does not commit, install the GitHub App or upload anything for you. Install the hotpath GitHub App from <a href="https://hotpath.rs/app" target="_blank" rel="noopener noreferrer">hotpath.rs/app</a> and merge the workflow: the first push to the default branch uploads the baseline, and from then on every pull request gets a performance comment.
+The agent does not commit, install the GitHub App or upload anything for you. [Install the hotpath GitHub App](https://github.com/apps/hotpath-rs/installations/new) and merge the workflow: the first push to the default branch uploads the baseline, and from then on every pull request gets a performance comment.
 
 Your agent remains in control: you review and approve edits through its regular permission prompts.
 
-### Manual setup
+#### Manual setup
 
 Follow the [CI integration](ci_integration.md) guide to add the benchmark workflow by hand.
 
