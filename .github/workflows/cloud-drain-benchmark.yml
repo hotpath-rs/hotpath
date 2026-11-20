@@ -3,7 +3,19 @@ name: Cloud drain benchmark
 on:
   push:
     branches: [main]
+    # Changes only to these paths cannot affect the build, so they skip CI.
+    paths-ignore: &paths-ignore
+      - "**.md"
+      - "docs/**"
+      - "dev_docs/**"
+      - "dev_skills/**"
+      - "skills/**"
+      - "media/**"
+      - "LICENSE.txt"
+      - "cliff.toml"
+      - "context7.json"
   pull_request:
+    paths-ignore: *paths-ignore
 
 # Transport-layer benchmark: the `hotpath-drain` `throughput` example runs
 # several producer threads against one consumer while `hotpath-meta` profiles

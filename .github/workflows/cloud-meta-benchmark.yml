@@ -3,7 +3,19 @@ name: Cloud meta benchmark
 on:
   push:
     branches: [main]
+    # Changes only to these paths cannot affect the build, so they skip CI.
+    paths-ignore: &paths-ignore
+      - "**.md"
+      - "docs/**"
+      - "dev_docs/**"
+      - "dev_skills/**"
+      - "skills/**"
+      - "media/**"
+      - "LICENSE.txt"
+      - "cliff.toml"
+      - "context7.json"
   pull_request:
+    paths-ignore: *paths-ignore
 
 # Self-benchmark of the profiler: `benchmark_meta` drives every instrumented
 # subsystem a fixed number of times while `hotpath-meta` profiles hotpath's own
