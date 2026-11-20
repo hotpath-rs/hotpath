@@ -3,7 +3,19 @@ name: Cloud drain criterion benchmark
 on:
   push:
     branches: [main]
+    # Changes only to these paths cannot affect the build, so they skip CI.
+    paths-ignore: &paths-ignore
+      - "**.md"
+      - "docs/**"
+      - "dev_docs/**"
+      - "dev_skills/**"
+      - "skills/**"
+      - "media/**"
+      - "LICENSE.txt"
+      - "cliff.toml"
+      - "context7.json"
   pull_request:
+    paths-ignore: *paths-ignore
 
 # The `drain` lockstep scenario as a Criterion benchmark (`test-drain-criterion`),
 # profiled by `hotpath-meta` with a fixed iteration count. One build runs twice
