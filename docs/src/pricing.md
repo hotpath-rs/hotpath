@@ -1,10 +1,10 @@
 # hotpath-cloud pricing
 
-`hotpath-cloud` is priced per repository. Public repositories are free, and `hotpath-cloud` will always offer a free plan for them. A private repository needs a paid plan once its free trial ends.
+`hotpath-cloud` is priced per repository. Public repositories are free, and `hotpath-cloud` will always offer the free Public plan for them. A private repository needs a paid plan once its free trial ends.
 
 ## Plans
 
-| | Free | Private | Pro |
+| | Public | Private | Pro |
 |---|---|---|---|
 | Price | $0 | $49 / month | $99 / month |
 | Repositories | Public | Private | Public or private |
@@ -22,4 +22,4 @@
 
 - **Benchmarks:** the number of benchmark names a repository can hold. Only a new name counts: an upload under an existing name is always accepted.
 - **Reports history:** the most recent reports each repository keeps. Older reports are deleted, except each benchmark's latest report and latest baseline.
-- **API & MCP:** requests to the [REST API and MCP server](mcp_api.md) for a repository's reports. They are rate limited on the Free and Private plans. The Pro plan is unlimited under fair use: there is no request quota, but burst rate limits still apply to protect the service from traffic spikes.
+- **API & MCP:** requests to the [REST API and MCP server](mcp_api.md) for a repository's reports. They are rate limited on the Public and Private plans. The Pro plan is unlimited under fair use: there is no request quota, but burst rate limits still apply to protect the service from traffic spikes.

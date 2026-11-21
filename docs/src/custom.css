@@ -403,7 +403,7 @@ main:has(> .hero-row) {
 /* Compact pricing and permissions reassurance under the install button */
 .content .cloud-cta-meta {
     margin: 1rem 0 0 calc(3px + 1.2rem);
-    font-size: 1.35rem;
+    font-size: 0.9em;
     color: var(--fg);
     opacity: 0.75;
 }
@@ -415,6 +415,16 @@ main:has(> .hero-row) {
     text-underline-offset: 0.2em;
     /* On narrow screens the line breaks between the phrases, not inside one */
     white-space: nowrap;
+}
+
+/* The self-service path, after the install button and its reassurance line:
+   quieter than both, so the button stays the main action */
+.content .cloud-cta-alt {
+    max-width: 60ch;
+    margin: 2rem 0 0 calc(3px + 1.2rem);
+    line-height: 1.5;
+    color: var(--fg);
+    opacity: 0.85;
 }
 
 

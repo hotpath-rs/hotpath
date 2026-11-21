@@ -7,13 +7,14 @@ Catch CPU, memory allocation, and SQL regressions automatically in GitHub pull r
 <div class="cloud-cta">
   <div class="cloud-cta-offer">
     <p class="cloud-cta-offer-title">We'll set it up for you.</p>
-    <p>Select a public Rust repository when installing the GitHub App. We'll open a PR configuring <code>hotpath-cloud</code> <b>within 24 hours</b>. Just review and merge it when ready.</p>
+    <p>Install the GitHub App and select a public Rust repository. We'll prepare a ready-to-merge PR with <code>hotpath-cloud</code> configured. All you need to do is review and merge.</p>
   </div>
   <a class="agent-pill cta-link" href="https://github.com/apps/hotpath-rs/installations/new" target="_blank" rel="noopener" onclick="hotpathTrack('github_app_install_click', 'cloud_hero')">
     <svg class="agent-pill-copy" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.9 1.1.9 2.2v3.3c0 .3.1.7.8.6A12 12 0 0 0 12 .3"/></svg>
     <span>Install GitHub App</span>
   </a>
   <p class="cloud-cta-meta"><a href="/pricing">Free for public repositories</a> · <a href="/cloud_faq#what-data-can-the-github-app-access">No source code access</a></p>
+  <p class="cloud-cta-alt">Prefer to set things up yourself or with an AI coding agent? Read on for step-by-step instructions.</p>
 </div>
 
 <script>
@@ -83,7 +84,7 @@ Every uploaded report is persisted. The dashboard compares each report against i
 
 ### Install the GitHub App (recommended for public repositories)
 
-Select a public Rust repository when installing the GitHub App. We'll open a PR configuring `hotpath-cloud` within 24 hours. Just review and merge it when ready.
+Install the GitHub App and select a public Rust repository. We'll personally prepare a ready-to-merge PR with `hotpath-cloud` configured. All you need to do is review and merge.
 
 <div class="cloud-install">
   <a class="agent-pill cta-link" href="https://github.com/apps/hotpath-rs/installations/new" target="_blank" rel="noopener" onclick="hotpathTrack('github_app_install_click', 'getting_started')">

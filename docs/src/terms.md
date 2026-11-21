@@ -71,7 +71,7 @@ You can cancel at any time with the link in your Paddle receipt email, on [paddl
 
 Uninstalling the hotpath GitHub App or removing a repository from it does not cancel the repository's subscription. To stop billing, cancel the subscription in one of the ways above.
 
-When a subscription ends, the repository returns to the Free plan. Its reports and benchmarks stay available on the dashboard. The previous plan's reports history is kept for 30 days; after that, the oldest reports beyond the Free plan's limit are deleted. A private repository on the Free plan no longer accepts new uploads once its free trial is over.
+When a subscription ends, the repository returns to the Public plan. Its reports and benchmarks stay available on the dashboard. The previous plan's reports history is kept for 30 days; after that, the oldest reports beyond the Public plan's limit are deleted. A private repository on the Public plan no longer accepts new uploads once its free trial is over.
 
 A private repository's free trial lasts 30 days from its first upload and is offered once per repository. No payment details are needed for it, and nothing is charged when it ends.
 
