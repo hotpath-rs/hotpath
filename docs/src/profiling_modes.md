@@ -28,6 +28,8 @@ By default, allocation reports sort and display by bytes. Set `HOTPATH_ALLOC_MET
 HOTPATH_ALLOC_METRIC=count cargo run --features='hotpath-alloc'
 ```
 
+See [Memory profiling](./memory_profiling.md) for how to read the allocation report alongside per-thread allocations and process RSS.
+
 ### `hotpath::main` vs `HotpathGuardBuilder` API
 
 `#[hotpath::main]` is the simplest way to enable profiling. It creates a [`HotpathGuard`](https://docs.rs/hotpath/latest/hotpath/struct.HotpathGuard.html) for the entry-point function, and the profiling report is generated automatically when this function returns and that guard is dropped. You can use `hotpath::main` macro on any function not only `main`.

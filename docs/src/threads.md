@@ -1,6 +1,8 @@
-# Rust Threads performance monitoring: CPU and memory metrics 
+# Rust thread monitoring: CPU usage, thread states and memory
 
 The threads view shows live per-thread CPU and memory metrics for the instrumented process. Reach for it when you need to answer questions that function-level profiling can't: which thread is burning CPU, which thread's allocations keep growing, or which threads sit blocked while the rest of your Tokio app starves. It works on Linux, macOS and Windows, and it's enabled by default via the `threads` feature flag, so if you already use hotpath for [time, CPU and memory profiling](./introduction.md), per-thread monitoring is active out of the box.
+
+> Looking for memory profiling? The [Rust memory profiling guide](./memory_profiling.md) covers per-function allocations, per-thread allocation traffic and process RSS together, including how to investigate memory growth. This page is the reference for the thread view itself.
 
 ## Enabling per-thread monitoring
 
@@ -42,11 +44,11 @@ A few things to know:
 
 The view header shows process-wide numbers (the PID of the profiled process is in the TUI top bar, use it to correlate hotpath's view with `ps`, `top` or `htop`):
 
-**Alloc / Dealloc / Diff** - total bytes allocated and deallocated across all threads, and the difference between the two. If Diff keeps growing while your app is under steady-state load, memory is being retained somewhere - a leak signal worth chasing down. Requires the `hotpath-alloc` feature.
+**Alloc / Dealloc / Diff** - total bytes allocated and deallocated across all threads, and the difference between the two. If Diff keeps growing while your app is under steady-state load, memory is likely being retained somewhere. Requires the `hotpath-alloc` feature.
 
 **RSS** - Resident Set Size, the physical memory the process currently occupies. RSS includes code, thread stacks and allocator slack, so it can stay flat while the allocation Diff grows (the allocator reuses freed pages) or grow while Diff stays flat. Comparing the two tells you whether memory growth comes from your allocations or from elsewhere.
 
-**Max RSS** - the highest RSS the kernel has recorded for the program since it started, so a short spike between two refreshes is never missed. On Linux it covers the program itself only: memory used by a launcher that exec'd into it, such as `cargo run` building the binary first, is not included. If `/proc/self/status` can't be read (some sandboxes), hotpath falls back to `getrusage`, which may include that launcher memory. On macOS Max RSS comes from `getrusage`, and on Windows from the process's peak working set. The TUI shows both; the final report keeps only Max RSS, since a snapshot taken at exit says little about the run.
+**Max RSS** - the highest RSS recorded for the program since it started, so a short spike between two refreshes is never missed. The TUI shows both; the final report keeps only Max RSS, since a snapshot taken at exit says little about the run. Both are process-wide values, see [RSS and Max RSS](./memory_profiling.md#monitor-process-memory-usage-rss-and-max-rss) for the per-platform sources and how RSS relates to allocated bytes.
 
 And per-thread metrics:
 
@@ -64,7 +66,7 @@ And per-thread metrics:
 
 **Alloc / Dealloc** - total bytes allocated and deallocated, attributed to the thread that performed them. Requires the `hotpath-alloc` feature.
 
-**Diff** - Alloc minus Dealloc for that thread. A Diff that keeps climbing on a long-running thread is the per-thread leak signal; jump to the [functions allocation view](./functions.html) to find which function is responsible.
+**Diff** - Alloc minus Dealloc for that thread. It is not the memory the thread currently owns: memory allocated on one thread and freed on another raises Diff on the first and lowers it on the second. A Diff that keeps climbing on a long-running thread is worth investigating; see [Reading a growing Diff](./memory_profiling.md#reading-a-growing-diff) and use the per-function allocation report to find which code allocates it.
 
 ## Reading the output
 
@@ -83,7 +85,7 @@ threads - Thread CPU and memory statistics. (Max RSS: 7.8 MB, Alloc: 2.1 MB, Dea
 +----------+-------+-------+----------+---------+----------+
 ```
 
-Two things stand out here. `main` barely uses CPU (5.1% on average) yet its Diff is 357.9 KB and growing - allocations made on that thread are being retained, so whatever it built up is never freed. `worker-1` averages 97.4% CPU for the whole run - that's the compute hotspot, and since its Diff is near zero, it's CPU-bound rather than allocation-heavy. The final report keeps the two aggregate CPU columns (Max% and Avg%); the instantaneous CPU% and thread Status live in the [TUI](./profiling_modes.md#live-tui-dashboard) and the JSON API, where a point-in-time value is meaningful. This kind of per-thread visibility matters most in latency-critical apps, where one saturated thread can delay everything behind it.
+Two things stand out here. `main` barely uses CPU (5.1% on average) yet its Diff is 357.9 KB - it allocated far more than it freed, so it is the first place to look if memory keeps growing (unless it hands that data to other threads, which free it there). `worker-1` averages 97.4% CPU for the whole run - that's the compute hotspot, and since its Diff is near zero, it's CPU-bound rather than allocation-heavy. The final report keeps the two aggregate CPU columns (Max% and Avg%); the instantaneous CPU% and thread Status live in the [TUI](./profiling_modes.md#live-tui-dashboard) and the JSON API, where a point-in-time value is meaningful. This kind of per-thread visibility matters most in latency-critical apps, where one saturated thread can delay everything behind it.
 
 The live TUI shows the same data refreshing in real time:
 
@@ -97,7 +99,7 @@ In the final report, sort by Avg% for sustained load and check Max% for spikes t
 
 **How do I detect a memory leak in a specific thread?**
 
-Run with the `hotpath-alloc` feature and watch the Diff column over time. A thread whose Diff grows steadily under constant load is retaining memory. Then switch to the [functions view](./functions.html) in allocation mode to find the function doing the allocating.
+Run with the `hotpath-alloc` feature and watch the Diff column over time. A thread whose Diff grows steadily under constant load is a likely source of retained memory, as long as it doesn't pass that data to other threads. Then switch to the functions Memory view to find the function doing the allocating. The [memory profiling guide](./memory_profiling.md#investigating-suspected-memory-leaks) describes the full workflow.
 
 **What do the thread states Running, Sleeping and Blocked mean?**
 
@@ -105,8 +107,8 @@ Run with the `hotpath-alloc` feature and watch the Diff column over time. A thre
 
 **How do I monitor per-thread memory allocation in a Tokio app?**
 
-Enable `hotpath-alloc` and name your worker threads so they're distinguishable in the table. Watch for workers with a low Avg% that keep accumulating Diff - they allocated memory during work that was never released. Pair this with [Tokio runtime monitoring](./tokio_runtime.html) to see worker scheduling stats alongside memory. Many [open-source projects using hotpath](./adoption.html) run exactly this setup.
+Enable `hotpath-alloc` and name your worker threads so they're distinguishable in the table. Watch for workers with a low Avg% that keep accumulating Diff - they allocate more than they free. If no other thread shows a matching negative Diff, that memory is being retained. Pair this with [Tokio runtime monitoring](./tokio_runtime.html) to see worker scheduling stats alongside memory. Many [open-source projects using hotpath](./adoption.html) run exactly this setup.
 
 ---
 
-Related: [CPU profiling](./cpu_profiling.html) · [Functions](./functions.html) · [Tokio Runtime](./tokio_runtime.html) · [Configuration](./configuration.html)
+Related: [Memory profiling](./memory_profiling.md) · [CPU profiling](./cpu_profiling.md) · [Wall-clock time](./functions.md) · [Tokio Runtime](./tokio_runtime.md) · [Configuration](./configuration.md)

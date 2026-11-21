@@ -14,7 +14,8 @@ For very hot code paths, you can lower the cost further with [time sampling](pro
 
 `hotpath-rs` can profile:
 
-- [Functions](functions.md) - execution time, call counts, percentiles, and memory allocations of sync and async functions.
+- [Functions](functions.md) - execution time, call counts and percentiles of sync and async functions.
+- [Memory](memory_profiling.md) - heap allocations per function and per thread, and process RSS.
 - [CPU usage](cpu_profiling.md) - sampling-based CPU profiling powered by samply.
 - [Instruction counts](callgrind.md) - per-function instruction counts with Valgrind's Callgrind, highly repeatable for deterministic workloads, for low-noise regression checks in CI.
 - [Threads](threads.md) - per-thread CPU usage and memory statistics.
@@ -50,9 +51,9 @@ cargo run --features='hotpath-alloc'
 
 `hotpath` then installs a tracking global allocator and reports allocation counts and bytes for every instrumented function. Async functions are measured per poll, so allocations are attributed correctly even when a future moves between Tokio worker threads.
 
-By default, each function reports only its own allocations, excluding nested instrumented calls. Set `HOTPATH_ALLOC_CUMULATIVE=true` to include them. If your program uses a custom allocator like jemalloc or mimalloc, pass it with `#[hotpath::main(allocator = ...)]`. See [Memory and allocations profiling](functions.md#memory-and-allocations-profiling) for details.
+By default, each function reports only its own allocations, excluding nested instrumented calls. Set `HOTPATH_ALLOC_CUMULATIVE=true` to include them. If your program uses a custom allocator like jemalloc or mimalloc, pass it with `#[hotpath::main(allocator = ...)]`. See the [memory profiling guide](memory_profiling.md) for details.
 
-The [threads view](threads.md) complements per-function stats with per-thread allocated and deallocated bytes and process RSS. It's useful for spotting memory leaks in long-running applications.
+The [threads view](threads.md) complements per-function stats with per-thread allocated and deallocated bytes and process RSS. It's useful for [investigating memory growth](memory_profiling.md#investigating-suspected-memory-leaks) in long-running applications.
 
 ## Is it safe to profile production applications?
 
