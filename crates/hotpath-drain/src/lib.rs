@@ -204,7 +204,7 @@ impl<M> EventProducer<M> {
     #[inline]
     #[cfg_attr(
         feature = "hotpath-meta",
-        hotpath_meta::measure(impl_type = "EventProducer")
+        hotpath_meta::measure(label = "hotpath_drain::EventProducer::push")
     )]
     pub fn push(&self, m: M) {
         let tail = self.tail.get();
