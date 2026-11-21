@@ -51,7 +51,7 @@ Enable on the dependency only the extra hotpath features (`tokio`, a channel, lo
 
 ### 3. Initialize profiling
 
-Docs: https://hotpath.rs/functions, https://hotpath.rs/profiling_modes.
+Docs: https://hotpath.rs/functions, https://hotpath.rs/profiling_modes, https://hotpath.rs/memory_profiling (allocation tracking and custom allocators).
 
 - Put `#[hotpath::main]` on `main`, with defaults. With tokio, `#[tokio::main]` comes first (above it).
 - Criterion benchmarks converted in step 5 need neither: their `criterion_main!` creates the guard and installs the tracking allocator. A library whose only workload is such benchmarks needs nothing in this step.

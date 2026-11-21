@@ -203,7 +203,8 @@ Read the [complete guide to profiling Rust applications](https://hotpath.rs/blog
 
 - [Profiling modes](https://hotpath.rs/profiling_modes) - static reports vs live TUI dashboard
 - [Profiling overhead](https://hotpath.rs/profiling_overhead) - per-operation instrumentation cost and time sampling
-- [Functions](https://hotpath.rs/functions) - measure execution time and memory allocations
+- [Wall-clock time](https://hotpath.rs/functions) - measure execution time of functions and code blocks
+- [Memory profiling](https://hotpath.rs/memory_profiling) - track allocations per function and thread, and process RSS
 - [CPU profiling](https://hotpath.rs/cpu_profiling) - attribute CPU samples to instrumented functions
 - [Threads](https://hotpath.rs/threads) - monitor threads usage
 - [Async Data Flow](https://hotpath.rs/data_flow) - monitor channels, streams, and futures

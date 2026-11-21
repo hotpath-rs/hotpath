@@ -1,6 +1,6 @@
-# Function performance profiling: timing and memory metrics
+# Rust function profiling: wall-clock timing and percentiles
 
-To start profiling functions performance you'll only need `#[hotpath::main]` and `#[hotpath::measure]` macros:
+hotpath-rs instruments individual Rust functions and code blocks to measure how long they take: call counts, average and percentile durations, and each function's share of the total execution time. It works the same way for sync and async functions. To start profiling functions you'll only need `#[hotpath::main]` and `#[hotpath::measure]` macros:
 
 ```rust
 #[hotpath::measure]
@@ -226,78 +226,10 @@ fn main() {
 
 ## Memory and allocations profiling
 
-In addition to time-based profiling, `hotpath` can track memory allocations. This feature uses a custom global allocator from [allocation-counter crate](https://github.com/fornwall/allocation-counter) to intercept all memory allocations and provides detailed statistics about memory usage per function. The [Rust memory profiling guide](/blog/profiling-rust-guide#memory-allocations) uses this report to remove `String` clone allocations.
-
-Run your program with the allocation tracking feature to print a similar report:
-
-```
-cargo run --features='hotpath-alloc'
-```
-
-<img loading="lazy" src="{{#asset-hash images/hotpath-alloc-report.png}}" alt="hotpath-rs memory allocation profiling report showing per-function byte counts">
-
-## Memory profiling modes
-
-By default, allocation tracking is **exclusive**, meaning each function only reports allocations made directly at its own level, excluding nested instrumented calls.
-
-To switch to **cumulative** mode (where a function's allocation count includes all allocations from nested instrumented calls), set `HOTPATH_ALLOC_CUMULATIVE=true`. Note that cumulative mode produces invalid results for recursive functions because the same allocations are counted multiple times as they propagate up through each recursive frame.
-
-## Custom inner allocator
-
-The tracking allocator forwards every allocation to an inner allocator, `std::alloc::System` by default. To profile a program that uses a different allocator, pass it via the `allocator` parameter of `#[hotpath::main]`. For example, with [tikv-jemallocator](https://github.com/tikv/jemallocator):
-
-```toml
-[dependencies]
-tikv-jemallocator = "0.6"
-```
-
-```rust
-#[hotpath::measure]
-fn alloc_work() {
-    let buf = vec![0u8; 4096];
-    std::hint::black_box(&buf);
-}
-
-#[hotpath::main(allocator = tikv_jemallocator::Jemalloc)]
-fn main() {
-    for _ in 0..100 {
-        alloc_work();
-    }
-}
-```
+<a id="memory-profiling-modes"></a><a id="custom-inner-allocator"></a><a id="allocation-tracking-with-hotpathguardbuilder"></a>In addition to execution timing, hotpath-rs tracks heap allocations made by instrumented Rust functions. Enable the `hotpath-alloc` feature to add an `alloc-bytes` section to the report, identify allocation hotspots and compare allocation statistics:
 
 ```bash
 cargo run --features='hotpath-alloc'
 ```
 
-The report now shows per-function allocation stats measured through jemalloc: every allocation is counted by the tracking wrapper, then served by jemalloc instead of the system allocator.
-
-The path must name a unit struct implementing `GlobalAlloc` (like `MiMalloc` from [mimalloc](https://github.com/purpleprotocol/mimalloc_rust) or `Jemalloc` from [tikv-jemallocator](https://github.com/tikv/jemallocator)). When the `hotpath-alloc` feature is disabled, the parameter is ignored and no allocator is installed, so combine it with your own `#[global_allocator]` behind a feature gate if the program should also use the allocator in normal builds.
-
-All four `GlobalAlloc` methods (`alloc`, `dealloc`, `alloc_zeroed`, `realloc`) forward to the inner allocator's native implementations, so wrapping does not change its zeroed-allocation or reallocation behavior. A successful `realloc` is tracked as a deallocation of the old size plus an allocation of the new size.
-
-## Allocation tracking with `HotpathGuardBuilder`
-
-The `#[hotpath::main]` macro installs the tracking allocator for you. The [`HotpathGuardBuilder`](https://docs.rs/hotpath/latest/hotpath/struct.HotpathGuardBuilder.html) API does not do that (a `#[global_allocator]` must be declared as a static item), so when initializing hotpath programmatically you must declare it yourself:
-
-```rust
-#[global_allocator]
-static GLOBAL: hotpath::CountingAllocator = hotpath::CountingAllocator::new();
-
-fn main() {
-    let _hotpath = hotpath::HotpathGuardBuilder::new("main").build();
-    // ...
-}
-```
-
-Use `hotpath::CountingAllocator::with(...)` to wrap a custom inner allocator:
-
-```rust
-#[global_allocator]
-static GLOBAL: hotpath::CountingAllocator<tikv_jemallocator::Jemalloc> =
-    hotpath::CountingAllocator::with(tikv_jemallocator::Jemalloc);
-```
-
-The declaration needs no feature gating: `CountingAllocator` is exported in every feature configuration, and when `hotpath-alloc` (or `hotpath` itself) is disabled it is a pure pass-through to the inner allocator with no tracking overhead. This also makes it the simplest way to keep a custom allocator active in normal builds: the program always runs on jemalloc, and allocation tracking switches on only with `hotpath-alloc`.
-
-Don't combine a manual declaration with `#[hotpath::main]` - under `hotpath-alloc` the macro installs its own `#[global_allocator]`, and two declarations fail to compile. Use the `allocator` parameter with the macro, and the manual declaration with the builder.
+See the [Rust memory profiling guide](memory_profiling.md) for per-function allocation metrics, exclusive vs cumulative tracking, per-thread memory usage, RSS monitoring, and custom allocator configuration.

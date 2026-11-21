@@ -216,7 +216,7 @@ monitor throughput, performance and max queue depth of instrumented channels:
 
 ## Features
 
-- **Time, CPU & memory profiling** - identify expensive functions, allocation hotspots, and investigate memory leaks.
+- **Time, CPU & [memory profiling](./memory_profiling.html)** - identify expensive functions, allocation hotspots, and investigate memory leaks.
 - **Async observability** - futures, channels and streams.
 - **I/O monitoring** - bytes, throughput, latency of any sync or async IO stream like files, TCP, or compression.
 - **SQL query profiling** - query performance metrics for sqlx and Diesel.
@@ -396,7 +396,8 @@ Explore the docs for customization options and advanced profiling features.
 
 - [Profiling modes](./profiling_modes.html) - static reports vs live TUI dashboard
 - [Profiling overhead](./profiling_overhead.html) - per-operation instrumentation cost and time sampling
-- [Functions](./functions.html) - measure execution time and memory allocations
+- [Wall-clock time](./functions.html) - measure execution time of functions and code blocks
+- [Memory profiling](./memory_profiling.html) - track allocations per function and thread, and process RSS
 - [CPU profiling](./cpu_profiling.html) - attribute CPU samples to instrumented functions
 - [Threads](./threads.html) - monitor threads usage
 - [Async Data Flow](./data_flow.html) - monitor channels, streams, and futures

@@ -6,7 +6,8 @@
 
 - [Profiling modes](./profiling_modes.md)
 - [Profiling overhead](./profiling_overhead.md)
-- [Functions](./functions.md)
+- [Wall-clock time](./functions.md)
+- [Memory profiling](./memory_profiling.md)
 - [CPU profiling](./cpu_profiling.md)
 - [Callgrind instructions](./callgrind.md)
 - [Criterion benchmarks](./criterion.md)

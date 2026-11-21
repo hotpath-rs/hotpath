@@ -30,7 +30,8 @@ Paths are relative to https://hotpath.rs. Fetch the pages listed for the task, p
 | Task | Pages |
 |---|---|
 | Add hotpath to a project | `/agent/setup` |
-| Instrument functions, modules, `impl` blocks or code blocks; memory and allocations; custom global allocator | `/functions` |
+| Instrument functions, modules, `impl` blocks or code blocks | `/functions` |
+| Memory and allocations per function or thread, RSS, memory leaks; custom global allocator | `/memory_profiling` |
 | Profile async functions | `/functions`, `/data_flow` |
 | Use a guard instead of `#[hotpath::main]` (libraries, tests, benchmarks); report format, output, shutdown; live TUI | `/profiling_modes`, `/configuration` |
 | CPU time inside functions (samply) | `/cpu_profiling` |
