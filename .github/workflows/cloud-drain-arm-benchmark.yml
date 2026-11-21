@@ -1,0 +1,81 @@
+name: Cloud drain arm benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The `drain` benchmark (`cloud-drain-benchmark.yml`) on an arm64 runner: the
+# same `hotpath-drain` `throughput` build runs natively for timing, then under
+# Valgrind Callgrind, which merges the native report into its own, uploaded to
+# the separate `drain-arm` series.
+#
+# Pushes and same-repository pull requests upload in process with the job's
+# OIDC token. Fork pull requests get no `id-token: write`, so they are skipped.
+jobs:
+  upload:
+    name: cloud drain arm benchmark (upload)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-26.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    # Shared by both runs, so their reports describe one benchmark.
+    env:
+      HOTPATH_META_BENCHMARK: drain-arm
+      HOTPATH_META_OUTPUT_FORMAT: json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull request's head commit, not the default merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Record rustc version
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - name: Record runner CPU and image
+        id: host
+        # Commas would split the user metadata, so they are stripped.
+        run: |
+          echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
+          echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cloud-drain-arm-benchmark
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
+      # Released Valgrind misattributes inclusive instruction counts on arm64;
+      # this build fixes it (unofficial fork, hotpath-rs/valgrind).
+      - uses: hotpath-rs/setup-valgrind@v1.1.0
+        with:
+          version: 3.28.0.hotpath-rs-2
+      - name: Build drain benchmark
+        run: |
+          cargo build -q --release -p hotpath-drain --example throughput \
+            --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
+      # Run from the workspace root (git info, policy lookup). No upload: this
+      # report is merged into the Callgrind run's.
+      - name: Run drain benchmark natively
+        env:
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs-2
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
+        run: target/release/examples/throughput
+      # The response file exists only after an accepted upload, so `test -s`
+      # also fails a skipped one; the `jq` check fails a report that is not a
+      # merged one.
+      - name: Run drain benchmark under Callgrind and upload the merged report
+        env:
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=release,valgrind=3.28.0.hotpath-rs-2
+          HOTPATH_META_UPLOAD: fail-on-error
+          HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
+          HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
+          HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
+        run: |
+          valgrind -q --tool=callgrind --instr-atstart=no \
+            --callgrind-out-file="$HOTPATH_META_CALLGRIND_OUT_FILE" \
+            target/release/examples/throughput
+          test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
+          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0)' \
+            "$HOTPATH_META_OUTPUT_PATH" > /dev/null
