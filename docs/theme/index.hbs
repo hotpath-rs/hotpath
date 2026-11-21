@@ -117,7 +117,9 @@
             const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch (e) { }
-                sidebar = sidebar || 'visible';
+                // The landing pages open without the menu until the visitor opens it.
+                const landing = ['index.md', 'introduction.md', 'cloud.md'].includes('{{ path }}');
+                sidebar = sidebar || (landing ? 'hidden' : 'visible');
             } else {
                 sidebar = 'hidden';
                 sidebar_toggle.checked = false;
