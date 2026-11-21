@@ -99,7 +99,7 @@ In the final report, sort by Avg% for sustained load and check Max% for spikes t
 
 **How do I detect a memory leak in a specific thread?**
 
-Run with the `hotpath-alloc` feature and watch the Diff column over time. A thread whose Diff grows steadily under constant load is a likely source of retained memory, as long as it doesn't pass that data to other threads. Then switch to the functions Memory view to find the function doing the allocating. The [memory profiling guide](./memory_profiling.md#investigating-suspected-memory-leaks) describes the full workflow.
+Run with the `hotpath-alloc` feature and watch the Diff column over time. A thread whose Diff grows steadily under constant load may be retaining memory, but cross-thread deallocations can make per-thread values misleading, so compare the process-wide Diff and RSS before drawing conclusions. Then switch to the functions Memory view to find the function doing the allocating. The [memory profiling guide](./memory_profiling.md#investigating-suspected-memory-leaks) describes the full workflow.
 
 **What do the thread states Running, Sleeping and Blocked mean?**
 
@@ -107,7 +107,7 @@ Run with the `hotpath-alloc` feature and watch the Diff column over time. A thre
 
 **How do I monitor per-thread memory allocation in a Tokio app?**
 
-Enable `hotpath-alloc` and name your worker threads so they're distinguishable in the table. Watch for workers with a low Avg% that keep accumulating Diff - they allocate more than they free. If no other thread shows a matching negative Diff, that memory is being retained. Pair this with [Tokio runtime monitoring](./tokio_runtime.html) to see worker scheduling stats alongside memory. Many [open-source projects using hotpath](./adoption.html) run exactly this setup.
+Enable `hotpath-alloc` and name your worker threads so they're distinguishable in the table. Watch for workers with a low Avg% that keep accumulating Diff - they allocate more than they free. A steadily increasing Diff may indicate retained memory, but cross-thread deallocations can make per-thread values misleading. Compare the process-wide Diff and RSS before drawing conclusions. Pair this with [Tokio runtime monitoring](./tokio_runtime.html) to see worker scheduling stats alongside memory. Many [open-source projects using hotpath](./adoption.html) run exactly this setup.
 
 ---
 
