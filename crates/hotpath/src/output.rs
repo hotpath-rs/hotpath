@@ -396,9 +396,6 @@ pub fn ceil_char_boundary(s: &str, index: usize) -> usize {
     i
 }
 
-/// Display form of a function name: its last `FUNCTIONS_NAME_DEPTH` path
-/// segments (`0` keeps the full name). Only tables show the shortened
-/// form; the full name stays the identity everywhere else.
 pub fn shorten_function_name(function_name: &str) -> String {
     shorten_with_depth(function_name, *FUNCTIONS_NAME_DEPTH)
 }
@@ -518,8 +515,7 @@ fn shorten_path(path: &str, keep: usize, inner_depth: usize) -> Option<String> {
     Some(out)
 }
 
-/// `text` with every path in it cut to `depth` segments and everything
-/// else (`&`, `mut`, `as`, lifetimes, `,`, `[T; N]`, `(A, B)`, `->`) kept.
+/// `text` with every path in it cut to `depth` segments.
 fn shorten_paths_in(text: &str, depth: usize) -> Option<String> {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
