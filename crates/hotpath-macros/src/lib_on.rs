@@ -636,7 +636,7 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 /// # See Also
 ///
 /// * [`main`](macro@main) - Attribute macro that initializes profiling
-/// * [`measure_all`](macro@measure_all) - Bulk instrumentation; auto-injects the impl type
+/// * [`measure_all`](macro@measure_all) - Bulk instrumentation of a module or impl block
 /// * [`measure_block!`](../hotpath/macro.measure_block.html) - Macro for measuring code blocks
 pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
@@ -1114,13 +1114,7 @@ pub fn skip_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// On inherent impl blocks the type segment is auto-injected, so methods are registered
-/// as `module_path::<Type>::<method>` - matching the demangled symbol used by
-/// `hotpath-cpu` sampling attribution.
-///
-/// Trait impls (`impl Trait for Type`) are also instrumented but their demangled symbols
-/// use the `<Type as Trait>::method` form, so CPU sampling attribution will not match
-/// for trait methods.
+/// Each method is named the same way a bare [`measure`](macro@measure) would name it.
 ///
 /// # See Also
 ///
@@ -1146,16 +1140,11 @@ pub fn measure_all_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
             TokenStream::from(quote!(#module))
         }
         Item::Impl(mut impl_block) => {
-            let type_name = extract_self_type_name(&impl_block.self_ty);
             for item in impl_block.items.iter_mut() {
                 if let ImplItem::Fn(method) = item {
                     if !has_hotpath_skip_or_measure(&method.attrs) {
                         let func_tokens = TokenStream::from(quote!(#method));
-                        let attr_ts = match &type_name {
-                            Some(name) => TokenStream::from(quote!(impl_type = #name)),
-                            None => TokenStream::new(),
-                        };
-                        let transformed = measure_impl(attr_ts, func_tokens);
+                        let transformed = measure_impl(TokenStream::new(), func_tokens);
                         *method = syn::parse_macro_input!(transformed as syn::ImplItemFn);
                     }
                 }
@@ -1168,13 +1157,6 @@ pub fn measure_all_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         )
         .to_compile_error()
         .into(),
-    }
-}
-
-fn extract_self_type_name(ty: &syn::Type) -> Option<String> {
-    match ty {
-        syn::Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
-        _ => None,
     }
 }
 

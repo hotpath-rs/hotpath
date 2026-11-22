@@ -256,7 +256,7 @@ pub mod tests {
                 1,
             ),
             (
-                "<&function_names::Gear as function_names::Render>::render",
+                "<function_names::Gear as function_names::Render>::render",
                 1,
             ),
             ("<function_names::Widget as core::fmt::Debug>::fmt", 2),

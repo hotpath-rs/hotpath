@@ -152,7 +152,7 @@ mod math_operations {
 
 > **Note:** Once Rust stabilizes [`#![feature(proc_macro_hygiene)]`](https://doc.rust-lang.org/beta/unstable-book/language-features/proc-macro-hygiene.html?highlight=proc_macro_hygiene#proc_macro_hygiene) and [`#![feature(custom_inner_attributes)]`](https://doc.rust-lang.org/beta/unstable-book/language-features/custom-inner-attributes.html), it will be possible to use `#![measure_all]` as an inner attribute directly inside module files (e.g., at the top of `math_operations.rs`) to automatically instrument all functions in that module.
 
-> **Note (CPU sampling):** On inherent impl blocks (`impl Type { ... }`), `measure_all` auto-injects the type segment so methods are registered as `module_path::<Type>::<method>` - this matches the demangled symbol used by `hotpath-cpu` attribution. Trait impls (`impl Trait for Type`) are still instrumented for timing/allocation, but their demangled symbols use the `<Type as Trait>::method` form, so CPU sampling will not attribute samples to those methods.
+> **Note:** `measure_all` names each function the same way a bare `#[hotpath::measure]` would, so trait impl methods report as `<module_path::Type as path::Trait>::fn`.
 
 ## `#[hotpath::skip]` macro
 

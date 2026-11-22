@@ -1100,16 +1100,11 @@ pub fn measure_all_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
             TokenStream::from(quote!(#module))
         }
         Item::Impl(mut impl_block) => {
-            let type_name = extract_self_type_name(&impl_block.self_ty);
             for item in impl_block.items.iter_mut() {
                 if let ImplItem::Fn(method) = item {
                     if !has_hotpath_skip_or_measure(&method.attrs) {
                         let func_tokens = TokenStream::from(quote!(#method));
-                        let attr_ts = match &type_name {
-                            Some(name) => TokenStream::from(quote!(impl_type = #name)),
-                            None => TokenStream::new(),
-                        };
-                        let transformed = measure_impl(attr_ts, func_tokens);
+                        let transformed = measure_impl(TokenStream::new(), func_tokens);
                         *method = syn::parse_macro_input!(transformed as syn::ImplItemFn);
                     }
                 }
@@ -1122,13 +1117,6 @@ pub fn measure_all_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         )
         .to_compile_error()
         .into(),
-    }
-}
-
-fn extract_self_type_name(ty: &syn::Type) -> Option<String> {
-    match ty {
-        syn::Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
-        _ => None,
     }
 }
 
