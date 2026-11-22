@@ -397,16 +397,139 @@ pub fn ceil_char_boundary(s: &str, index: usize) -> usize {
 }
 
 pub fn shorten_function_name(function_name: &str) -> String {
-    let depth = *FUNCTIONS_NAME_DEPTH;
+    shorten_with_depth(function_name, *FUNCTIONS_NAME_DEPTH)
+}
+
+/// Names without `<` keep their last `depth` `::` segments. Names with `<`
+/// are split on `::` outside angle brackets only, so a `<Type as Trait>`
+/// qualifier or a `Type<Args>` segment counts as one segment, and every
+/// path inside the brackets keeps `depth - 1` segments (at least 1). Depth 2
+/// turns `<&a::b::Block as c::d::Widget>::render` into
+/// `<&Block as Widget>::render`. A name the scanner cannot split cleanly is
+/// returned unchanged.
+fn shorten_with_depth(function_name: &str, depth: usize) -> String {
     if depth == 0 {
         return function_name.to_string();
     }
-    let parts: Vec<&str> = function_name.split("::").collect();
-    if parts.len() > depth {
-        parts[parts.len() - depth..].join("::")
-    } else {
-        function_name.to_string()
+    if !function_name.contains('<') {
+        let parts: Vec<&str> = function_name.split("::").collect();
+        return if parts.len() > depth {
+            parts[parts.len() - depth..].join("::")
+        } else {
+            function_name.to_string()
+        };
     }
+    let inner_depth = depth.saturating_sub(1).max(1);
+    match path_len(function_name) {
+        Some(len) if len == function_name.len() => shorten_path(function_name, depth, inner_depth),
+        _ => None,
+    }
+    .unwrap_or_else(|| function_name.to_string())
+}
+
+fn is_ident_char(c: char) -> bool {
+    c.is_alphanumeric() || matches!(c, '_' | '{' | '}')
+}
+
+/// Byte index of the `>` closing the `<` at `open`, skipping the `>` of `->`.
+fn matching_angle(s: &str, open: usize) -> Option<usize> {
+    let mut level = 0usize;
+    let mut prev = '\0';
+    for (i, c) in s[open..].char_indices() {
+        match c {
+            '<' => level += 1,
+            '>' if prev != '-' => {
+                level = level.checked_sub(1)?;
+                if level == 0 {
+                    return Some(open + i);
+                }
+            }
+            _ => {}
+        }
+        prev = c;
+    }
+    None
+}
+
+/// Byte length of the segment starting at `s`: an identifier with optional
+/// `<...>` arguments, or a bracketed `<...>` qualifier.
+fn segment_len(s: &str) -> Option<usize> {
+    if s.starts_with('<') {
+        return matching_angle(s, 0).map(|close| close + 1);
+    }
+    let ident = s.find(|c: char| !is_ident_char(c)).unwrap_or(s.len());
+    if ident == 0 {
+        return None;
+    }
+    if s[ident..].starts_with('<') {
+        matching_angle(s, ident).map(|close| close + 1)
+    } else {
+        Some(ident)
+    }
+}
+
+/// Byte length of the `::`-joined path starting at `s`.
+fn path_len(s: &str) -> Option<usize> {
+    let mut i = 0;
+    loop {
+        i += segment_len(&s[i..])?;
+        if s[i..].starts_with("::") {
+            i += 2;
+        } else {
+            return Some(i);
+        }
+    }
+}
+
+/// `path` (a whole `path_len` match) cut to its last `keep` segments, with
+/// every path inside its angle brackets cut to `inner_depth` segments.
+fn shorten_path(path: &str, keep: usize, inner_depth: usize) -> Option<String> {
+    let mut segments = Vec::new();
+    let mut rest = path;
+    loop {
+        let len = segment_len(rest)?;
+        segments.push(&rest[..len]);
+        match rest[len..].strip_prefix("::") {
+            Some(next) => rest = next,
+            None => break,
+        }
+    }
+    let kept = &segments[segments.len().saturating_sub(keep)..];
+    let mut out = String::with_capacity(path.len());
+    for (i, segment) in kept.iter().enumerate() {
+        if i > 0 {
+            out.push_str("::");
+        }
+        match segment.find('<') {
+            Some(open) => {
+                out.push_str(&segment[..=open]);
+                out.push_str(&shorten_paths_in(
+                    &segment[open + 1..segment.len() - 1],
+                    inner_depth,
+                )?);
+                out.push('>');
+            }
+            None => out.push_str(segment),
+        }
+    }
+    Some(out)
+}
+
+/// `text` with every path in it cut to `depth` segments.
+fn shorten_paths_in(text: &str, depth: usize) -> Option<String> {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(c) = rest.chars().next() {
+        if is_ident_char(c) || c == '<' {
+            let len = path_len(rest)?;
+            out.push_str(&shorten_path(&rest[..len], depth, depth)?);
+            rest = &rest[len..];
+        } else {
+            out.push(c);
+            rest = &rest[c.len_utf8()..];
+        }
+    }
+    Some(out)
 }
 
 /// A single log entry for a function invocation. In alloc mode `value` and
@@ -662,5 +785,120 @@ mod precision_tests {
                 "round-trip failed for {val}: formatted as '{formatted}'"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod shorten_tests {
+    use crate::output::*;
+
+    const WIDGET_RENDER: &str =
+        "<&ratatui_widgets::block::Block as ratatui_core::widgets::widget::Widget>::render";
+
+    fn at(depth: usize, cases: &[(&str, &str)]) {
+        for (full, short) in cases {
+            assert_eq!(
+                shorten_with_depth(full, depth),
+                *short,
+                "depth {depth}: {full}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_default_depth() {
+        at(
+            DEFAULT_FUNCTIONS_NAME_DEPTH,
+            &[
+                ("app::db::query", "db::query"),
+                ("main", "main"),
+                ("app::m::Worker::run", "Worker::run"),
+                ("my label", "my label"),
+                (WIDGET_RENDER, "<&Block as Widget>::render"),
+                (
+                    "<&mut app::m::Canvas as app::Draw>::draw",
+                    "<&mut Canvas as Draw>::draw",
+                ),
+                (
+                    "<&app::m::Canvas<'_, _> as app::Draw>::draw",
+                    "<&Canvas<'_, _> as Draw>::draw",
+                ),
+                (
+                    "<app::m::Foo as core::fmt::Display>::fmt",
+                    "<Foo as Display>::fmt",
+                ),
+                ("<_ as app::Blanket>::run", "<_ as Blanket>::run"),
+                (
+                    "<app::Wrap<alloc::vec::Vec<alloc::string::String>> as app::Tr>::go",
+                    "<Wrap<Vec<String>> as Tr>::go",
+                ),
+                (
+                    "app::m::Cache<alloc::string::String, app::Entry>::get",
+                    "Cache<String, Entry>::get",
+                ),
+                (
+                    "<app::Job<alloc::boxed::Box<dyn core::ops::Fn(u8) -> u8 + Send>> as app::Run>::run",
+                    "<Job<Box<dyn Fn(u8) -> u8 + Send>> as Run>::run",
+                ),
+                ("<[app::Item; 4] as app::Sum>::sum", "<[Item; 4] as Sum>::sum"),
+                (
+                    "<(app::A, &'static app::B) as app::Pair>::pair",
+                    "<(A, &'static B) as Pair>::pair",
+                ),
+                (
+                    "<<app::X as app::Tr>::Out as app::Other>::go",
+                    "<Out as Other>::go",
+                ),
+            ],
+        );
+    }
+
+    #[test]
+    fn test_depth_zero_keeps_full_name() {
+        at(
+            0,
+            &[
+                (WIDGET_RENDER, WIDGET_RENDER),
+                ("app::db::query", "app::db::query"),
+            ],
+        );
+    }
+
+    #[test]
+    fn test_other_depths() {
+        at(
+            1,
+            &[
+                ("app::db::query", "query"),
+                (WIDGET_RENDER, "render"),
+                ("app::Worker<app::Foo>::run", "run"),
+            ],
+        );
+        at(
+            3,
+            &[
+                ("app::m::Worker::run", "m::Worker::run"),
+                (WIDGET_RENDER, "<&block::Block as widget::Widget>::render"),
+                (
+                    "app::m::Worker<app::job::Foo>::run",
+                    "m::Worker<job::Foo>::run",
+                ),
+            ],
+        );
+    }
+
+    #[test]
+    fn test_malformed_names_fall_back_to_original() {
+        at(
+            DEFAULT_FUNCTIONS_NAME_DEPTH,
+            &[
+                ("<app::A as app::B::run", "<app::A as app::B::run"),
+                ("app::A>::run<", "app::A>::run<"),
+                ("<app::A as app::B>::", "<app::A as app::B>::"),
+                ("Vec<app::A> parse", "Vec<app::A> parse"),
+                ("<>::<>", "<>::<>"),
+                ("<", "<"),
+            ],
+        );
     }
 }
