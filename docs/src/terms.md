@@ -18,7 +18,7 @@ We use Ahrefs Web Analytics to collect anonymized website visits data on the doc
 
 The blog offers an optional email newsletter. If you subscribe, your email address and marketing consent are stored by Mailchimp (Intuit Inc., United States), which we use to send the newsletter. The newsletter is shared with pawelurbanek.com. The signup form loads its scripts from Mailchimp's servers only after you open it. We process this data based on your consent, which you can withdraw at any time with the unsubscribe link in any newsletter email or by contacting us. Your data is kept until you unsubscribe. Mailchimp handles it under its own [privacy policy](https://www.intuit.com/privacy/statement/).
 
-Payments for paid plans are processed by Paddle.com, our reseller and Merchant of Record. Paddle receives the purchaser's email address, billing address and payment details and handles them under its own [privacy policy](https://www.paddle.com/legal/privacy). We store the Paddle customer and subscription identifiers of each purchase and its plan and status, to apply the plan to the repository.
+Payments for paid plans are processed by Paddle.com, our reseller and Merchant of Record. Paddle receives the purchaser's email address, billing address and payment details and handles them under its own [privacy policy](https://www.paddle.com/legal/privacy). We store the Paddle customer, subscription and transaction identifiers of each purchase, its plan and status, and the payment notifications Paddle sends us, to apply the plan to the repository and to handle refunds.
 
 The service is hosted on Amazon Web Services in the United States (us-east-1), and Hetzner US datacenter, behind Cloudflare.
 
@@ -69,7 +69,7 @@ A paid plan is a monthly subscription for one repository, billed in advance. It 
 
 You can cancel at any time with the link in your Paddle receipt email, on [paddle.net](https://paddle.net), or by contacting support@hotpath.rs. A cancellation takes effect at the end of the billing period already paid for, and nothing is charged after it.
 
-Uninstalling the hotpath GitHub App or removing a repository from it does not cancel the repository's subscription. To stop billing, cancel the subscription in one of the ways above.
+Uninstalling the hotpath GitHub App or removing a repository from it does not cancel the repository's subscription. Its reports are still deleted 7 days after the removal, as described under [Data retention](#data-retention). To stop billing, cancel the subscription in one of the ways above.
 
 When a subscription ends, the repository returns to the Public plan. Its reports and benchmarks stay available on the dashboard. The previous plan's reports history is kept for 30 days; after that, the oldest reports beyond the Public plan's limit are deleted. A private repository on the Public plan no longer accepts new uploads once its free trial is over.
 
@@ -105,7 +105,9 @@ We reserve the right to modify and discontinue offering or updating the service 
 
 ### Data retention
 
-If you remove the hotpath GitHub App from your account or organization, all its data will be automatically removed from the database after 7 days. Encrypted backups are permanently removed after 14 days.
+When a repository is removed from the hotpath GitHub App (you remove it from the installation, uninstall the app, or delete the repository on GitHub), its reports, benchmarks and policies are permanently deleted from the database after 7 days. Re-adding the repository within that time restores them; added later, it starts as a new repository. GitHub webhook notifications we receive are deleted after 7 days. Encrypted backups are permanently removed after 14 days.
+
+We keep the records needed to process payments, refunds and subscriptions: the Paddle customer, subscription and transaction identifiers, plan and status, and the payment notifications Paddle sends us. A removed repository with a subscription that has not been cancelled keeps its name and plan, but not its reports, until the subscription ends.
 
 If you want to expedite your data removal process, please contact us at support@hotpath.rs.
 
