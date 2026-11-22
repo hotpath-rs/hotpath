@@ -241,8 +241,8 @@ pub mod tests {
         let alloc = report
             .functions_alloc
             .expect("Expected functions_alloc in report");
-        // `first_call` makes the first `Fresh::first` call, which builds and
-        // leaks that site's name.
+        // `first_call` makes the first `Fresh::first` call, which reads that
+        // site's name.
         for name in ["function_names::first_call", "function_names::Fresh::first"] {
             let entry = alloc
                 .data

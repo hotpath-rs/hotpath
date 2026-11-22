@@ -76,6 +76,12 @@ An attribute macro that instruments functions to send timing/memory measurements
 
 - `log = true` - logs the result value when the function returns (requires `std::fmt::Debug` on return type)
 - `label = "name"` - replaces the full reported identifier (instead of `module_path::<fn_name>`). Labels must be unique within a crate (shared with `measure_block!` literal labels); a repeated one fails `cargo build`/`test`/`run` with ``symbol `__hotpath_unique_function_name_<crate hash>` is already defined`` (`cargo check` does not report it).
+- `impl_type = "Type"` - sets the reported name to `module_path::<Type>::<fn_name>`. Without it (and without `label`), the name is the function's path as rustc prints it, worked out on the first call (hotpath `0.33.0` or newer):
+  - `module_path::fn` for a free function,
+  - `module_path::Type::fn` for a function in an inherent `impl` in the type's module, with or without `self`, sync or `async`; every instantiation of a generic type reports under one name (`module_path::Worker::run` for `impl<T> Worker<T>`),
+  - `<module_path::Type as path::Trait>::fn` for a trait impl method (rustc's full paths, such as `core::fmt::Display`).
+
+  Other shapes keep rustc's path too, such as `module_path::other_module::<impl module_path::Type>::fn` for an inherent `impl` outside the type's module, or `path::Trait::fn` for a trait's default method, shared by every type that uses it. Set `impl_type` or `label` when that path is not the name you want, or when a name must stay the same across refactors that move types or traits between modules. A function defined inside a closure has the same path as one of the same name in another closure of that function; give such functions a `label`.
 - `future = true` - additionally tracks the async function as a future: poll counts, poll durations, and pending/ready/cancelled state transitions. Only valid on `async fn`.
 
 Example:
@@ -90,25 +96,17 @@ fn compute() -> i32 {
 #[hotpath::measure(label = "db_query")]
 fn fetch_user(id: u64) { /* ... */ }
 
+struct Worker;
+impl Worker {
+    // Reported as `module_path::Worker::run`
+    #[hotpath::measure]
+    fn run(&self) { /* ... */ }
+
+    // Reported as `module_path::Pool::stop`
+    #[hotpath::measure(impl_type = "Pool")]
+    fn stop(&self) { /* ... */ }
+}
 ```
-
-### Reported names
-
-Each measured function is reported under its path, worked out on its first call (hotpath `0.33.0` or newer):
-
-| Function | Reported name |
-|---|---|
-| free function `fn run()` | `module_path::run` |
-| `impl Worker { fn run(&self) }`, also without a receiver | `module_path::Worker::run` |
-| `impl<T> Worker<T> { fn run(&self) }` | `module_path::Worker::run` |
-| `impl Worker<u8> { fn run(&self) }` | `module_path::Worker<u8>::run` |
-| `impl Display for Worker { fn fmt(..) }` | `module_path::<Worker as Display>::fmt` |
-| `impl Widget for &Block<'_> { fn render(self, ..) }` | `module_path::<&Block as Widget>::render` |
-| trait default method `trait Job { fn run(&self) {..} }` | `module_path::Job::run` |
-| blanket impl `impl<T> Job for T { fn run(&self) }` | `module_path::<_ as Job>::run` |
-| `fn helper()` nested in `fn outer()` | `module_path::outer::helper` |
-
-Every instantiation of a generic function, and every type using a trait's default method, reports under one name. Two functions never share one: when two same-named types from different modules are implemented in one module, or two closures of one function define same-named functions, the function whose first call comes second is reported under its full path, or with its `@line:column` appended, and hotpath prints a `[hotpath] function name ... is used by ...` line naming both.
 
 <img loading="lazy" src="{{#asset-hash images/functions-log.png}}" alt="hotpath-rs TUI showing function return value logging">
 
@@ -154,7 +152,7 @@ mod math_operations {
 
 > **Note:** Once Rust stabilizes [`#![feature(proc_macro_hygiene)]`](https://doc.rust-lang.org/beta/unstable-book/language-features/proc-macro-hygiene.html?highlight=proc_macro_hygiene#proc_macro_hygiene) and [`#![feature(custom_inner_attributes)]`](https://doc.rust-lang.org/beta/unstable-book/language-features/custom-inner-attributes.html), it will be possible to use `#![measure_all]` as an inner attribute directly inside module files (e.g., at the top of `math_operations.rs`) to automatically instrument all functions in that module.
 
-`measure_all` names each function as `#[hotpath::measure]` on it would (see [Reported names](#reported-names)).
+> **Note (CPU sampling):** On inherent impl blocks (`impl Type { ... }`), `measure_all` auto-injects the type segment so methods are registered as `module_path::<Type>::<method>` - this matches the demangled symbol used by `hotpath-cpu` attribution. Trait impls (`impl Trait for Type`) are still instrumented for timing/allocation, but their demangled symbols use the `<Type as Trait>::method` form, so CPU sampling will not attribute samples to those methods.
 
 ## `#[hotpath::skip]` macro
 

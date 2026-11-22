@@ -38,4 +38,4 @@ Gotchas:
 
 Gotchas:
 - The profile is samply's Firefox Profiler JSON (gzipped), not pprof.
-- Symbols map to sites by CPU pattern (full canonical path from `site_identity` in `lib_on/functions/identity.rs`, `_` per generic), not stats key, in `lib_on/functions/cpu/symbols.rs`; v0 default-method instances (`_RNvY`) and overrides (`_RNvX`) demangle alike, so the mangled kind decides.
+- A symbol matches a measured name exactly or with a `::` suffix: free functions, inherent impl functions and simple trait impls (`<a::Type as b::Trait>::method`) match; generic types and default methods do not.

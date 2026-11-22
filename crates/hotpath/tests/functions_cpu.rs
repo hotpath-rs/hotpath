@@ -3,8 +3,8 @@ mod common;
 
 #[cfg(test)]
 pub mod tests {
+    use crate::common::assert_contains_all;
     use crate::common::example::Example;
-    use crate::common::{assert_contains_all, first_json_value};
 
     fn example(name: &str) -> Example {
         Example::new("test-tokio-async", name)
@@ -23,43 +23,24 @@ pub mod tests {
     // HOTPATH_OUTPUT_FORMAT=json HOTPATH_REPORT=functions-cpu cargo run -p test-tokio-async --example cpu_symbols --features hotpath-cpu
     #[test]
     fn test_cpu_symbols_output() {
-        let output = example("cpu_symbols").json().output();
-        crate::common::example::assert_success(&output);
-        let report = first_json_value(&String::from_utf8_lossy(&output.stdout));
-        let rows = report["functions_cpu"]["data"]
-            .as_array()
-            .unwrap_or_else(|| panic!("no CPU rows: {report}"));
-        let samples = |name: &str| {
-            rows.iter()
-                .find(|r| r["name"] == name)
-                .and_then(|r| r["samples"].as_u64())
-                .unwrap_or(0)
-        };
+        let stdout = example("cpu_symbols").json().stdout();
+        let json_line = stdout.lines().last().expect("no output");
 
-        let expected = [
-            "free_heavy_work",
+        let expected_symbols = [
+            "cpu_symbols::free_heavy_work",
             "Worker::method_heavy_work",
             "Worker::method_light_work",
             "OtherWorker::method_heavy_work",
-            "OtherWorker::receiver_heavy_work",
-            "<OtherWorker as Heavy>::work",
-            "<OtherWorker as Light>::work",
-            "Generic::generic_work",
-            "Defaulted::default_work",
-            "<_ as Blanket>::blanket_work",
+            "cpu_symbols::OtherWorker::receiver_heavy_work",
+            "<cpu_symbols::OtherWorker as cpu_symbols::Heavy>::trait_heavy_work",
         ];
-        for name in expected {
-            let name = format!("cpu_symbols::{name}");
-            assert!(samples(&name) > 0, "no CPU samples for {name}: {report}");
+
+        for expected in expected_symbols {
+            assert!(
+                json_line.contains(expected),
+                "Expected symbol:\n{expected}\n\nGot:\n{json_line}",
+            );
         }
-        // Every measured function has a symbol; the unmeasured override of
-        // `default_work` is left out, not credited to the default method.
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            !stderr.contains("no symbol of this binary maps"),
-            "{stderr}"
-        );
-        assert_eq!(rows.len(), expected.len(), "{report}");
     }
 
     // cargo run -p test-tokio-async --example cpu_inline --features hotpath-cpu

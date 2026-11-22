@@ -519,7 +519,11 @@ fn contains_impl_trait(tokens: &proc_macro2::TokenStream) -> bool {
 /// the measured name parts. Only the runtime registry maps the ident back to
 /// a name; functions a `macro_rules!` expands from one source position share
 /// a marker, which the registry detects and excludes.
-fn callgrind_marker(fn_ident: &syn::Ident, label: Option<&LitStr>) -> (syn::Ident, LitInt) {
+fn callgrind_marker(
+    fn_ident: &syn::Ident,
+    label: Option<&LitStr>,
+    impl_type: Option<&LitStr>,
+) -> (syn::Ident, LitInt) {
     let span = fn_ident.span().unwrap();
     let mut key = Vec::new();
     for var in [
@@ -538,6 +542,7 @@ fn callgrind_marker(fn_ident: &syn::Ident, label: Option<&LitStr>) -> (syn::Iden
         span.column().to_string(),
         fn_ident.to_string(),
         label.map(LitStr::value).unwrap_or_default(),
+        impl_type.map(LitStr::value).unwrap_or_default(),
     ] {
         key.extend(part.into_bytes());
         key.push(0);
@@ -571,14 +576,6 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 ///   (instead of `module_path::<fn_name>`). Must be unique among `measure`
 ///   labels and `measure_block!` literal labels within the crate; a repeated
 ///   label fails the build (`cargo build`/`test`/`run`, not `cargo check`).
-///
-/// # Reported name
-///
-/// Without a `label`, the reported name is the function's path: `module_path::fn` for a free
-/// function, `module_path::Type::fn` in an inherent impl,
-/// `module_path::<Type as Trait>::fn` in a trait impl and `module_path::Trait::fn`
-/// for a trait default method, inferred at the first call. Every instantiation
-/// of a generic function reports under one name.
 ///
 /// # Examples
 ///
@@ -628,6 +625,7 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut enable_result_logging = false;
     let mut enable_future_tracking = false;
     let mut label: Option<syn::LitStr> = None;
+    let mut impl_type: Option<syn::LitStr> = None;
 
     if !attr.is_empty() {
         let parser = syn::meta::parser(|meta| {
@@ -656,13 +654,18 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
 
             if meta.path.is_ident("impl_type") {
-                return Err(meta.error(
-                    "impl_type is not a parameter: the impl type is inferred from the function's path",
-                ));
+                meta.input.parse::<syn::Token![=]>()?;
+                let lit: syn::LitStr = meta.input.parse()?;
+                if lit.value().is_empty() {
+                    return Err(meta.error("impl_type must be a non-empty string literal"));
+                }
+                impl_type = Some(lit);
+                return Ok(());
             }
 
-            Err(meta
-                .error("Unknown parameter. Supported: log = true, future = true, label = \"name\""))
+            Err(meta.error(
+                "Unknown parameter. Supported: log = true, future = true, label = \"name\", impl_type = \"Type\"",
+            ))
         });
 
         if let Err(e) = parser.parse2(proc_macro2::TokenStream::from(attr)) {
@@ -679,6 +682,38 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into();
     }
 
+    // Without `impl_type`, the name is the path of `__hotpath_site`, an item
+    // nested in this body (`module::Type::fn` in an impl). `type_name` is not
+    // const, so the path is read on the first call and cached per site.
+    let site = impl_type
+        .is_none()
+        .then(|| quote! { fn __hotpath_site() {} });
+    let inferred_name = quote! {
+        hotpath_meta::functions::function_name(
+            ::core::any::type_name_of_val(&__hotpath_site),
+            #is_async_fn,
+        )
+    };
+    let symbol_loc = match &impl_type {
+        Some(ty) => {
+            quote! { concat!(module_path!(), "::", #ty, "::", stringify!(#fn_ident)) }
+        }
+        None => inferred_name.clone(),
+    };
+    let name = syn::Ident::new("__hotpath_name", proc_macro2::Span::mixed_site());
+    let name_binding = match (&label, &impl_type) {
+        (Some(lit), _) => quote! { let #name: &'static str = #lit; },
+        (None, Some(_)) => quote! { let #name: &'static str = #symbol_loc; },
+        (None, None) => quote! {
+            let #name: &'static str = {
+                static __HOTPATH_NAME: ::std::sync::OnceLock<&'static str> =
+                    ::std::sync::OnceLock::new();
+                *__HOTPATH_NAME.get_or_init(|| #inferred_name)
+            };
+        },
+    };
+    let measurement_loc = quote! { #name };
+
     // Spanning the `file!()`/`line!()`/`column!()` tokens to the fn name makes
     // the registered location point at the `fn` item rather than the attribute.
     let loc_fields = quote_spanned! { fn_ident.span() =>
@@ -686,37 +721,9 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         line: line!(),
         column: column!(),
     };
-    // The name is the path of `__hotpath_site`, an item nested in this body.
-    // It cannot use the outer generics, so every instantiation of a generic
-    // fn gets the same path: one name per source function, never the first
-    // caller's. `type_name` is not const, so the name is built on the first
-    // call and cached in this site's static.
-    let site = quote! {
-        fn __hotpath_site() {}
-        static __HOTPATH_LOC: hotpath_meta::Location = hotpath_meta::Location { #loc_fields };
-    };
-    let name = syn::Ident::new("__hotpath_name", proc_macro2::Span::mixed_site());
-    let name_binding = match &label {
-        Some(lit) => quote! { let #name: &'static str = #lit; },
-        None => quote! {
-            let #name: &'static str = {
-                static __HOTPATH_NAME: ::std::sync::OnceLock<&'static str> =
-                    ::std::sync::OnceLock::new();
-                *__HOTPATH_NAME.get_or_init(|| {
-                    hotpath_meta::functions::function_name(
-                        module_path!(),
-                        ::core::any::type_name_of_val(&__hotpath_site),
-                        #is_async_fn,
-                        &__HOTPATH_LOC,
-                    )
-                })
-            };
-        },
-    };
-    let measurement_loc = quote! { #name };
-
     let loc_register = quote! {
         {
+            static __HOTPATH_LOC: hotpath_meta::Location = hotpath_meta::Location { #loc_fields };
             static __HOTPATH_LOC_ONCE: ::std::sync::Once = ::std::sync::Once::new();
             __HOTPATH_LOC_ONCE.call_once(|| {
                 hotpath_meta::register_location(#measurement_loc, &__HOTPATH_LOC);
@@ -737,13 +744,7 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
             {
                 static __HOTPATH_LABEL_ONCE: ::std::sync::Once = ::std::sync::Once::new();
                 __HOTPATH_LABEL_ONCE.call_once(|| {
-                    hotpath_meta::functions::register_function_label(
-                        #measurement_loc,
-                        Some(hotpath_meta::functions::label_pattern(
-                            ::core::any::type_name_of_val(&__hotpath_site),
-                            #is_async_fn,
-                        )),
-                    );
+                    hotpath_meta::functions::register_function_label(#measurement_loc, Some(#symbol_loc));
                 });
             }
         }
@@ -765,7 +766,7 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     // its caller propagation.
     let track_caller = attrs.iter().any(|a| a.path().is_ident("track_caller"));
     let marker = (cfg!(feature = "hotpath-callgrind-meta") && !(track_caller && !is_async_fn))
-        .then(|| callgrind_marker(fn_ident, label.as_ref()));
+        .then(|| callgrind_marker(fn_ident, label.as_ref(), impl_type.as_ref()));
     let (marker_items, sync_body, async_body) = match &marker {
         Some((marker, hash)) => {
             // A per-site constant keeps LLVM's MergeFunctions and linker ICF
@@ -1086,11 +1087,16 @@ pub fn measure_all_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
             TokenStream::from(quote!(#module))
         }
         Item::Impl(mut impl_block) => {
+            let type_name = extract_self_type_name(&impl_block.self_ty);
             for item in impl_block.items.iter_mut() {
                 if let ImplItem::Fn(method) = item {
                     if !has_hotpath_skip_or_measure(&method.attrs) {
                         let func_tokens = TokenStream::from(quote!(#method));
-                        let transformed = measure_impl(TokenStream::new(), func_tokens);
+                        let attr_ts = match &type_name {
+                            Some(name) => TokenStream::from(quote!(impl_type = #name)),
+                            None => TokenStream::new(),
+                        };
+                        let transformed = measure_impl(attr_ts, func_tokens);
                         *method = syn::parse_macro_input!(transformed as syn::ImplItemFn);
                     }
                 }
@@ -1103,6 +1109,13 @@ pub fn measure_all_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         )
         .to_compile_error()
         .into(),
+    }
+}
+
+fn extract_self_type_name(ty: &syn::Type) -> Option<String> {
+    match ty {
+        syn::Type::Path(tp) => tp.path.segments.last().map(|s| s.ident.to_string()),
+        _ => None,
     }
 }
 

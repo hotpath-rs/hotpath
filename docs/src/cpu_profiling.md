@@ -121,11 +121,22 @@ Under the `hotpath-cpu` feature, `#[hotpath::measure]` strip any user-provided `
 
 To disable this rewrite, set `HOTPATH_KEEP_INLINE=1`. The variable is read at proc-macro expansion time, so touch the source file or run `cargo clean` after toggling it.
 
-## Which functions get CPU samples
+## Symbol attribution for impl functions
 
-`hotpath` attributes CPU samples to every function instrumented with `measure` or `measure_all` (hotpath `0.33.0` or newer): free functions, inherent and trait `impl` functions with or without a receiver, generic functions (all instantiations under one name), trait default methods and blanket impls. A sample in a closure of the function, including an `async fn` body, counts towards the function; a named function nested in it is a function of its own.
+`hotpath` attributes CPU samples to free functions, to functions in an inherent `impl` and to trait impl methods instrumented with `measure` (hotpath `0.33.0` or newer):
 
-A trait default method gets the samples of every type that uses it, but not of a type that overrides it. Functions of a const-generic impl (`impl<const N: usize>`) get none. When a measured function matches no symbol of the binary, the report says so on stderr: `[hotpath] cpu report: no symbol of this binary maps to ...`.
+```rust
+impl Worker {
+    #[hotpath::measure]
+    fn run(&self) {
+      // ...
+    }
+}
+```
+
+`measure(impl_type = "Worker")` and `measure_all` attribute inherent `impl` functions too.
+
+Functions of a generic type (`impl<T> Worker<T>`), trait default methods and blanket impls are measured for timing and allocations but get no CPU samples: their symbols name the concrete types of each instantiation, which the reported name leaves out.
 
 ## Current status
 

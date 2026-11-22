@@ -102,7 +102,10 @@ impl<M> EventQueue<M> {
     /// chunks. Returns `true` when the drain reached the queue's tail, `false`
     /// when it stopped at the cap with chunks still pending. Must only be
     /// called by the single consumer (see registry).
-    #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
+    #[cfg_attr(
+        feature = "hotpath-meta",
+        hotpath_meta::measure(impl_type = "EventQueue")
+    )]
     fn drain_into(&self, out: &mut Vec<M>, max_chunks: usize) -> bool {
         #[cfg(feature = "hotpath-ordered-drain")]
         let before = out.len();
@@ -299,7 +302,10 @@ impl<M: Send> EventQueueRegistry<M> {
 
     /// Creates and registers a queue for the calling thread. The ring starts
     /// as a single self-linked chunk and grows on demand.
-    #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
+    #[cfg_attr(
+        feature = "hotpath-meta",
+        hotpath_meta::measure(impl_type = "EventQueueRegistry")
+    )]
     pub fn register(&self) -> EventProducer<M> {
         let first = Chunk::new_raw(ptr::null_mut());
         // SAFETY: `first` was just allocated and is not shared yet.
@@ -341,7 +347,10 @@ impl<M: Send> EventQueueRegistry<M> {
     /// producer thread has exited. Holding the registry lock for the whole
     /// sweep is what makes this the single consumer. Each queue is capped at
     /// `MAX_CHUNKS_PER_SWEEP`; leftovers are picked up on the next tick.
-    #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
+    #[cfg_attr(
+        feature = "hotpath-meta",
+        hotpath_meta::measure(impl_type = "EventQueueRegistry")
+    )]
     pub fn sweep(&self, out: &mut Vec<M>) {
         self.sweep_inner(out, MAX_CHUNKS_PER_SWEEP);
     }
@@ -350,7 +359,10 @@ impl<M: Send> EventQueueRegistry<M> {
     /// next tick to pick up leftovers, so every queue is drained to its tail.
     /// Terminates because producers are deactivated (`set_active(false)`)
     /// before shutdown is signalled, so queues can no longer grow.
-    #[cfg_attr(feature = "hotpath-meta", hotpath_meta::measure)]
+    #[cfg_attr(
+        feature = "hotpath-meta",
+        hotpath_meta::measure(impl_type = "EventQueueRegistry")
+    )]
     pub fn drain_all(&self, out: &mut Vec<M>) {
         self.sweep_inner(out, usize::MAX);
     }

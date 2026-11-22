@@ -219,7 +219,6 @@ pub mod tests {
                 "Calculator::async_increment",
                 "Calculator::async_decrement",
                 "Calculator::get_value",
-                "<&Calculator as Describe>::describe",
                 "measure_all_impl::main",
             ],
         );
@@ -246,49 +245,48 @@ pub mod tests {
         names
     }
 
-    // Golden list: a `type_name` output change on any toolchain the CI jobs run
-    // (1.89, stable, nightly) shows up here.
+    // Exact names, so a change in rustc's `type_name` output shows up on the
+    // toolchains CI runs (1.89, stable, nightly).
     // cargo run -p test-tokio-async --example function_names --features hotpath
     #[test]
     fn test_function_names() {
         let mut expected: Vec<(String, u64)> = [
-            ("<_ as Blanket>::blanket", 2),
-            ("<&Borrowed as Render>::render", 1),
-            ("<&Gear as Render>::render", 1),
-            ("<Widget as Debug>::fmt", 2),
-            ("<Widget as Display>::fmt", 1),
-            ("<Wrapper as Render>::render", 2),
-            ("Defaulted::hello", 3),
-            ("first_call", 1),
-            ("free_fn", 1),
-            ("Fresh::first", 1),
-            ("Gear::turn", 1),
-            ("in_closures::{{closure}}::nested", 1),
-            ("in_closures::{{closure}}::nested@198:12", 1),
-            ("Item::get", 1),
-            ("main", 1),
-            ("Multi<u16>::same", 1),
-            ("Multi<u8>::same", 1),
-            ("outer_a::helper", 1),
-            ("outer_b::helper", 1),
-            ("second::Item::get", 1),
-            ("Widget::boxed", 1),
-            ("Widget::by_mut", 1),
-            ("Widget::by_ref", 1),
-            ("Widget::by_ref_async", 1),
-            ("Widget::by_value", 1),
-            ("Widget::new", 3),
-            ("Widget::tracked", 1),
-            ("Worker::run", 2),
+            (
+                "<&function_names::Borrowed as function_names::Render>::render",
+                1,
+            ),
+            (
+                "<&function_names::Gear as function_names::Render>::render",
+                1,
+            ),
+            ("<function_names::Widget as core::fmt::Debug>::fmt", 2),
+            ("<function_names::Widget as core::fmt::Display>::fmt", 1),
+            (
+                "function_names::elsewhere::<impl function_names::Widget>::remote",
+                1,
+            ),
+            ("function_names::first_call", 1),
+            ("function_names::free_fn", 1),
+            ("function_names::Fresh::first", 1),
+            ("function_names::Gear::turn", 1),
+            ("function_names::main", 1),
+            ("function_names::Other::overridden", 1),
+            ("function_names::Widget::boxed", 1),
+            ("function_names::Widget::by_mut", 1),
+            ("function_names::Widget::by_ref", 1),
+            ("function_names::Widget::by_ref_async", 1),
+            ("function_names::Widget::explicit", 1),
+            ("function_names::Widget::new", 1),
+            ("function_names::Worker::run", 2),
+            ("widget_labeled", 1),
         ]
         .into_iter()
-        .map(|(name, calls)| (format!("function_names::{name}"), calls))
-        .chain([("widget_labeled".to_string(), 1)])
+        .map(|(name, calls)| (name.to_string(), calls))
         .collect();
         expected.sort();
 
         assert_eq!(names_and_calls(&[]), expected);
-        // Generic, default and blanket sites called in the opposite order.
+        // The generic method's instantiations called in the opposite order.
         assert_eq!(names_and_calls(&["rev"]), expected);
     }
 
