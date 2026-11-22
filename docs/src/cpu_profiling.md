@@ -134,7 +134,7 @@ impl Worker {
 }
 ```
 
-`measure(impl_type = "Worker")` and `measure_all` attribute inherent `impl` functions in the type's own module too.
+`measure_all` attributes the same functions as a bare `measure`, and `measure(impl_type = "Worker")` attributes inherent `impl` functions in the type's own module too.
 
 These functions are measured for timing and allocations, but CPU attribution is not guaranteed for them:
 

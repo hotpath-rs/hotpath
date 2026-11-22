@@ -118,7 +118,7 @@ impl Gear {
 }
 
 #[hotpath::measure_all]
-impl Render for &Gear {
+impl Render for Gear {
     fn render(self) -> usize {
         black_box(4)
     }
@@ -173,7 +173,7 @@ async fn main() {
     let text = String::from("hello");
     black_box((&Borrowed { text: &text }).render());
     black_box(Gear.turn());
-    black_box((&Gear).render());
+    black_box(Gear.render());
     black_box(free_fn());
     black_box(first_call());
     black_box(Box::new(widget).boxed());
