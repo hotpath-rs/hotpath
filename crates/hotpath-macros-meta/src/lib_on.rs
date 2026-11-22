@@ -682,13 +682,37 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into();
     }
 
-    let measurement_loc = match (&label, &impl_type) {
-        (Some(lit), _) => quote! { #lit },
-        (None, Some(ty)) => {
+    // Without `impl_type`, the name is the path of `__hotpath_site`, an item
+    // nested in this body (`module::Type::fn` in an impl). `type_name` is not
+    // const, so the path is read on the first call and cached per site.
+    let site = impl_type
+        .is_none()
+        .then(|| quote! { fn __hotpath_site() {} });
+    let inferred_name = quote! {
+        hotpath_meta::functions::function_name(
+            ::core::any::type_name_of_val(&__hotpath_site),
+            #is_async_fn,
+        )
+    };
+    let symbol_loc = match &impl_type {
+        Some(ty) => {
             quote! { concat!(module_path!(), "::", #ty, "::", stringify!(#fn_ident)) }
         }
-        (None, None) => quote! { concat!(module_path!(), "::", stringify!(#fn_ident)) },
+        None => inferred_name.clone(),
     };
+    let name = syn::Ident::new("__hotpath_name", proc_macro2::Span::mixed_site());
+    let name_binding = match (&label, &impl_type) {
+        (Some(lit), _) => quote! { let #name: &'static str = #lit; },
+        (None, Some(_)) => quote! { let #name: &'static str = #symbol_loc; },
+        (None, None) => quote! {
+            let #name: &'static str = {
+                static __HOTPATH_NAME: ::std::sync::OnceLock<&'static str> =
+                    ::std::sync::OnceLock::new();
+                *__HOTPATH_NAME.get_or_init(|| #inferred_name)
+            };
+        },
+    };
+    let measurement_loc = quote! { #name };
 
     // Spanning the `file!()`/`line!()`/`column!()` tokens to the fn name makes
     // the registered location point at the `fn` item rather than the attribute.
@@ -716,12 +740,6 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let label_register = if label.is_some() {
-        let symbol_loc = match &impl_type {
-            Some(ty) => {
-                quote! { concat!(module_path!(), "::", #ty, "::", stringify!(#fn_ident)) }
-            }
-            None => quote! { concat!(module_path!(), "::", stringify!(#fn_ident)) },
-        };
         quote! {
             {
                 static __HOTPATH_LABEL_ONCE: ::std::sync::Once = ::std::sync::Once::new();
@@ -830,6 +848,8 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         #(#attrs)*
         #[allow(unused_braces)]
         #vis #sig {
+            #site
+            #name_binding
             #marker_items
             #unique_label_check
             #label_register

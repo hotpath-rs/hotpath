@@ -5,8 +5,8 @@ mod common;
 pub mod tests {
     use std::process::Command;
 
-    use crate::common::assert_contains_all;
     use crate::common::example::Example;
+    use crate::common::{assert_contains_all, first_json_value};
 
     fn example(name: &str) -> Example {
         Example::new("test-tokio-async", name).env("HOTPATH_REPORT", "functions-timing")
@@ -214,15 +214,80 @@ pub mod tests {
             &stdout,
             &[
                 "Calculator::new",
-                "measure_all_impl::add",
+                "Calculator::add",
                 "Calculator::multiply",
                 "Calculator::async_increment",
                 "Calculator::async_decrement",
                 "Calculator::get_value",
                 "measure_all_impl::main",
-                "measure_all_impl::add",
             ],
         );
+    }
+
+    /// Report entries as sorted `(name, calls)` pairs.
+    fn names_and_calls(args: &[&str]) -> Vec<(String, u64)> {
+        let stdout = example("function_names")
+            .env("HOTPATH_FUNCTIONS_LIMIT", "0")
+            .args(args)
+            .json()
+            .stdout();
+        let report = first_json_value(&stdout);
+        let mut names: Vec<(String, u64)> = report["functions_timing"]["data"]
+            .as_array()
+            .expect("functions_timing section")
+            .iter()
+            .map(|e| {
+                let name = e["name"].as_str().expect("entry name").to_string();
+                (name, e["calls"].as_u64().expect("entry calls"))
+            })
+            .collect();
+        names.sort();
+        names
+    }
+
+    // Exact names, so a change in rustc's `type_name` output shows up on the
+    // toolchains CI runs (1.89, stable, nightly).
+    // cargo run -p test-tokio-async --example function_names --features hotpath
+    #[test]
+    fn test_function_names() {
+        let mut expected: Vec<(String, u64)> = [
+            (
+                "<&function_names::Borrowed as function_names::Render>::render",
+                1,
+            ),
+            (
+                "<&function_names::Gear as function_names::Render>::render",
+                1,
+            ),
+            ("<function_names::Widget as core::fmt::Debug>::fmt", 2),
+            ("<function_names::Widget as core::fmt::Display>::fmt", 1),
+            (
+                "function_names::elsewhere::<impl function_names::Widget>::remote",
+                1,
+            ),
+            ("function_names::first_call", 1),
+            ("function_names::free_fn", 1),
+            ("function_names::Fresh::first", 1),
+            ("function_names::Gear::turn", 1),
+            ("function_names::main", 1),
+            ("function_names::Other::overridden", 1),
+            ("function_names::Widget::boxed", 1),
+            ("function_names::Widget::by_mut", 1),
+            ("function_names::Widget::by_ref", 1),
+            ("function_names::Widget::by_ref_async", 1),
+            ("function_names::Widget::explicit", 1),
+            ("function_names::Widget::new", 1),
+            ("function_names::Worker::run", 2),
+            ("widget_labeled", 1),
+        ]
+        .into_iter()
+        .map(|(name, calls)| (name.to_string(), calls))
+        .collect();
+        expected.sort();
+
+        assert_eq!(names_and_calls(&[]), expected);
+        // The generic method's instantiations called in the opposite order.
+        assert_eq!(names_and_calls(&["rev"]), expected);
     }
 
     // cargo check -p test-tokio-async --example measure_all_impl_return_closure --features hotpath

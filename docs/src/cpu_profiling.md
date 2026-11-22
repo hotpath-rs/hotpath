@@ -121,41 +121,27 @@ Under the `hotpath-cpu` feature, `#[hotpath::measure]` strip any user-provided `
 
 To disable this rewrite, set `HOTPATH_KEEP_INLINE=1`. The variable is read at proc-macro expansion time, so touch the source file or run `cargo clean` after toggling it.
 
-## Improving symbol attribution for impl methods
+## Symbol attribution for impl functions
 
-Currently `hotpath` correctly attributes CPU usage to module functions instrumented with `measure` macro. `impl` functions instrumented with `measure` require an additional config. 
+`hotpath` attributes CPU samples to free functions, to functions in an inherent `impl` in the type's own module and to trait impl methods instrumented with `measure` (hotpath `0.33.0` or newer):
 
 ```rust
 impl Worker {
     #[hotpath::measure]
-    fn run() {
+    fn run(&self) {
       // ...
     }
 }
 ```
 
-The above example wouldn't correctly attribute CPU samples to the `run` function, because it's defined in an `impl` block. You have to explicitly declare `impl_type` to fix it:
+`measure(impl_type = "Worker")` and `measure_all` attribute inherent `impl` functions in the type's own module too.
 
-```rust
-impl Worker {
-    #[hotpath::measure(impl_type = "Worker")]
-    fn run() {
-      // ...
-    }
-}
-```
+These functions are measured for timing and allocations, but CPU attribution is not guaranteed for them:
 
-Alternatively you can use `measure_all` macro for `impl` functions to correctly attribute all symbols without additional config:
+- Functions of a generic type (`impl<T> Worker<T>`), trait default methods and blanket impls: their symbols name the concrete types of each instantiation, which the reported name leaves out.
+- Functions of an inherent `impl` outside the type's module: the reported name carries the module of the `impl`, while the symbol may carry the type's own module.
 
-```rust
-#[hotpath::measure_all]
-impl Worker {
-    fn run() {
-      // ...
-    }
-}
-```
-
+`impl_type` only sets the reported name to `module_path::Type::fn`. It does not make a function match its symbol when the symbol has a different form, so it does not fix any of the cases above.
 
 ## Current status
 

@@ -76,7 +76,12 @@ An attribute macro that instruments functions to send timing/memory measurements
 
 - `log = true` - logs the result value when the function returns (requires `std::fmt::Debug` on return type)
 - `label = "name"` - replaces the full reported identifier (instead of `module_path::<fn_name>`). Labels must be unique within a crate (shared with `measure_block!` literal labels); a repeated one fails `cargo build`/`test`/`run` with ``symbol `__hotpath_unique_function_name_<crate hash>` is already defined`` (`cargo check` does not report it).
-- `impl_type = "Type"` - inserts the enclosing type segment so the registered name becomes `module_path::<Type>::<fn_name>`. Use this for bare `#[hotpath::measure]` on a method inside an `impl` not covered by `measure_all`. Required for correct CPU sampling attribution under `hotpath-cpu` (see [CPU profiling](./cpu_profiling.md)), since the demangled symbol contains the type segment.
+- `impl_type = "Type"` - sets the reported name to `module_path::<Type>::<fn_name>`. Without it (and without `label`), the name is the function's path as rustc prints it, worked out on the first call (hotpath `0.33.0` or newer):
+  - `module_path::fn` for a free function,
+  - `module_path::Type::fn` for a function in an inherent `impl` in the type's module, with or without `self`, sync or `async`; every instantiation of a generic type reports under one name (`module_path::Worker::run` for `impl<T> Worker<T>`),
+  - `<module_path::Type as path::Trait>::fn` for a trait impl method (rustc's full paths, such as `core::fmt::Display`).
+
+  Other shapes keep rustc's path too, such as `module_path::other_module::<impl module_path::Type>::fn` for an inherent `impl` outside the type's module, or `path::Trait::fn` for a trait's default method, shared by every type that uses it. Set `impl_type` or `label` when that path is not the name you want, or when a name must stay the same across refactors that move types or traits between modules. A function defined inside a closure has the same path as one of the same name in another closure of that function; give such functions a `label`.
 - `future = true` - additionally tracks the async function as a future: poll counts, poll durations, and pending/ready/cancelled state transitions. Only valid on `async fn`.
 
 Example:
@@ -93,8 +98,13 @@ fn fetch_user(id: u64) { /* ... */ }
 
 struct Worker;
 impl Worker {
-    #[hotpath::measure(impl_type = "Worker")]
+    // Reported as `module_path::Worker::run`
+    #[hotpath::measure]
     fn run(&self) { /* ... */ }
+
+    // Reported as `module_path::Pool::stop`
+    #[hotpath::measure(impl_type = "Pool")]
+    fn stop(&self) { /* ... */ }
 }
 ```
 
