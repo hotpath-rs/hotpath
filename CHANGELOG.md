@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.33.0] - 2026-11-22
+
+### 🚀 Features
+
+- [**breaking**] Infer function names from source paths
+
+  Methods now include their type in reported names. `impl_type` and `label` remain supported; use `label` to preserve old names.
+
+
+
+### 🚜 Refactor
+
+- Remove redundant impl_type config
+
+
+### ⚡ Performance
+
+- Register inferred function locations in the name's one-time init
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.33.0
+
+
 ## [0.32.1] - 2026-11-17
 
 ### 🚀 Features
