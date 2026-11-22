@@ -35,7 +35,7 @@ async fn raw_async(v: u64) -> u64 {
     black_box(v).wrapping_mul(31)
 }
 
-#[hotpath::measure]
+#[hotpath::measure(log = true)]
 fn free_fn(v: u64) -> u64 {
     black_box(v).wrapping_mul(31)
 }
