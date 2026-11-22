@@ -38,4 +38,4 @@ Gotchas:
 
 Gotchas:
 - The profile is samply's Firefox Profiler JSON (gzipped), not pprof.
-- Only inherent impl and free function symbols match; trait impl methods (`<Type as Trait>::method`) never do. Hence `impl_type` on bare `#[measure]` impl methods.
+- A symbol matches a measured name exactly or with a `::` suffix: free functions, inherent impl functions and simple trait impls (`<a::Type as b::Trait>::method`) match; generic types and default methods do not.

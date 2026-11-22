@@ -31,6 +31,8 @@ pub mod tests {
             "Worker::method_heavy_work",
             "Worker::method_light_work",
             "OtherWorker::method_heavy_work",
+            "cpu_symbols::OtherWorker::receiver_heavy_work",
+            "<cpu_symbols::OtherWorker as cpu_symbols::Heavy>::trait_heavy_work",
         ];
 
         for expected in expected_symbols {

@@ -101,7 +101,7 @@ pub mod tests {
             ("instructions::logged_fn", 1, 1),
             ("instructions::Worker::inherent", 1, 1),
             ("instructions::Worker::first_mut", 1, 1),
-            ("instructions::run", 1, 1),
+            ("<instructions::Worker as instructions::Job>::run", 1, 1),
             ("instructions::async_fn", 2, 8),
             ("instructions::tracked_future", 1, 1),
             ("instructions::nested::first", 1, 1),

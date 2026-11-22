@@ -1,15 +1,9 @@
 use hotpath::json::JsonReport;
 
-/// Trailing log lines follow the report, so parse only the first JSON value.
 /// Every finalized report is also checked to carry no entry ids.
 #[track_caller]
 pub(crate) fn parse_report(stdout: &str) -> JsonReport {
-    let json_start = stdout.find('{').expect("No JSON report in output");
-    let value = serde_json::Deserializer::from_str(&stdout[json_start..])
-        .into_iter::<serde_json::Value>()
-        .next()
-        .expect("No JSON value in output")
-        .expect("Failed to parse JSON report");
+    let value = crate::common::first_json_value(stdout);
     assert_no_entry_ids(&value);
     serde_json::from_value(value).expect("Failed to parse JSON report")
 }

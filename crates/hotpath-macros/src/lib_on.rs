@@ -596,14 +596,12 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 ///   labels and `measure_block!` literal labels within the crate; a repeated
 ///   label fails the build (`cargo build`/`test`/`run`, not `cargo check`).
 /// * `impl_type` - String literal naming the enclosing impl type (e.g. `"Worker"`).
-///   Inserts the type segment so the registered name is `module_path::<Type>::<fn_name>`.
-///   Use this for bare `#[hotpath::measure]` on a method inside an `impl` block when the
-///   impl is not covered by [`measure_all`](macro@measure_all). Required for correct CPU
-///   sampling attribution under `hotpath-cpu`.
-///
-///   Trait impl methods (`impl Trait for Type`) still won't attribute correctly under
-///   `hotpath-cpu` even with `impl_type` - their demangled symbols use the
-///   `<Type as Trait>::method` form.
+///   The registered name becomes `module_path::<Type>::<fn_name>`. Without it, the
+///   name is the function's path as rustc prints it, read on the first call:
+///   `module_path::Type::fn` for a function in an inherent impl,
+///   `<module_path::Type as Trait>::fn` in a trait impl, with every instantiation of a
+///   generic function under one name. Set `impl_type` (or `label`) when that path is
+///   not the name you want.
 ///
 /// # Examples
 ///
@@ -624,12 +622,13 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 /// fn fetch_user(id: u64) { /* ... */ }
 /// ```
 ///
-/// On a method inside an inherent impl (when not using `measure_all`):
+/// On a method inside an inherent impl (when not using `measure_all`), reported
+/// as `module_path::Worker::run`:
 ///
 /// ```rust,no_run
 /// struct Worker;
 /// impl Worker {
-///     #[hotpath::measure(impl_type = "Worker")]
+///     #[hotpath::measure]
 ///     fn run(&self) { /* ... */ }
 /// }
 /// ```
@@ -721,13 +720,37 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into();
     }
 
-    let measurement_loc = match (&label, &impl_type) {
-        (Some(lit), _) => quote! { #lit },
-        (None, Some(ty)) => {
+    // Without `impl_type`, the name is the path of `__hotpath_site`, an item
+    // nested in this body (`module::Type::fn` in an impl). `type_name` is not
+    // const, so the path is read on the first call and cached per site.
+    let site = impl_type
+        .is_none()
+        .then(|| quote! { fn __hotpath_site() {} });
+    let inferred_name = quote! {
+        hotpath::functions::function_name(
+            ::core::any::type_name_of_val(&__hotpath_site),
+            #is_async_fn,
+        )
+    };
+    let symbol_loc = match &impl_type {
+        Some(ty) => {
             quote! { concat!(module_path!(), "::", #ty, "::", stringify!(#fn_ident)) }
         }
-        (None, None) => quote! { concat!(module_path!(), "::", stringify!(#fn_ident)) },
+        None => inferred_name.clone(),
     };
+    let name = syn::Ident::new("__hotpath_name", proc_macro2::Span::mixed_site());
+    let name_binding = match (&label, &impl_type) {
+        (Some(lit), _) => quote! { let #name: &'static str = #lit; },
+        (None, Some(_)) => quote! { let #name: &'static str = #symbol_loc; },
+        (None, None) => quote! {
+            let #name: &'static str = {
+                static __HOTPATH_NAME: ::std::sync::OnceLock<&'static str> =
+                    ::std::sync::OnceLock::new();
+                *__HOTPATH_NAME.get_or_init(|| #inferred_name)
+            };
+        },
+    };
+    let measurement_loc = quote! { #name };
 
     // Spanning the `file!()`/`line!()`/`column!()` tokens to the fn name makes
     // the registered location point at the `fn` item rather than the attribute.
@@ -755,12 +778,6 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let label_register = if label.is_some() {
-        let symbol_loc = match &impl_type {
-            Some(ty) => {
-                quote! { concat!(module_path!(), "::", #ty, "::", stringify!(#fn_ident)) }
-            }
-            None => quote! { concat!(module_path!(), "::", stringify!(#fn_ident)) },
-        };
         quote! {
             {
                 static __HOTPATH_LABEL_ONCE: ::std::sync::Once = ::std::sync::Once::new();
@@ -869,6 +886,8 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         #(#attrs)*
         #[allow(unused_braces)]
         #vis #sig {
+            #site
+            #name_binding
             #marker_items
             #unique_label_check
             #label_register

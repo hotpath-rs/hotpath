@@ -414,6 +414,48 @@ static FUNCTION_LABELS: OnceLock<
     crate::lib_on::MetaRwLock<HashMap<&'static str, Option<&'static str>>>,
 > = OnceLock::new();
 
+/// Name of a `#[measure]` function without `label` or `impl_type`: the path
+/// rustc prints for the `__hotpath_site` item the macro nests in its body.
+/// A nested item cannot use the outer generics, so every instantiation of a
+/// generic function gets the same path, with `_` for generic parameters. An
+/// `async fn` body is a closure, so its path carries one `{{closure}}` more.
+/// Generic lists of only `_` are dropped (`Worker<_>::run` -> `Worker::run`);
+/// any other path is kept as rustc prints it. Called once per site.
+#[doc(hidden)]
+pub fn function_name(site_type_name: &'static str, is_async: bool) -> &'static str {
+    let _suspend = crate::lib_on::SuspendAllocTracking::new();
+    let mut path = site_type_name
+        .strip_suffix("::__hotpath_site")
+        .unwrap_or(site_type_name);
+    if is_async {
+        path = path.strip_suffix("::{{closure}}").unwrap_or(path);
+    }
+    match drop_wildcard_generics(path) {
+        Some(name) => Box::leak(name.into_boxed_str()),
+        None => path,
+    }
+}
+
+/// `path` without its `<_>` / `<'_, _>` lists, or `None` when it has none.
+fn drop_wildcard_generics(path: &str) -> Option<String> {
+    let mut out = String::with_capacity(path.len());
+    let mut rest = path;
+    while let Some(open) = rest.find('<') {
+        let close = rest[open..].find('>').map(|i| open + i)?;
+        let inner = &rest[open + 1..close];
+        let follows_name = rest[..open].ends_with(|c: char| c.is_alphanumeric() || c == '_');
+        out.push_str(&rest[..open]);
+        if follows_name && inner.chars().all(|c| matches!(c, '_' | '\'' | ',' | ' ')) {
+            rest = &rest[close + 1..];
+        } else {
+            out.push('<');
+            rest = &rest[open + 1..];
+        }
+    }
+    out.push_str(rest);
+    (out.len() != path.len()).then_some(out)
+}
+
 #[doc(hidden)]
 pub fn register_function_label(label: &'static str, symbol: Option<&'static str>) {
     let _suspend = crate::lib_on::SuspendAllocTracking::new();
@@ -656,4 +698,54 @@ pub(crate) fn get_function_logs_alloc(function_id: u32) -> Option<Option<Functio
         function_id,
         response_tx,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::lib_on::functions::function_name;
+
+    #[test]
+    fn function_name_from_site_path() {
+        let cases = [
+            ("app::m::free_fn::__hotpath_site", false, "app::m::free_fn"),
+            (
+                "app::m::Foo::run::__hotpath_site",
+                false,
+                "app::m::Foo::run",
+            ),
+            (
+                "app::m::Foo::run::{{closure}}::__hotpath_site",
+                true,
+                "app::m::Foo::run",
+            ),
+            (
+                "app::m::Worker<_>::run::__hotpath_site",
+                false,
+                "app::m::Worker::run",
+            ),
+            (
+                "<&app::m::Canvas<'_, _> as app::Draw>::draw::__hotpath_site",
+                false,
+                "<&app::m::Canvas as app::Draw>::draw",
+            ),
+            (
+                "<app::m::Foo as core::fmt::Display>::fmt::__hotpath_site",
+                false,
+                "<app::m::Foo as core::fmt::Display>::fmt",
+            ),
+            (
+                "<_ as app::Blanket>::run::__hotpath_site",
+                false,
+                "<_ as app::Blanket>::run",
+            ),
+            (
+                "app::m::Multi<u8>::same::__hotpath_site",
+                false,
+                "app::m::Multi<u8>::same",
+            ),
+        ];
+        for (type_name, is_async, expected) in cases {
+            assert_eq!(function_name(type_name, is_async), expected, "{type_name}");
+        }
+    }
 }
