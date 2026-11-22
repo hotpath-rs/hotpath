@@ -2,7 +2,7 @@ name: Cloud benchmark relay
 
 on:
   workflow_run:
-    workflows: ["Cloud drain benchmark", "Cloud meta benchmark", "Cloud drain criterion benchmark", "Cloud dedup benchmark"]
+    workflows: ["Cloud drain benchmark", "Cloud meta benchmark", "Cloud drain criterion benchmark", "Cloud dedup benchmark", "Cloud measure benchmark"]
     types: [completed]
 
 permissions: {}
@@ -37,4 +37,4 @@ jobs:
     steps:
       - uses: hotpath-rs/hotpath-relay@v1.0.0
         with:
-          benchmark: ${{ fromJSON('{"Cloud drain benchmark":"drain","Cloud meta benchmark":"meta","Cloud drain criterion benchmark":"drain-criterion","Cloud dedup benchmark":"dedup"}')[github.event.workflow_run.name] }}
+          benchmark: ${{ fromJSON('{"Cloud drain benchmark":"drain","Cloud meta benchmark":"meta","Cloud drain criterion benchmark":"drain-criterion","Cloud dedup benchmark":"dedup","Cloud measure benchmark":"measure"}')[github.event.workflow_run.name] }}
