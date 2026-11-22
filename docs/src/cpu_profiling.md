@@ -123,7 +123,7 @@ To disable this rewrite, set `HOTPATH_KEEP_INLINE=1`. The variable is read at pr
 
 ## Improving symbol attribution for impl methods
 
-Currently `hotpath` correctly attributes CPU usage to module functions instrumented with `measure` macro. `impl` functions instrumented with `measure` require an additional config. 
+`hotpath` attributes CPU usage to module functions and to inherent `impl` methods with a receiver (`self`, `&self`, ...) instrumented with the `measure` macro, whose type segment is inferred from `Self`. Associated functions without a receiver need an additional config:
 
 ```rust
 impl Worker {
@@ -134,7 +134,7 @@ impl Worker {
 }
 ```
 
-The above example wouldn't correctly attribute CPU samples to the `run` function, because it's defined in an `impl` block. You have to explicitly declare `impl_type` to fix it:
+The above example wouldn't correctly attribute CPU samples to the `run` function, because it's defined in an `impl` block and has no `self` to infer the type from. You have to explicitly declare `impl_type` to fix it:
 
 ```rust
 impl Worker {

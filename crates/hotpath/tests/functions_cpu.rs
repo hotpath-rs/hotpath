@@ -31,6 +31,7 @@ pub mod tests {
             "Worker::method_heavy_work",
             "Worker::method_light_work",
             "OtherWorker::method_heavy_work",
+            "OtherWorker::receiver_heavy_work",
         ];
 
         for expected in expected_symbols {

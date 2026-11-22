@@ -76,7 +76,7 @@ An attribute macro that instruments functions to send timing/memory measurements
 
 - `log = true` - logs the result value when the function returns (requires `std::fmt::Debug` on return type)
 - `label = "name"` - replaces the full reported identifier (instead of `module_path::<fn_name>`). Labels must be unique within a crate (shared with `measure_block!` literal labels); a repeated one fails `cargo build`/`test`/`run` with ``symbol `__hotpath_unique_function_name_<crate hash>` is already defined`` (`cargo check` does not report it).
-- `impl_type = "Type"` - inserts the enclosing type segment so the registered name becomes `module_path::<Type>::<fn_name>`. Use this for bare `#[hotpath::measure]` on a method inside an `impl` not covered by `measure_all`. Required for correct CPU sampling attribution under `hotpath-cpu` (see [CPU profiling](./cpu_profiling.md)), since the demangled symbol contains the type segment.
+- `impl_type = "Type"` - inserts the enclosing type segment so the registered name becomes `module_path::<Type>::<fn_name>`. A method with a receiver (`self`, `&self`, `&mut self`, `self: Box<Self>`, ...) gets this segment automatically from its `Self` type, with references and generic arguments removed, so `impl Widget for &Block<'_>` reports `module_path::Block::render`. Set `impl_type` on associated functions without a receiver, which have no `Self` value to infer from, or to override the inferred segment. The type segment is required for correct CPU sampling attribution under `hotpath-cpu` (see [CPU profiling](./cpu_profiling.md)), since the demangled symbol contains it. Trait default methods and blanket impls (`impl<T> Trait for T`) share one name across all implementors, taken from the first one called; give them a `label` instead.
 - `future = true` - additionally tracks the async function as a future: poll counts, poll durations, and pending/ready/cancelled state transitions. Only valid on `async fn`.
 
 Example:
@@ -93,8 +93,13 @@ fn fetch_user(id: u64) { /* ... */ }
 
 struct Worker;
 impl Worker {
-    #[hotpath::measure(impl_type = "Worker")]
+    // Reported as `module_path::Worker::run`
+    #[hotpath::measure]
     fn run(&self) { /* ... */ }
+
+    // No receiver: `impl_type` gives `module_path::Worker::new`
+    #[hotpath::measure(impl_type = "Worker")]
+    fn new() -> Self { Worker }
 }
 ```
 

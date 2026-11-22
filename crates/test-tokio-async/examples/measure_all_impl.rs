@@ -54,6 +54,19 @@ impl Calculator {
     }
 }
 
+trait Describe {
+    fn describe() -> u64;
+}
+
+// The type segment comes from the impl's `&Calculator` self type, so
+// `describe` reports `Calculator::describe` without a receiver.
+#[hotpath::measure_all]
+impl Describe for &Calculator {
+    fn describe() -> u64 {
+        std::hint::black_box(42)
+    }
+}
+
 #[tokio::main(flavor = "current_thread")]
 #[hotpath::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -64,6 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         calc.async_increment(i * 2).await;
         calc.async_decrement(i).await;
         std::hint::black_box(calc.get_value());
+        std::hint::black_box(<&Calculator>::describe());
     }
 
     Ok(())

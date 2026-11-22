@@ -415,6 +415,49 @@ pub fn register_function_label(label: &'static str, symbol: Option<&'static str>
     }
 }
 
+/// Name of a `#[measure]` method with a receiver: `module::Type::fn`, the
+/// same string `impl_type = "Type"` gives, with `Type` taken from
+/// `type_name::<Self>()`. Falls back to `module::fn` when `Self` is not a
+/// plain path (tuple, slice, `dyn`, fn pointer). Called once per call site;
+/// the leaked string is the site's permanent stats key.
+#[doc(hidden)]
+pub fn impl_measurement_name(
+    module_path: &'static str,
+    self_type_name: &'static str,
+    fn_name: &'static str,
+) -> &'static str {
+    let _suspend = crate::lib_on::SuspendAllocTracking::new();
+    let name = match impl_type_segment(self_type_name) {
+        Some(ty) => format!("{module_path}::{ty}::{fn_name}"),
+        None => format!("{module_path}::{fn_name}"),
+    };
+    Box::leak(name.into_boxed_str())
+}
+
+/// Last path segment of a `type_name` output with references, raw pointers
+/// and generic arguments removed (`&mut a::B<c::D>` gives `B`), or `None`
+/// when the type is not a plain path.
+fn impl_type_segment(type_name: &str) -> Option<&str> {
+    let mut ty = type_name;
+    while let Some(rest) = ["&mut ", "&", "*const ", "*mut "]
+        .iter()
+        .find_map(|prefix| ty.strip_prefix(prefix))
+    {
+        ty = rest;
+    }
+    let head = ty.split('<').next().unwrap_or_default();
+    let is_ident = |part: &str| {
+        part.chars()
+            .next()
+            .is_some_and(|c| c.is_alphabetic() || c == '_')
+            && part.chars().all(|c| c.is_alphanumeric() || c == '_')
+    };
+    if !head.split("::").all(is_ident) {
+        return None;
+    }
+    head.rsplit("::").next()
+}
+
 pub(crate) fn is_labeled(name: &str) -> bool {
     FUNCTION_LABELS
         .get()
@@ -636,4 +679,60 @@ pub(crate) fn get_function_logs_alloc(function_id: u32) -> Option<Option<Functio
         function_id,
         response_tx,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::lib_on::functions::{impl_measurement_name, impl_type_segment};
+
+    #[test]
+    fn impl_type_segment_normalizes_type_names() {
+        let cases = [
+            ("ratatui_core::buffer::buffer::Buffer", Some("Buffer")),
+            ("&ratatui_widgets::block::Block", Some("Block")),
+            ("&&a::B", Some("B")),
+            ("&mut a::B", Some("B")),
+            ("*const a::B", Some("B")),
+            ("*mut &a::B", Some("B")),
+            (
+                "ratatui_widgets::canvas::Canvas<bench::canvas::render::{{closure}}>",
+                Some("Canvas"),
+            ),
+            ("&a::Foo<a::Bar<u8>, alloc::string::String>", Some("Foo")),
+            ("alloc::boxed::Box<a::B>", Some("Box")),
+            ("Local", Some("Local")),
+            ("str", Some("str")),
+            ("u64", Some("u64")),
+            ("(a::A, a::B)", None),
+            ("()", None),
+            ("[u8]", None),
+            ("&[a::B; 4]", None),
+            ("dyn core::fmt::Debug", None),
+            ("&dyn a::Trait", None),
+            ("fn(u8) -> u8", None),
+            ("a::f::{{closure}}", None),
+            ("<a::B as a::Trait>::Assoc", None),
+            ("", None),
+            ("&", None),
+        ];
+        for (type_name, expected) in cases {
+            assert_eq!(impl_type_segment(type_name), expected, "{type_name:?}");
+        }
+    }
+
+    #[test]
+    fn impl_measurement_name_matches_explicit_impl_type() {
+        assert_eq!(
+            impl_measurement_name(
+                "my_crate::widgets",
+                "&my_crate::widgets::Block<'_>",
+                "render"
+            ),
+            concat!("my_crate::widgets", "::", "Block", "::", "render"),
+        );
+        assert_eq!(
+            impl_measurement_name("my_crate::widgets", "(u8, u8)", "render"),
+            "my_crate::widgets::render",
+        );
+    }
 }

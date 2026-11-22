@@ -214,15 +214,52 @@ pub mod tests {
             &stdout,
             &[
                 "Calculator::new",
-                "measure_all_impl::add",
+                "Calculator::add",
                 "Calculator::multiply",
                 "Calculator::async_increment",
                 "Calculator::async_decrement",
                 "Calculator::get_value",
+                "Calculator::describe",
                 "measure_all_impl::main",
-                "measure_all_impl::add",
             ],
         );
+    }
+
+    // cargo run -p test-tokio-async --example infer_impl_type --features hotpath
+    #[test]
+    fn test_infer_impl_type_names() {
+        let report = example("infer_impl_type").json().report();
+        let mut names: Vec<(String, u64)> = report
+            .functions_timing
+            .expect("functions_timing section")
+            .data
+            .into_iter()
+            .map(|e| (e.name, e.calls))
+            .collect();
+        names.sort();
+
+        let mut expected: Vec<(String, u64)> = [
+            ("Borrowed::render", 1),
+            ("Fresh::first", 1),
+            ("Other::overridden", 1),
+            ("Painter::paint", 2),
+            ("Plain::render", 1),
+            ("Widget::boxed", 1),
+            ("Widget::by_mut", 1),
+            ("Widget::by_ref", 1),
+            ("Widget::by_ref_async", 1),
+            ("Widget::render", 1),
+            ("Widget::twin", 2),
+            ("constructor", 1),
+            ("first_call", 1),
+            ("main", 1),
+        ]
+        .into_iter()
+        .map(|(name, calls)| (format!("infer_impl_type::{name}"), calls))
+        .collect();
+        expected.sort();
+
+        assert_eq!(names, expected);
     }
 
     // cargo check -p test-tokio-async --example measure_all_impl_return_closure --features hotpath

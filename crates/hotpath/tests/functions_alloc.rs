@@ -230,6 +230,31 @@ pub mod tests {
         );
     }
 
+    // cargo run -p test-tokio-async --example infer_impl_type --features hotpath-alloc
+    #[test]
+    fn test_inferred_impl_name_is_not_billed() {
+        let report = example("infer_impl_type")
+            .env("HOTPATH_METRICS_SERVER_OFF", "true")
+            .json()
+            .report();
+        let alloc = report
+            .functions_alloc
+            .expect("Expected functions_alloc in report");
+        // `first_call` makes the first `Fresh::first` call, which builds and
+        // leaks that site's name.
+        for name in [
+            "infer_impl_type::first_call",
+            "infer_impl_type::Fresh::first",
+        ] {
+            let entry = alloc
+                .data
+                .iter()
+                .find(|f| f.name == name)
+                .unwrap_or_else(|| panic!("{name} missing from {:#?}", alloc.data));
+            assert_eq!(entry.total, "0 B", "{name}");
+        }
+    }
+
     // cargo run -p test-tokio-async --example basic --features hotpath-alloc
     #[test]
     fn test_async_alloc_is_reported() {

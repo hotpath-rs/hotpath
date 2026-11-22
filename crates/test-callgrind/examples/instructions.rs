@@ -1,8 +1,8 @@
 //! Per-function instruction counts under Callgrind for every shape the
 //! measure macros wrap: free, generic, inherent, trait and recursive
-//! functions, `measure_all` modules, `label` and `log = true` variants,
-//! functions a `macro_rules!` generates and `#[track_caller]` ones (both
-//! excluded), and async functions polled
+//! functions, methods with an inferred impl type, `measure_all` modules,
+//! `label` and `log = true` variants, functions a `macro_rules!` generates
+//! and `#[track_caller]` ones (both excluded), and async functions polled
 //! on current-thread, multi-thread and spawned tokio tasks. Each measured
 //! body runs `spin`, so expected counts are multiples of one `spin(N)`.
 //!
@@ -96,6 +96,14 @@ impl Worker {
     fn parse_first(&self, input: &str) -> Result<u64, std::num::ParseIntError> {
         let parsed: u64 = input.parse()?;
         Ok(parsed + self.values[0])
+    }
+}
+
+// A bare `measure` on a method infers the type segment from `Self`.
+impl Worker {
+    #[hotpath::measure]
+    fn inferred(&self) -> u64 {
+        spin(N)
     }
 }
 
@@ -194,6 +202,7 @@ fn main() {
     let mut worker = Worker { values: vec![1] };
     total = total.wrapping_add(worker.inherent());
     total = total.wrapping_add(worker.run());
+    total = total.wrapping_add(worker.inferred());
     *worker.first_mut() += 1;
     total = total.wrapping_add(worker.values().map_or(0, |(_, v)| v.len() as u64));
     total = total.wrapping_add(logged_slice(&worker).map_or(0, |(n, _)| n));
