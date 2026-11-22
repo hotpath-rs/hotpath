@@ -3,7 +3,7 @@ name = "test-dedup"
 version = "0.0.0"
 publish = false
 edition = "2021"
-description = "The `dedup` hotpath-cloud benchmark."
+description = "Deduplication example profiled with hotpath."
 
 [dependencies]
 hotpath = { workspace = true }

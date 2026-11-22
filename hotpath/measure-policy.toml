@@ -1,0 +1,34 @@
+# Policy for the `measure` benchmark: the per-call cost of `#[hotpath::measure]`
+# for every function shape, a native run merged into a Callgrind run.
+# Single-threaded and sleep-free, so instruction counts are close to
+# deterministic; the per-site setup allocations are deterministic.
+
+pr_check = "fail"
+
+[functions]
+min_percent_total = 0.5
+
+# A measured call costs about 2,500 instructions here (hotpath's internals are
+# themselves measured by hotpath-meta), so a few instructions in the macro's
+# prologue are a 0.1-0.5% change: the bar sits below that. Drivers of one run
+# differ by about 0.01%. Reported, not failing: a deliberate cost is not a
+# regression.
+[functions.icount]
+judged = true
+min_percent_change = 0.1
+metrics = ["avg", "total"]
+min_calls = 0
+
+[functions.alloc]
+judged = true
+min_percent_change = 2
+metrics = ["avg", "total"]
+min_calls = 0
+
+# Native timing on a shared runner is too noisy to judge; listed so it shows as
+# context next to the counts.
+[functions.timing]
+judged = false
+min_percent_change = 50
+metrics = ["avg", "total"]
+min_calls = 1
