@@ -19,7 +19,10 @@ min_percent_change = 0.1
 metrics = ["avg", "total"]
 min_calls = 0
 
+# The event queue's allocations follow how many 50ms drain sweeps fit into the
+# native run, so they move with runner speed; its instruction counts stay judged.
 [functions.alloc]
+ignore = ["hotpath_drain::*"]
 judged = true
 min_percent_change = 2
 metrics = ["avg", "total"]
