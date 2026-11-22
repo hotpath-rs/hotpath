@@ -700,20 +700,6 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
         None => inferred_name.clone(),
     };
-    let name = syn::Ident::new("__hotpath_name", proc_macro2::Span::mixed_site());
-    let name_binding = match (&label, &impl_type) {
-        (Some(lit), _) => quote! { let #name: &'static str = #lit; },
-        (None, Some(_)) => quote! { let #name: &'static str = #symbol_loc; },
-        (None, None) => quote! {
-            let #name: &'static str = {
-                static __HOTPATH_NAME: ::std::sync::OnceLock<&'static str> =
-                    ::std::sync::OnceLock::new();
-                *__HOTPATH_NAME.get_or_init(|| #inferred_name)
-            };
-        },
-    };
-    let measurement_loc = quote! { #name };
-
     // Spanning the `file!()`/`line!()`/`column!()` tokens to the fn name makes
     // the registered location point at the `fn` item rather than the attribute.
     let loc_fields = quote_spanned! { fn_ident.span() =>
@@ -721,14 +707,41 @@ pub fn measure_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         line: line!(),
         column: column!(),
     };
-    let loc_register = quote! {
-        {
-            static __HOTPATH_LOC: hotpath_meta::Location = hotpath_meta::Location { #loc_fields };
-            static __HOTPATH_LOC_ONCE: ::std::sync::Once = ::std::sync::Once::new();
-            __HOTPATH_LOC_ONCE.call_once(|| {
-                hotpath_meta::register_location(#measurement_loc, &__HOTPATH_LOC);
-            });
-        }
+    let loc_static = quote! {
+        static __HOTPATH_LOC: hotpath_meta::Location = hotpath_meta::Location { #loc_fields };
+    };
+    let name = syn::Ident::new("__hotpath_name", proc_macro2::Span::mixed_site());
+    let name_binding = match (&label, &impl_type) {
+        (Some(lit), _) => quote! { let #name: &'static str = #lit; },
+        (None, Some(_)) => quote! { let #name: &'static str = #symbol_loc; },
+        // The location is registered in the same one-time init as the name,
+        // so a call checks one `OnceLock` rather than it and a `Once`.
+        (None, None) => quote! {
+            let #name: &'static str = {
+                #loc_static
+                static __HOTPATH_NAME: ::std::sync::OnceLock<&'static str> =
+                    ::std::sync::OnceLock::new();
+                *__HOTPATH_NAME.get_or_init(|| {
+                    let name = #inferred_name;
+                    hotpath_meta::register_location(name, &__HOTPATH_LOC);
+                    name
+                })
+            };
+        },
+    };
+    let measurement_loc = quote! { #name };
+
+    let loc_register = match (&label, &impl_type) {
+        (None, None) => quote! {},
+        _ => quote! {
+            {
+                #loc_static
+                static __HOTPATH_LOC_ONCE: ::std::sync::Once = ::std::sync::Once::new();
+                __HOTPATH_LOC_ONCE.call_once(|| {
+                    hotpath_meta::register_location(#measurement_loc, &__HOTPATH_LOC);
+                });
+            }
+        },
     };
 
     // A custom label replaces the identifier as the stats key, so two functions
