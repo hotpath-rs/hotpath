@@ -5,8 +5,8 @@ mod common;
 pub mod tests {
     use std::process::Command;
 
-    use crate::common::assert_contains_all;
     use crate::common::example::Example;
+    use crate::common::{assert_contains_all, first_json_value};
 
     fn example(name: &str) -> Example {
         Example::new("test-tokio-async", name).env("HOTPATH_REPORT", "functions-timing")
@@ -228,13 +228,15 @@ pub mod tests {
     // cargo run -p test-tokio-async --example infer_impl_type --features hotpath
     #[test]
     fn test_infer_impl_type_names() {
-        let report = example("infer_impl_type").json().report();
-        let mut names: Vec<(String, u64)> = report
-            .functions_timing
+        let report = first_json_value(&example("infer_impl_type").json().stdout());
+        let mut names: Vec<(String, u64)> = report["functions_timing"]["data"]
+            .as_array()
             .expect("functions_timing section")
-            .data
-            .into_iter()
-            .map(|e| (e.name, e.calls))
+            .iter()
+            .map(|e| {
+                let name = e["name"].as_str().expect("entry name").to_string();
+                (name, e["calls"].as_u64().expect("entry calls"))
+            })
             .collect();
         names.sort();
 
