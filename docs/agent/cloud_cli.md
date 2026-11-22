@@ -26,6 +26,7 @@ Do not commit unless the user asks. If they do and you upgraded hotpath, keep th
 | https://hotpath.rs/agents_cli | install and authenticate, `repos`, `benchmarks`, `report`, `reports` (history and filters), `diff` (flags, JSON answer, how to read it), `validate-policy`, `init`, output and exit codes |
 | https://hotpath.rs/regression_policy | the policy file: which file a run uses, sections, keys, the pull request comment and check |
 | https://hotpath.rs/performance_budgets | budget rules, units, broken budgets |
+| https://hotpath.rs/metrics_history | dashboard history charts of run totals and labeled functions, measured CI noise |
 | https://hotpath.rs/ci_integration | the CI workflow that uploads reports, "Profiling modes" (merged, native, Callgrind only), troubleshooting uploads |
 | https://hotpath.rs/callgrind | instruction counts (`icount`): merged reports, what is counted, reproducibility limits, comparing runs |
 

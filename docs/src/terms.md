@@ -2,7 +2,7 @@
 
 ## Privacy policy
 
-hotpath-cloud collects a minimum amount of user data needed to work correctly. Data collected is used only to make the service work.
+hotpath-cloud collects a limited amount of user data. It is used to provide the service and to understand how the service is used, so we can improve it.
 
 Individual users' personally identifiable data stored on our servers consists of their GitHub identifier, login, email address and avatar, together with the GitHub authorization tokens used to check which repositories they can access.
 
@@ -15,6 +15,8 @@ Web connections to the application servers are encrypted via SSL, which means th
 The website uses cookies. They are used only to keep you logged in and to remember your display preferences.
 
 We use Ahrefs Web Analytics to collect anonymized website visits data on the documentation and blog pages. It does not use cookies and does not store any personally identifiable information.
+
+We use PostHog (EU-hosted) to understand how registered users interact with the hotpath-cloud dashboard and improve the service. We collect dashboard pageviews, public repository names, and pseudonymized user, account and repository identifiers. We do not send user email addresses or GitHub login names as separate identity properties. Tracking is server-side and does not use additional cookies. We process this data based on our legitimate interest in improving the service. You can object at any time by contacting support@hotpath.rs.
 
 The blog offers an optional email newsletter. If you subscribe, your email address and marketing consent are stored by Mailchimp (Intuit Inc., United States), which we use to send the newsletter. The newsletter is shared with pawelurbanek.com. The signup form loads its scripts from Mailchimp's servers only after you open it. We process this data based on your consent, which you can withdraw at any time with the unsubscribe link in any newsletter email or by contacting us. Your data is kept until you unsubscribe. Mailchimp handles it under its own [privacy policy](https://www.intuit.com/privacy/statement/).
 

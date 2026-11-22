@@ -31,6 +31,14 @@
     "hash": "f8f60d7b",
     "hashed_path": "images/grafana-dashboard.f8f60d7b.png"
   },
+  "images/history-drain-icount.png": {
+    "hash": "718e77dc",
+    "hashed_path": "images/history-drain-icount.718e77dc.png"
+  },
+  "images/history-drain-wall-time.png": {
+    "hash": "7f1be17a",
+    "hashed_path": "images/history-drain-wall-time.7f1be17a.png"
+  },
   "images/hotpath-alloc-report.png": {
     "hash": "b99d232e",
     "hashed_path": "images/hotpath-alloc-report.b99d232e.png"

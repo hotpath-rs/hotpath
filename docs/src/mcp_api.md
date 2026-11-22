@@ -8,7 +8,7 @@ The hotpath-cloud MCP server connects AI assistants such as Claude, ChatGPT, Cod
 - investigate a performance regression in a pull request,
 - compare a CI benchmark run with its baseline,
 - find the functions, queries and routes that broke a [performance budget](performance_budgets.md),
-- follow a benchmark's history across commits and runners,
+- follow a benchmark's [history](metrics_history.md) across commits and runners,
 - read and validate [regression policies](regression_policy.md).
 
 The same data is available three ways: the remote MCP server for AI assistants, a JSON REST API for scripts and automation, and the [`hotpath cloud`](agents_cli.md) CLI. All three are read-only: they cannot upload reports, delete data or change repository settings. Reports get there through [CI integration](ci_integration.md).

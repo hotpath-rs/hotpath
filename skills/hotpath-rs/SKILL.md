@@ -58,6 +58,7 @@ Paths are relative to https://hotpath.rs. Fetch the pages listed for the task, p
 | Change an existing hotpath-cloud benchmark's profiling mode | `/ci_integration` ("Profiling modes"), `/regression_policy` |
 | Edit or validate `hotpath/policy.toml` | `/regression_policy` |
 | Absolute performance budgets | `/performance_budgets`, `/regression_policy` |
+| Benchmark metrics history across commits, measuring CI noise | `/metrics_history` |
 | Read a pull request comment, wait for a benchmark, fix a regression or broken budget | `/agent/cloud_cli` (+ the page of the regressed subsystem) |
 | `hotpath cloud` CLI reference | `/agents_cli` |
 | Data access, retention, outages, terms | `/cloud_faq`, `/terms` |

@@ -78,6 +78,8 @@ Every uploaded report is persisted. The dashboard compares each report against i
 
 <img loading="lazy" src="{{#asset-hash images/cloud-dashboard-diff.webp}}" alt="hotpath-cloud dashboard diff page">
 
+The [metrics history](metrics_history.md) plots any run total or labeled function metric across the commits of a branch or pull request, with median, spread and variation, so you can see how a metric evolves and how noisy it is in your CI.
+
 ## Getting Started
 
 `hotpath-cloud` requires `hotpath` version `0.30.0` or newer.
