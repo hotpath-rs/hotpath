@@ -38,4 +38,4 @@ Gotchas:
 
 Gotchas:
 - The profile is samply's Firefox Profiler JSON (gzipped), not pprof.
-- A symbol matches a site's CPU pattern (full canonical path, `site_identity` in `lib_on/functions/identity.rs`), not its stats key.
+- Symbols map to sites by CPU pattern (full canonical path from `site_identity` in `lib_on/functions/identity.rs`, `_` per generic), not stats key, in `lib_on/functions/cpu/symbols.rs`; v0 default-method instances (`_RNvY`) and overrides (`_RNvX`) demangle alike, so the mangled kind decides.
