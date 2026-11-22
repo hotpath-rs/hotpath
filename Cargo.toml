@@ -40,7 +40,6 @@ members = [
     "crates/test-criterion-0-6",
     "crates/test-criterion-0-7",
     "crates/test-drain-criterion",
-    "crates/test-dedup",
     "crates/test-cache",
     "crates/test-debug",
     "crates/test-cdylib",
