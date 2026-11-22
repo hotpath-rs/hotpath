@@ -121,41 +121,9 @@ Under the `hotpath-cpu` feature, `#[hotpath::measure]` strip any user-provided `
 
 To disable this rewrite, set `HOTPATH_KEEP_INLINE=1`. The variable is read at proc-macro expansion time, so touch the source file or run `cargo clean` after toggling it.
 
-## Improving symbol attribution for impl methods
+## Attribution of impl methods
 
-`hotpath` attributes CPU usage to module functions and to inherent `impl` methods with a receiver (`self`, `&self`, ...) instrumented with the `measure` macro, whose type segment is inferred from `Self`. Associated functions without a receiver need an additional config:
-
-```rust
-impl Worker {
-    #[hotpath::measure]
-    fn run() {
-      // ...
-    }
-}
-```
-
-The above example wouldn't correctly attribute CPU samples to the `run` function, because it's defined in an `impl` block and has no `self` to infer the type from. You have to explicitly declare `impl_type` to fix it:
-
-```rust
-impl Worker {
-    #[hotpath::measure(impl_type = "Worker")]
-    fn run() {
-      // ...
-    }
-}
-```
-
-Alternatively you can use `measure_all` macro for `impl` functions to correctly attribute all symbols without additional config:
-
-```rust
-#[hotpath::measure_all]
-impl Worker {
-    fn run() {
-      // ...
-    }
-}
-```
-
+`hotpath` attributes CPU usage to free functions and to inherent `impl` functions instrumented with `measure` or `measure_all`, with or without a receiver.
 
 ## Current status
 

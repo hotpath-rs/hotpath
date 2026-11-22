@@ -1,6 +1,5 @@
-//! Validates CPU attribution for free functions, `measure_all` impls,
-//! `measure(impl_type = ...)` on an associated function and bare `measure`
-//! on an inherent method with a receiver.
+//! Validates CPU attribution for free functions, `measure_all` impls, and
+//! bare `measure` on inherent associated functions and methods.
 //!
 //! Run:
 //! ```bash
@@ -49,7 +48,7 @@ struct OtherWorker;
 
 impl OtherWorker {
     #[inline(never)]
-    #[hotpath::measure(impl_type = "OtherWorker")]
+    #[hotpath::measure]
     fn method_heavy_work(iterations: u32) -> u64 {
         let mut result: u64 = 1;
         for i in 0..iterations {
@@ -58,7 +57,6 @@ impl OtherWorker {
         result
     }
 
-    // A receiver gives the type segment without `impl_type`.
     #[inline(never)]
     #[hotpath::measure]
     fn receiver_heavy_work(&self, iterations: u32) -> u64 {

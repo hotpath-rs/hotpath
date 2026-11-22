@@ -41,7 +41,7 @@ pub(crate) fn build_cpu_report_from_path(
         return None;
     }
 
-    let label_to_symbol = crate::lib_on::functions::get_cpu_label_aliases();
+    let label_to_symbol = crate::lib_on::functions::cpu_symbol_patterns();
     let mut match_to_display: HashMap<&'static str, &'static str> =
         HashMap::with_capacity(display_to_id.len());
     for &display in display_to_id.keys() {

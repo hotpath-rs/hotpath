@@ -58,8 +58,7 @@ trait Describe {
     fn describe() -> u64;
 }
 
-// The type segment comes from the impl's `&Calculator` self type, so
-// `describe` reports `Calculator::describe` without a receiver.
+// A trait impl for a reference type, without a receiver.
 #[hotpath::measure_all]
 impl Describe for &Calculator {
     fn describe() -> u64 {

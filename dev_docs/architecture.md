@@ -38,4 +38,4 @@ Gotchas:
 
 Gotchas:
 - The profile is samply's Firefox Profiler JSON (gzipped), not pprof.
-- Only inherent impl and free function symbols match; trait impl methods (`<Type as Trait>::method`) never do. Hence the type segment on `#[measure]` impl methods: inferred from `Self` for receivers (`impl_measurement_name` in `lib_on/functions.rs`), explicit `impl_type` otherwise.
+- A symbol matches a site's CPU pattern (full canonical path, `site_identity` in `lib_on/functions/identity.rs`), not its stats key.

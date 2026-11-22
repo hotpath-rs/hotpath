@@ -35,7 +35,7 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 
 - Label uniqueness: `__unique_label!` in `hotpath-macros/src/lib_on.rs`, tests in `tests/unique_labels.rs` and `tests/cdylib.rs`. Duplicates surface only at link time, not in `cargo check` or clippy. Symbols must stay plain C identifiers or cdylib links break.
 - `labeled` on report entries: true when the user wrote a label (literal or runtime) and false when hotpath derived the name; functions get it from the `register_function_label` registry in `lib_on/functions.rs`, filled by `#[measure(label)]` and `measure_block!`. Defaults to false when absent.
-- `#[measure]` on a method with a receiver infers the type segment from `Self` at first call (cached per site, so trait default methods keep the first caller's type); receiver-less impl fns need `impl_type = "Type"` for `hotpath-cpu` attribution (see `architecture.md`).
+- `#[measure]` names come from the `type_name` of a nested `__hotpath_site` item, built at first call and cached per site (`lib_on/functions/identity.rs`); `tests/functions_timing.rs` `test_function_names` is the golden list that catches a rustc printer change.
 - `hotpath-callgrind` wraps each `#[measure]` body in a nested marker fn (sync body runs in a closure); `measure_block!` gets none.
 - `channel!` on bounded std `sync_channel` / `futures_channel::mpsc` needs `capacity = N`, otherwise it panics at runtime.
 - `channel!` / `stream!` / `io!`: `iter = true` grows profiler state with instance churn.
