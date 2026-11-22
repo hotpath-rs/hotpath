@@ -8,11 +8,14 @@ pr_check = "fail"
 [functions]
 min_percent_total = 0.5
 
-# A few instructions per call is the change this benchmark exists to show, so
-# the bar is low. Reported, not failing: a deliberate cost is not a regression.
+# A measured call costs about 2,500 instructions here (hotpath's internals are
+# themselves measured by hotpath-meta), so a few instructions in the macro's
+# prologue are a 0.1-0.5% change: the bar sits below that. Drivers of one run
+# differ by about 0.01%. Reported, not failing: a deliberate cost is not a
+# regression.
 [functions.icount]
 judged = true
-min_percent_change = 1
+min_percent_change = 0.1
 metrics = ["avg", "total"]
 min_calls = 0
 
