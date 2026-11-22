@@ -123,7 +123,7 @@ To disable this rewrite, set `HOTPATH_KEEP_INLINE=1`. The variable is read at pr
 
 ## Symbol attribution for impl functions
 
-`hotpath` attributes CPU samples to free functions, to functions in an inherent `impl` and to trait impl methods instrumented with `measure` (hotpath `0.33.0` or newer):
+`hotpath` attributes CPU samples to free functions, to functions in an inherent `impl` in the type's own module and to trait impl methods instrumented with `measure` (hotpath `0.33.0` or newer):
 
 ```rust
 impl Worker {
@@ -134,9 +134,14 @@ impl Worker {
 }
 ```
 
-`measure(impl_type = "Worker")` and `measure_all` attribute inherent `impl` functions too.
+`measure(impl_type = "Worker")` and `measure_all` attribute inherent `impl` functions in the type's own module too.
 
-Functions of a generic type (`impl<T> Worker<T>`), trait default methods and blanket impls are measured for timing and allocations but get no CPU samples: their symbols name the concrete types of each instantiation, which the reported name leaves out.
+These functions are measured for timing and allocations, but CPU attribution is not guaranteed for them:
+
+- Functions of a generic type (`impl<T> Worker<T>`), trait default methods and blanket impls: their symbols name the concrete types of each instantiation, which the reported name leaves out.
+- Functions of an inherent `impl` outside the type's module: the reported name carries the module of the `impl`, while the symbol may carry the type's own module.
+
+`impl_type` only sets the reported name to `module_path::Type::fn`. It does not make a function match its symbol when the symbol has a different form, so it does not fix any of the cases above.
 
 ## Current status
 
