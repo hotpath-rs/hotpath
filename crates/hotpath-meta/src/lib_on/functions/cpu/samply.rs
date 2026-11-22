@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Read;
@@ -8,6 +7,7 @@ use crate::dev_logging::{info, warn};
 use object::{Object, ObjectSegment, ObjectSymbol, SymbolKind};
 
 use crate::lib_on::functions::cpu::json::{Lib, Profile};
+use crate::lib_on::functions::cpu::symbols::SymbolMatcher;
 use crate::lib_on::functions::cpu::{CpuFunctionStats, CpuReport, CPU_INCLUSIVE};
 
 pub(crate) fn build_cpu_report_from_path(
@@ -40,13 +40,13 @@ pub(crate) fn build_cpu_report_from_path(
         return None;
     }
 
-    let label_to_symbol = crate::lib_on::functions::get_cpu_label_aliases();
-    let mut match_to_display: HashMap<&'static str, &'static str> =
-        HashMap::with_capacity(display_to_id.len());
-    for &display in display_to_id.keys() {
-        let match_key = label_to_symbol.get(display).copied().unwrap_or(display);
-        match_to_display.insert(match_key, display);
-    }
+    let patterns = crate::lib_on::functions::cpu_symbol_patterns();
+    // A `measure_block!` label has no pattern; its name stands in.
+    let matcher = SymbolMatcher::new(
+        display_to_id
+            .keys()
+            .map(|&display| (display, patterns.get(display).copied().unwrap_or(display))),
+    );
 
     let primary_lib_name = std::env::current_exe()
         .ok()
@@ -70,7 +70,7 @@ pub(crate) fn build_cpu_report_from_path(
             if !is_primary {
                 return None;
             }
-            let idx = build_lib_index(lib, &match_to_display)?;
+            let idx = build_lib_index(lib, &matcher)?;
             Some((i, idx))
         });
     let total_matches: usize = primary.as_ref().map(|(_, i)| i.ranges.len()).unwrap_or(0);
@@ -78,6 +78,21 @@ pub(crate) fn build_cpu_report_from_path(
         warn!(
             "cpu report: no instrumented symbols found in any sampled library - ensure the binary was built with debug symbols and not stripped"
         );
+    } else if let Some((_, index)) = &primary {
+        let found: HashSet<&'static str> = index.ranges.iter().map(|r| r.2).collect();
+        let mut missing: Vec<&'static str> = patterns
+            .keys()
+            .copied()
+            .filter(|name| display_to_id.contains_key(name) && !found.contains(name))
+            .collect();
+        if !missing.is_empty() {
+            missing.sort_unstable();
+            eprintln!(
+                "[hotpath-meta] cpu report: no symbol of this binary maps to {} measured function(s), so they have no CPU samples: {}",
+                missing.len(),
+                missing.join(", ")
+            );
+        }
     }
 
     let mut sample_counts: HashMap<&'static str, u64> = HashMap::new();
@@ -225,10 +240,7 @@ impl LibSymbolIndex {
     }
 }
 
-fn build_lib_index(
-    lib: &Lib,
-    match_to_display: &HashMap<&'static str, &'static str>,
-) -> Option<LibSymbolIndex> {
+fn build_lib_index(lib: &Lib, matcher: &SymbolMatcher) -> Option<LibSymbolIndex> {
     let path = lib
         .debug_path
         .as_deref()
@@ -254,9 +266,7 @@ fn build_lib_index(
             _ => continue,
         };
         let demangled = format!("{:#}", rustc_demangle::demangle(raw_name));
-        let normalized = strip_hash_suffix(&demangled);
-        let normalized = strip_inherent_impl_brackets(normalized);
-        if let Some(display) = match_eligible_symbol(&normalized, match_to_display) {
+        if let Some(display) = matcher.match_symbol(raw_name, strip_hash_suffix(&demangled)) {
             matched_pending.push((rel, sym.size(), display));
         }
     }
@@ -315,60 +325,6 @@ fn strip_hash_suffix(s: &str) -> &str {
     s
 }
 
-// v0 mangling demangles inherent impl methods as `<path::Type>::method`; rewrite
-// to `path::Type::method` so they match registered instrumented names. Trait impl
-// symbols (`<Type as Trait>::method`) are left untouched and stay unmatched.
-fn strip_inherent_impl_brackets(s: &str) -> Cow<'_, str> {
-    let Some(rest) = s.strip_prefix('<') else {
-        return Cow::Borrowed(s);
-    };
-
-    let mut depth = 1usize;
-    let mut close = None;
-    for (idx, ch) in rest.char_indices() {
-        match ch {
-            '<' => depth += 1,
-            '>' => {
-                depth -= 1;
-                if depth == 0 {
-                    close = Some(idx);
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let Some(close) = close else {
-        return Cow::Borrowed(s);
-    };
-    let inner = &rest[..close];
-    let tail = &rest[close + 1..];
-    if inner.contains(" as ") || !tail.starts_with("::") {
-        return Cow::Borrowed(s);
-    }
-    Cow::Owned(format!("{inner}{tail}"))
-}
-
-fn match_eligible_symbol(
-    normalized: &str,
-    match_to_display: &HashMap<&'static str, &'static str>,
-) -> Option<&'static str> {
-    if let Some(&display) = match_to_display.get(normalized) {
-        return Some(display);
-    }
-
-    match_to_display
-        .iter()
-        .filter(|(candidate, _)| {
-            normalized
-                .strip_prefix(**candidate)
-                .is_some_and(|rest| rest.starts_with("::"))
-        })
-        .max_by_key(|(candidate, _)| candidate.len())
-        .map(|(_, &display)| display)
-}
-
 fn sample_cpu_weight(
     thread_cpu_deltas: Option<&Vec<i64>>,
     weights: Option<&Vec<i64>>,
@@ -386,17 +342,7 @@ fn sample_cpu_weight(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use crate::lib_on::functions::cpu::samply::{
-        match_eligible_symbol, strip_hash_suffix, strip_inherent_impl_brackets,
-    };
-
-    fn identity_map<const N: usize>(
-        items: [&'static str; N],
-    ) -> HashMap<&'static str, &'static str> {
-        items.into_iter().map(|s| (s, s)).collect()
-    }
+    use crate::lib_on::functions::cpu::samply::strip_hash_suffix;
 
     #[test]
     fn strips_rust_hash_suffix() {
@@ -405,76 +351,5 @@ mod tests {
             "mevlog::main"
         );
         assert_eq!(strip_hash_suffix("mevlog::main"), "mevlog::main");
-    }
-
-    #[test]
-    fn strips_v0_inherent_impl_brackets() {
-        assert_eq!(
-            strip_inherent_impl_brackets("<cpu_symbols::Worker>::method_heavy_work"),
-            "cpu_symbols::Worker::method_heavy_work"
-        );
-        assert_eq!(
-            strip_inherent_impl_brackets("<foo::Bar<u32>>::method::{closure#0}"),
-            "foo::Bar<u32>::method::{closure#0}"
-        );
-        assert_eq!(
-            strip_inherent_impl_brackets("<foo::Bar as core::fmt::Debug>::fmt"),
-            "<foo::Bar as core::fmt::Debug>::fmt"
-        );
-        assert_eq!(
-            strip_inherent_impl_brackets("cpu_symbols::free_heavy_work"),
-            "cpu_symbols::free_heavy_work"
-        );
-        assert_eq!(
-            strip_inherent_impl_brackets("<unclosed::Bracket"),
-            "<unclosed::Bracket"
-        );
-    }
-
-    #[test]
-    fn matches_v0_inherent_impl_method() {
-        let eligible = identity_map(["cpu_symbols::Worker::method_heavy_work"]);
-
-        let normalized = strip_inherent_impl_brackets("<cpu_symbols::Worker>::method_heavy_work");
-        let matched = match_eligible_symbol(&normalized, &eligible);
-
-        assert_eq!(matched, Some("cpu_symbols::Worker::method_heavy_work"));
-    }
-
-    #[test]
-    fn matches_async_closure_symbol_by_prefix() {
-        let eligible = identity_map([
-            "mevlog::misc::rpc_tracing::rpc_tx_calls",
-            "mevlog::misc::shared_init::init_deps",
-        ]);
-
-        let matched = match_eligible_symbol(
-            "mevlog::misc::rpc_tracing::rpc_tx_calls::{{closure}}::{{closure}}",
-            &eligible,
-        );
-
-        assert_eq!(matched, Some("mevlog::misc::rpc_tracing::rpc_tx_calls"));
-    }
-
-    #[test]
-    fn prefers_longest_prefix_match() {
-        let eligible = identity_map(["mevlog::misc", "mevlog::misc::rpc_tracing::rpc_tx_calls"]);
-
-        let matched = match_eligible_symbol(
-            "mevlog::misc::rpc_tracing::rpc_tx_calls::{{closure}}",
-            &eligible,
-        );
-
-        assert_eq!(matched, Some("mevlog::misc::rpc_tracing::rpc_tx_calls"));
-    }
-
-    #[test]
-    fn label_alias_resolves_to_display_name() {
-        let mut map: HashMap<&'static str, &'static str> = HashMap::new();
-        map.insert("mevlog::compute_hash", "custom_label");
-
-        let matched = match_eligible_symbol("mevlog::compute_hash::{{closure}}", &map);
-
-        assert_eq!(matched, Some("custom_label"));
     }
 }
