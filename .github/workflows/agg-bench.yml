@@ -2,7 +2,7 @@ name: Aggregate comment test benchmark
 
 # Throwaway workflow for testing hotpath-cloud aggregate PR comments. Pushes to
 # test/aggregate-base upload the baselines; pull requests into it upload the
-# three benchmarks in agg-bench/bench.env. No concurrency group, so older runs
+# three benchmarks in agg-bench/bench.conf. No concurrency group, so older runs
 # are never cancelled. `labeled` lets a new run start on the same head commit.
 on:
   push:

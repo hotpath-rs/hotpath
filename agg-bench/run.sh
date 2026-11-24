@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Runs every benchmark in agg-bench/bench.env in parallel, each after its own
+# Runs every benchmark in agg-bench/bench.conf in parallel, each after its own
 # delay, and uploads its report. Run from the repository root.
 set -uo pipefail
-source agg-bench/bench.env
+source agg-bench/bench.conf
 export AGG_CALLS
 export HOTPATH_METRICS_SERVER_OFF=true
 extra=0
