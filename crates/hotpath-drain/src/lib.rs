@@ -392,3 +392,5 @@ impl<M> PublishedPrefix<M> {
             .all(|(queue, target)| queue.drained.load(Ordering::Acquire) >= *target)
     }
 }
+
+// Noop change to trigger benchmark CI.
