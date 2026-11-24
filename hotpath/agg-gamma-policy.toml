@@ -18,3 +18,7 @@ judged = false
 min_percent_change = 50
 metrics = ["avg", "total"]
 min_calls = 1
+
+[[functions.budgets]]
+match = "agg_bench::allocate"
+alloc = { avg = "8 KB" }
