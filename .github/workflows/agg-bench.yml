@@ -1,0 +1,36 @@
+name: Aggregate comment test benchmark
+
+# Throwaway workflow for testing hotpath-cloud aggregate PR comments. Pushes to
+# test/aggregate-base upload the baselines; pull requests into it upload the
+# three benchmarks in agg-bench/bench.env. No concurrency group, so older runs
+# are never cancelled. `labeled` lets a new run start on the same head commit.
+on:
+  push:
+    branches: [test/aggregate-base]
+  pull_request:
+    branches: [test/aggregate-base]
+    types: [opened, synchronize, reopened, labeled]
+
+jobs:
+  benchmark:
+    name: agg benchmark
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: agg-bench
+      - name: Build benchmark
+        run: cargo build -q --release --manifest-path agg-bench/Cargo.toml --features hotpath-alloc,hotpath-cloud
+      - name: Run benchmarks and upload reports
+        env:
+          EVENT_ACTION: ${{ github.event.action }}
+          HOTPATH_UPLOAD: fail-on-error
+          HOTPATH_OUTPUT_FORMAT: none
+          HOTPATH_USER_METADATA: event=${{ github.event_name }}-${{ github.event.action }},run=${{ github.run_number }}-${{ github.run_attempt }}
+        run: agg-bench/run.sh

@@ -16,3 +16,4 @@ tmp/
 docs/book/
 *.json.gz
 CLAUDE.local.md
+agg-bench/target

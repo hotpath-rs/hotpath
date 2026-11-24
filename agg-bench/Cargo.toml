@@ -1,0 +1,17 @@
+# Throwaway benchmark for testing hotpath-cloud aggregate PR comments in
+# production. Not a workspace member: it depends on the released hotpath.
+[package]
+name = "agg-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+hotpath = "=0.33.0"
+
+[features]
+hotpath = ["hotpath/hotpath"]
+hotpath-alloc = ["hotpath", "hotpath/hotpath-alloc"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]
