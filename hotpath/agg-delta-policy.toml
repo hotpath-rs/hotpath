@@ -1,0 +1,20 @@
+# Policy for an aggregate PR comment test benchmark (agg-bench). Allocations
+# are deterministic, so any change past the bar is real and fails the check.
+pr_check = "fail"
+
+[functions]
+ignore = ["agg_bench::main"]
+min_percent_total = 0.5
+
+[functions.alloc]
+judged = true
+fail_check = true
+min_percent_change = 2
+metrics = ["avg", "total"]
+min_calls = 0
+
+[functions.timing]
+judged = false
+min_percent_change = 50
+metrics = ["avg", "total"]
+min_calls = 1
