@@ -5,6 +5,7 @@
 
 # A broken budget or an allocation regression fails the pull request's check run.
 pr_check = "fail"
+pr_comment = "on_change"
 
 [functions]
 min_percent_total = 0.5
