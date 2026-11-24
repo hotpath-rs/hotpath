@@ -10,7 +10,6 @@ min_percent_total = 0.5
 judged = true
 fail_check = true
 min_percent_change = 2
-min_percent = 2
 metrics = ["avg", "total"]
 min_calls = 0
 
