@@ -318,7 +318,10 @@ pub mod tests {
         assert_merge_refused(
             &refused(&huge, &[]),
             &out,
-            "over the 5242880 byte report limit",
+            &format!(
+                "over the {} byte report limit",
+                hotpath::json::cloud_api::MAX_REPORT_BYTES
+            ),
         );
 
         assert_merge_refused(
