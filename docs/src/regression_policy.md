@@ -85,7 +85,7 @@ The built-in 2% suits deterministic single-threaded workloads. Thread interleavi
 
 In a merged report (native timing + Callgrind instruction counts in one report, the [recommended CI mode](ci_integration.md#profiling-modes)), the instruction counts are judged here and the native timing comes with them:
 
-- Timing stays listed under `[functions.timing]` with `judged = false`, as the default policy writes it: native timing on shared runners is too noisy to judge, but it shows next to the counts on the comparison page and under "Related metrics" in the pull request comment, where a finding shows its function's row in every section the policy lists.
+- Timing stays listed under `[functions.timing]` with `judged = false`, as the default policy writes it: native timing on shared runners is too noisy to judge, but it shows next to the counts on the comparison page, where a finding shows its function's row in every section the policy lists.
 - Leaving `[functions.timing]` out stops timing being judged and also hides it from the comparison page and the comment. The report's own page still shows every measured section.
 - A timing [budget](performance_budgets.md) on a merged report judges native timing measured on a shared runner, so give it headroom (a tail percentile such as `p99.9` moves the most), or bound the work with the instruction counts instead.
 
@@ -302,21 +302,16 @@ The patterns match the same names as the resource's `ignore` and take up to 64 e
 
 ### Pull request comment
 
-By default every pull request upload posts or updates a comment with its result. To comment only when something changed, set `pr_comment` at the top of the file, before any table:
+Every pull request gets one hotpath-cloud comment for all its benchmarks: a row per benchmark with its result and a link to its comparison, then the broken budgets, regressions and improvements of the benchmarks that have any. Each upload updates it, so results appear as the benchmark jobs finish, and a benchmark that has not uploaded for the latest commit yet shows as waiting.
 
-```toml
-pr_comment = "on_change"
+When the comment is posted is a setting of the repository, not of a policy: the **Pull request comment** toggle on the repository's page on the [dashboard](https://hotpath.rs/app), for anyone with push access.
 
-[functions]
-min_percent_total = 2
-```
-
-| Value | When the comment is posted |
+| Setting | When the comment is posted |
 |---|---|
-| `"always"` | On every pull request upload. The default. |
-| `"on_change"` | Only when the upload finds a regression, an improvement or a broken [budget](performance_budgets.md). |
+| Off | On the first upload of the pull request. The default. |
+| On | Once a benchmark finds a regression, an improvement or a broken [budget](performance_budgets.md), or its upload is refused or its report cannot be read. |
 
-With `"on_change"`, a comment the pull request already has is still updated, so an earlier regression never stays up after a fix. An upload the server refuses, or a report it cannot read, always gets a comment explaining why.
+Once the comment exists it is always updated, so an earlier regression never stays up after a fix.
 
 ### Pull request check
 

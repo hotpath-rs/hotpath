@@ -145,7 +145,7 @@ To block merging a pull request with a regression, make `hotpath / <benchmark>` 
 | Variable | Description |
 |---|---|
 | `HOTPATH_UPLOAD` | Upload the report when the run ends, and decide whether a failed upload fails the job: `enabled` or `fail-on-error` (see above). Unset, `0` or `false` uploads nothing. An unknown value uploads as `enabled` with a warning. (default: off) |
-| `HOTPATH_BENCHMARK` | Name of the benchmark series, 1 to 64 characters from `[A-Za-z0-9._-]`. Reports are compared within one series, and every series gets a pull request comment of its own. An invalid name skips the upload. (default: `default`) |
+| `HOTPATH_BENCHMARK` | Name of the benchmark series, 1 to 64 characters from `[A-Za-z0-9._-]`. Reports are compared within one series, and every series gets its own row in the pull request's comment. An invalid name skips the upload. (default: `default`) |
 | `HOTPATH_UPLOAD_RESPONSE_PATH` | File the server's response is written to as JSON when the report is accepted. A skipped or failed upload removes it. (default: not written) |
 | `HOTPATH_POLICY_PATH` | Policy file to upload instead of `hotpath/<benchmark>-policy.toml` or `hotpath/policy.toml`. Relative to the working directory, and inside the repository. (default: not set) |
 | `HOTPATH_USER_METADATA` | Comma-separated `key=value` pairs stored with the report and shown on its page, e.g. `runner=linux-x64,profile=release`. |
