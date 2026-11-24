@@ -311,7 +311,7 @@ When the comment is posted is a setting of the repository, not of a policy: the 
 | Off | On the first upload of the pull request. The default. |
 | On | Once a benchmark finds a regression, an improvement or a broken [budget](performance_budgets.md), or its upload is refused or its report cannot be read. |
 
-Once the comment exists it is always updated, so an earlier regression never stays up after a fix. A `pr_comment` key in a policy file is still accepted and ignored.
+Once the comment exists it is always updated, so an earlier regression never stays up after a fix.
 
 ### Pull request check
 
