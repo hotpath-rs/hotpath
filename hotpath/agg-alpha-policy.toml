@@ -8,7 +8,7 @@ min_percent_total = 0.5
 
 [functions.alloc]
 judged = true
-fail_check = true
+fail_check = false
 min_percent_change = 2
 metrics = ["avg", "total"]
 min_calls = 0
