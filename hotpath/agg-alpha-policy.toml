@@ -1,6 +1,7 @@
 # Policy for an aggregate PR comment test benchmark (agg-bench). Allocations
 # are deterministic, so any change past the bar is real and fails the check.
 pr_check = "fail"
+pr_comment = "always"
 
 [functions]
 ignore = ["agg_bench::main"]
