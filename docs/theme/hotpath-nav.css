@@ -117,7 +117,17 @@
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
-    transition: filter 0.15s ease;
+    transition: filter 0.15s ease, opacity 0.15s ease;
+}
+
+/* Muted outside the cloud section, so it never reads as a second active
+   route next to the underlined one */
+.hp-navlink-cloud:not(.active) .hp-cloud-label {
+    opacity: 0.9;
+}
+
+.hp-navlink-cloud:hover .hp-cloud-label {
+    opacity: 1;
 }
 
 .hp-navlink-cloud:hover .hp-cloud-label,
@@ -125,6 +135,28 @@
     filter: drop-shadow(0 0 6px rgba(255, 140, 60, 0.55));
 }
 
+
+/* The repository's GitHub stars and crates.io downloads, right-aligned;
+   left out where the bar has no room for them. Served by shields.io: the
+   theme cannot use the {{#asset-hash}} copies the pages get. */
+.hp-nav-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-left: auto;
+}
+
+.hp-nav-badges img {
+    display: block;
+    height: 20px;
+    width: auto;
+}
+
+@media (max-width: 560px) {
+    .hp-nav-badges {
+        display: none;
+    }
+}
 
 .hp-brand:focus-visible,
 .hp-navlink:focus-visible {

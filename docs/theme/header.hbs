@@ -5,16 +5,20 @@
         <a class="hp-brand" href="/" title="hotpath.rs home">
             <span class="hp-brand-prompt" aria-hidden="true">~$</span><span class="hp-brand-cmd">hotpath-rs</span>
         </a>
-        <a class="hp-navlink" data-route="docs" href="/">docs</a>
         <a class="hp-navlink hp-navlink-cloud" data-route="cloud" href="/cloud" title="hotpath-cloud: performance regressions caught in CI, reported on every PR"><span class="hp-cloud-label">cloud</span></a>
+        <a class="hp-navlink" data-route="docs" href="/docs">docs</a>
         <a class="hp-navlink" data-route="blog" href="/blog/">blog</a>
+        <span class="hp-nav-badges">
+            <a href="https://github.com/hotpath-rs/hotpath" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/github/stars/hotpath-rs/hotpath?style=social&cacheSeconds=86400" alt="GitHub Stars" height="20"></a>
+            <a href="https://crates.io/crates/hotpath" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/crates/d/hotpath?cacheSeconds=86400" alt="crates.io downloads" height="20"></a>
+        </span>
     </div>
 </nav>
 <script>
     (function () {
         var path = location.pathname;
         // Pages of the docs "hotpath-cloud" section light up the cloud link
-        var cloudPages = ['/cloud', '/ci_integration', '/regression_policy', '/performance_budgets', '/metrics_history', '/mcp_api', '/agents_cli', '/cloud_faq'];
+        var cloudPages = ['/cloud', '/cloud_docs', '/ci_integration', '/regression_policy', '/performance_budgets', '/metrics_history', '/mcp_api', '/agents_cli', '/cloud_faq'];
         var page = path.replace(/\.html$/, '').replace(/\/$/, '');
         var route = (path === '/blog' || path.indexOf('/blog/') === 0) ? 'blog'
             : cloudPages.indexOf(page) !== -1 ? 'cloud' : 'docs';

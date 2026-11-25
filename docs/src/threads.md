@@ -1,6 +1,6 @@
 # Rust thread monitoring: CPU usage, thread states and memory
 
-The threads view shows live per-thread CPU and memory metrics for the instrumented process. Reach for it when you need to answer questions that function-level profiling can't: which thread is burning CPU, which thread's allocations keep growing, or which threads sit blocked while the rest of your Tokio app starves. It works on Linux, macOS and Windows, and it's enabled by default via the `threads` feature flag, so if you already use hotpath for [time, CPU and memory profiling](./introduction.md), per-thread monitoring is active out of the box.
+The threads view shows live per-thread CPU and memory metrics for the instrumented process. Reach for it when you need to answer questions that function-level profiling can't: which thread is burning CPU, which thread's allocations keep growing, or which threads sit blocked while the rest of your Tokio app starves. It works on Linux, macOS and Windows, and it's enabled by default via the `threads` feature flag, so if you already use hotpath for [time, CPU and memory profiling](./docs.md), per-thread monitoring is active out of the box.
 
 > Looking for memory profiling? The [Rust memory profiling guide](./memory_profiling.md) covers per-function allocations, per-thread allocation traffic and process RSS together, including how to investigate memory growth. This page is the reference for the thread view itself.
 

@@ -118,7 +118,7 @@
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch (e) { }
                 // The landing pages open without the menu until the visitor opens it.
-                const landing = ['index.md', 'introduction.md', 'cloud.md'].includes('{{ path }}');
+                const landing = ['index.md'].includes('{{ path }}');
                 sidebar = sidebar || (landing ? 'hidden' : 'visible');
             } else {
                 sidebar = 'hidden';

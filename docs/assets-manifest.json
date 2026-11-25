@@ -1,23 +1,7 @@
 {
-  "images/channel_metrics.png": {
-    "hash": "0435519b",
-    "hashed_path": "images/channel_metrics.0435519b.png"
-  },
   "images/channels-log.png": {
     "hash": "35cb2dd8",
     "hashed_path": "images/channels-log.35cb2dd8.png"
-  },
-  "images/cloud-agent-diff.webp": {
-    "hash": "79282fa1",
-    "hashed_path": "images/cloud-agent-diff.79282fa1.webp"
-  },
-  "images/cloud-dashboard-diff.webp": {
-    "hash": "0668f459",
-    "hashed_path": "images/cloud-dashboard-diff.0668f459.webp"
-  },
-  "images/cloud-pr-comment.webp": {
-    "hash": "65afbe65",
-    "hashed_path": "images/cloud-pr-comment.65afbe65.webp"
   },
   "images/functions-log.png": {
     "hash": "6c4ca450",
@@ -42,14 +26,6 @@
   "images/hotpath-alloc-report.png": {
     "hash": "b99d232e",
     "hashed_path": "images/hotpath-alloc-report.b99d232e.png"
-  },
-  "images/hotpath-cloud-ferris.webp": {
-    "hash": "9ba05d71",
-    "hashed_path": "images/hotpath-cloud-ferris.9ba05d71.webp"
-  },
-  "images/hotpath-ferris.webp": {
-    "hash": "5197e879",
-    "hashed_path": "images/hotpath-ferris.5197e879.webp"
   },
   "images/hotpath-live-dashboard-poster.jpg": {
     "hash": "2fee583d",
@@ -87,37 +63,9 @@
     "hash": "1b44eb0f",
     "hashed_path": "images/sql-report.1b44eb0f.png"
   },
-  "images/sql_metrics.png": {
-    "hash": "1b44eb0f",
-    "hashed_path": "images/sql_metrics.1b44eb0f.png"
-  },
-  "images/stars-PostHog-posthog.svg": {
-    "hash": "cef4bab1",
-    "hashed_path": "images/stars-PostHog-posthog.cef4bab1.svg"
-  },
-  "images/stars-apache-opendal.svg": {
-    "hash": "d436deae",
-    "hashed_path": "images/stars-apache-opendal.d436deae.svg"
-  },
   "images/stars-hotpath-rs-hotpath.svg": {
     "hash": "f75111e5",
     "hashed_path": "images/stars-hotpath-rs-hotpath.f75111e5.svg"
-  },
-  "images/stars-maplibre-martin.svg": {
-    "hash": "32640de5",
-    "hashed_path": "images/stars-maplibre-martin.32640de5.svg"
-  },
-  "images/stars-marc2332-freya.svg": {
-    "hash": "6344f57e",
-    "hashed_path": "images/stars-marc2332-freya.6344f57e.svg"
-  },
-  "images/stars-parseablehq-parseable.svg": {
-    "hash": "6b96249c",
-    "hashed_path": "images/stars-parseablehq-parseable.6b96249c.svg"
-  },
-  "images/stars-rustfs-rustfs.svg": {
-    "hash": "47fb6145",
-    "hashed_path": "images/stars-rustfs-rustfs.47fb6145.svg"
   },
   "images/streams-log.png": {
     "hash": "cd023bff",

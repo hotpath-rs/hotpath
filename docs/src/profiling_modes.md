@@ -158,7 +158,7 @@ It is safe to keep `hotpath` as a regular, non-optional dependency. Unless the `
 - **Zero compile-time overhead** - the crate contains no profiling code and pulls in no dependencies. All of its dependencies are optional and are only compiled when the feature is on.
 - **Zero runtime overhead** - `#[hotpath::main]`, `#[hotpath::measure]`, `measure_block!`, and all channel, lock, stream and future wrappers expand to a no-op that returns the original code unchanged.
 
-This is the recommended setup from the [installation guide](introduction.md#manual-installation):
+This is the recommended setup from the [installation guide](docs.md#manual-installation):
 
 ```toml
 [dependencies]

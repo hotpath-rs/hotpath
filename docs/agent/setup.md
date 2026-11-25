@@ -37,7 +37,7 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 
 ### 2. Add the dependency and features
 
-Docs: https://hotpath.rs/ (basic setup), plus the page of each integration you picked in step 1 for its cargo feature.
+Docs: https://hotpath.rs/docs (basic setup), plus the page of each integration you picked in step 1 for its cargo feature.
 
 Add `hotpath` to the target crate (`cargo add hotpath -p <crate>` for a new dependency) and a feature passthrough:
 

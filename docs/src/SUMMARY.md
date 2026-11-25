@@ -1,6 +1,6 @@
 # Summary
 
-[Introduction](./introduction.md)
+[Introduction](./docs.md)
 
 # Profiling
 
@@ -23,7 +23,7 @@
 
 # 🔥 hotpath-cloud 
 
-- [Intro](./cloud.md)
+- [Intro](./cloud_docs.md)
 - [CI integration](./ci_integration.md)
 - [Regression policy](./regression_policy.md)
 - [Performance budgets](./performance_budgets.md)

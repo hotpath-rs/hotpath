@@ -39,7 +39,7 @@ The docs describe the latest hotpath release, `{{HOTPATH_RELEASE_TAG}}` (the cra
 | https://hotpath.rs/regression_policy | the policy file: sections, keys, validation, the pull request comment and check |
 | https://hotpath.rs/performance_budgets | absolute limits in the same policy file |
 | https://hotpath.rs/criterion | Criterion benchmarks as hotpath benchmarks: setup, fixed iterations, one benchmark per process, native and Callgrind runs |
-| https://hotpath.rs/cloud | what hotpath-cloud is |
+| https://hotpath.rs/cloud_docs | what hotpath-cloud is |
 
 ## Steps
 
@@ -295,7 +295,7 @@ Without Linux and a suitable Valgrind (on ARM64, the patched build), do not inst
 
 ### 8. Add the README badge
 
-Docs: https://hotpath.rs/cloud ("README badge").
+Docs: https://hotpath.rs/cloud_docs ("README badge").
 
 Add the hotpath-cloud badge to the README that GitHub renders for the repository (the repository root `README.md`, not a member crate's README in a workspace), linking to the repository's page on hotpath.rs. Take `OWNER/NAME` from `gh repo view --json nameWithOwner -q .nameWithOwner`, or from the `origin` remote:
 

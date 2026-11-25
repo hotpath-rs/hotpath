@@ -75,7 +75,7 @@ threads - Thread CPU and memory statistics. (Max RSS: 6.4 MB, Alloc: 6.6 MB, Dea
 +-------------+------+------+--------+---------+-------+
 ```
 
-When the `hotpath` feature is disabled, all macros are no-ops: no tracking allocator is installed and no hotpath dependencies are compiled. Every profiling feature also enables `hotpath`, so `--features='hotpath-alloc'` is enough on its own. See the [installation guide](introduction.md#manual-installation) for the full setup, or the [live TUI dashboard](profiling_modes.md#live-tui-dashboard) to watch the same metrics while the program runs.
+When the `hotpath` feature is disabled, all macros are no-ops: no tracking allocator is installed and no hotpath dependencies are compiled. Every profiling feature also enables `hotpath`, so `--features='hotpath-alloc'` is enough on its own. See the [installation guide](docs.md#manual-installation) for the full setup, or the [live TUI dashboard](profiling_modes.md#live-tui-dashboard) to watch the same metrics while the program runs.
 
 ## Profile allocations per function
 
@@ -169,7 +169,7 @@ To find the threads responsible for heavy allocation traffic, compare their Allo
 
 ### Reading a growing Diff
 
-A thread whose Diff keeps growing under steady-state load allocates more than it frees. That is a useful signal, but not proof of a leak, and not a measure of how much memory the thread owns. Diff is attributed to the thread *performing* each operation: memory allocated on one thread and freed on another raises Diff on the first and lowers it on the second. A producer thread that sends `String`s through a channel to a consumer will show a positive Diff, and the consumer a negative one, even though nothing is retained. The [installation example](introduction.md#basic-setup) shows exactly that with Tokio: a worker that frees buffers allocated elsewhere ends up with `-70.0 KB`.
+A thread whose Diff keeps growing under steady-state load allocates more than it frees. That is a useful signal, but not proof of a leak, and not a measure of how much memory the thread owns. Diff is attributed to the thread *performing* each operation: memory allocated on one thread and freed on another raises Diff on the first and lowers it on the second. A producer thread that sends `String`s through a channel to a consumer will show a positive Diff, and the consumer a negative one, even though nothing is retained. The [installation example](docs.md#basic-setup) shows exactly that with Tokio: a worker that frees buffers allocated elsewhere ends up with `-70.0 KB`.
 
 So treat per-thread Diff as a pointer to where to look, then confirm with the functions report and the code. A positive Diff that keeps growing on a thread which doesn't hand data to other threads is the strongest signal of retained memory. For CPU usage, thread states and the full thread metrics reference, see the [threads monitoring docs](threads.md).
 
