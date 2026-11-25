@@ -47,5 +47,5 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 
 - `HOTPATH_KEEP_INLINE` is read at macro expansion time; touch the source or `cargo clean` after toggling it.
 - `HOTPATH_ALLOC_MAX_DEPTH` is read and validated in `crates/hotpath/build.rs` (it sizes the const thread-local alloc stack in `alloc/core.rs`), not a `LazyLock`.
-- `HOTPATH_SHOW_INTERNAL_THREADS` (`lib_on.rs`) is read inside the allocator; `init_thread_alloc_tracking` forces it before tracking starts.
+- `HOTPATH_SHOW_INTERNAL_THREADS` (`lib_on.rs`) is read inside the allocator; `init_alloc_tracking` forces it before tracking starts.
 - `HOTPATH_USER_METADATA` is parsed in `HotpathGuardBuilder::build` (the builder can add pairs), not a `LazyLock`; it only reaches the final report.

@@ -100,26 +100,56 @@ static THREAD_ALLOC_STATS: [ThreadAllocStats; MAX_THREADS] = {
     [INIT; MAX_THREADS]
 };
 
-static THREAD_TRACKING_ENABLED: AtomicU64 = AtomicU64::new(0);
+/// Allocator-wide tracking mode, set once per guard by [`init_alloc_tracking`].
+/// One word, so the allocator decides both "track at all" and "track per
+/// thread" with the single `Relaxed` load it already paid for.
+static TRACKING_MODE: AtomicU8 = AtomicU8::new(MODE_FUNCTIONS);
+/// Per-function tracking only (no guard yet, or no `threads` feature).
+const MODE_FUNCTIONS: u8 = 0;
+/// Per-function and per-thread tracking.
+const MODE_THREADS: u8 = 1;
+/// No tracking: a Callgrind run merged into a native report keeps only its
+/// instruction counts, and tracking inside measured bodies would inflate them.
+const MODE_OFF: u8 = 2;
 
 /// Bytes allocated/deallocated by threads that never got a registry slot
 /// (registry full). Keeps process-wide totals accurate past `MAX_THREADS`.
 static OVERFLOW_ALLOC_BYTES: AtomicU64 = AtomicU64::new(0);
 static OVERFLOW_DEALLOC_BYTES: AtomicU64 = AtomicU64::new(0);
 
-/// Initialize the thread allocation tracking system
-#[cfg_attr(not(feature = "threads"), allow(dead_code))]
-pub(crate) fn init_thread_alloc_tracking() {
-    // Read inside the allocator from here on, where a first-use env lookup
-    // would allocate and re-enter it.
-    std::sync::LazyLock::force(&crate::lib_on::SHOW_INTERNAL_THREADS);
-    THREAD_TRACKING_ENABLED.store(1, Ordering::Release);
+/// Whether this process tracks allocations at all; `false` only for a
+/// Callgrind run merged into a native report.
+pub(crate) fn alloc_tracking_active() -> bool {
+    #[cfg(feature = "hotpath-callgrind-meta")]
+    {
+        !(crate::lib_on::functions::callgrind::active()
+            && crate::lib_on::merge::MERGE_REPORT.is_some())
+    }
+    #[cfg(not(feature = "hotpath-callgrind-meta"))]
+    {
+        true
+    }
+}
+
+/// Sets the allocator's tracking mode at guard start.
+pub(crate) fn init_alloc_tracking() {
+    let mode = if !alloc_tracking_active() {
+        MODE_OFF
+    } else if cfg!(feature = "threads") {
+        // Read inside the allocator from here on, where a first-use env
+        // lookup would allocate and re-enter it.
+        std::sync::LazyLock::force(&crate::lib_on::SHOW_INTERNAL_THREADS);
+        MODE_THREADS
+    } else {
+        MODE_FUNCTIONS
+    };
+    TRACKING_MODE.store(mode, Ordering::Release);
 }
 
 /// Get allocation stats for a thread
 #[cfg_attr(not(feature = "threads"), allow(dead_code))]
 pub(crate) fn get_thread_alloc_stats(os_tid: u64) -> Option<(u64, u64)> {
-    if THREAD_TRACKING_ENABLED.load(Ordering::Acquire) == 0 {
+    if TRACKING_MODE.load(Ordering::Acquire) != MODE_THREADS {
         return None;
     }
 
@@ -382,6 +412,10 @@ pub(crate) fn route_alloc_add(_stack: &AllocationInfoStack, _bytes: u64, _count:
 
 #[inline]
 pub(crate) fn track_alloc(size: usize) {
+    let mode = TRACKING_MODE.load(Ordering::Relaxed);
+    if mode == MODE_OFF {
+        return;
+    }
     let mut tracking_enabled = true;
     ALLOCATIONS.with(|stack| {
         tracking_enabled = stack.tracking_enabled.get();
@@ -399,7 +433,7 @@ pub(crate) fn track_alloc(size: usize) {
         return;
     }
 
-    if THREAD_TRACKING_ENABLED.load(Ordering::Relaxed) != 0 {
+    if mode == MODE_THREADS {
         match thread_slot() {
             ThreadSlot::Tracked(slot) => {
                 slot.alloc_bytes.fetch_add(size as u64, Ordering::Relaxed);
@@ -414,12 +448,16 @@ pub(crate) fn track_alloc(size: usize) {
 
 #[inline]
 pub(crate) fn track_dealloc(size: usize) {
+    let mode = TRACKING_MODE.load(Ordering::Relaxed);
+    if mode == MODE_OFF {
+        return;
+    }
     let tracking_enabled = ALLOCATIONS.with(|stack| stack.tracking_enabled.get());
     if !tracking_enabled {
         return;
     }
 
-    if THREAD_TRACKING_ENABLED.load(Ordering::Relaxed) != 0 {
+    if mode == MODE_THREADS {
         match thread_slot() {
             ThreadSlot::Tracked(slot) => {
                 slot.dealloc_bytes.fetch_add(size as u64, Ordering::Relaxed);

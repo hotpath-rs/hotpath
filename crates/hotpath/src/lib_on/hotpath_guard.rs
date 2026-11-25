@@ -970,8 +970,8 @@ impl HotpathGuard {
 
         drop(_suspend);
 
-        #[cfg(all(feature = "threads", feature = "hotpath-alloc"))]
-        crate::functions::alloc::core::init_thread_alloc_tracking();
+        #[cfg(feature = "hotpath-alloc")]
+        crate::functions::alloc::core::init_alloc_tracking();
 
         #[cfg(feature = "hotpath-cpu")]
         if sections_mode.contains_or_auto(Section::FunctionsCpu) {
@@ -1231,6 +1231,17 @@ impl Drop for HotpathGuard {
                     })
                     .collect()
             }
+        };
+        // A merged Callgrind run tracks no allocations (see
+        // `init_alloc_tracking`), so it has no alloc section to report.
+        #[cfg(feature = "hotpath-alloc")]
+        let sections = if crate::functions::alloc::core::alloc_tracking_active() {
+            sections
+        } else {
+            sections
+                .into_iter()
+                .filter(|s| *s != Section::FunctionsAlloc)
+                .collect()
         };
 
         let output = OutputDestination::from_path(self.output_path.take());

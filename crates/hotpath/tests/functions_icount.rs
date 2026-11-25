@@ -420,6 +420,62 @@ pub mod tests {
         assert_eq!(calls, 2);
     }
 
+    /// A merged Callgrind run skips allocation tracking: a function that
+    /// allocates in its body counts fewer instructions than in a plain
+    /// Callgrind run of the same build, which still reports allocations.
+    // HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=native.json cargo run --release -p test-callgrind --example allocs --features hotpath,hotpath-callgrind,hotpath-cloud,hotpath-alloc
+    // CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=out.json HOTPATH_MERGE_REPORT=native.json cargo run --release -p test-callgrind --example allocs --features hotpath,hotpath-callgrind,hotpath-cloud,hotpath-alloc
+    #[test]
+    fn test_merged_run_skips_alloc_tracking() {
+        if !valgrind_available() {
+            return;
+        }
+        const ALLOC_FEATURES: &str = "hotpath,hotpath-callgrind,hotpath-cloud,hotpath-alloc";
+        const ALLOCATING: &str = "allocs::allocating";
+        let dir = RunDir::new();
+        let (native, merged, plain) = (
+            dir.path("native.json"),
+            dir.path("merged.json"),
+            dir.path("plain.json"),
+        );
+        let output = merge_example(native_example("allocs"), &native)
+            .features(ALLOC_FEATURES)
+            .output();
+        assert_success(&output);
+
+        let callgrind = |out: &str| {
+            merge_example(
+                under_callgrind("allocs", &dir).features(ALLOC_FEATURES),
+                out,
+            )
+        };
+        assert_success(
+            &callgrind(&merged)
+                .env("HOTPATH_MERGE_REPORT", &native)
+                .output(),
+        );
+        assert_success(&callgrind(&plain).output());
+
+        let read = |path: &str| -> JsonReport {
+            serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+        };
+        let (merged, plain) = (read(&merged), read(&plain));
+        let plain_alloc = plain.functions_alloc.as_ref().expect("plain allocations");
+        assert!(
+            plain_alloc.data.iter().any(|e| e.name == ALLOCATING),
+            "a plain Callgrind run keeps its allocations: {:#?}",
+            plain_alloc.data
+        );
+
+        // 1000 tracked allocations and frees inside the body.
+        let (_, untracked) = total(merged.functions_icount.as_ref().unwrap(), ALLOCATING);
+        let (_, tracked) = total(plain.functions_icount.as_ref().unwrap(), ALLOCATING);
+        assert!(
+            untracked + 5_000 < tracked,
+            "{ALLOCATING}: merged {untracked} must count well below plain {tracked}"
+        );
+    }
+
     /// Under Callgrind with an out-file hotpath cannot find: no counts, so
     /// the merge is refused with the dump's reason.
     #[test]

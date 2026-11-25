@@ -104,7 +104,7 @@ HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=merged.json \
 
 `merged.json` is the native report with the Callgrind run's instruction counts added, and `meta.run` set to `"merged"`:
 
-- **Native sections**: timing, allocations, threads, channels, locks and every other section come from the native run. Both runs measure allocations; the native run's are kept.
+- **Native sections**: timing, allocations, threads, channels, locks and every other section come from the native run. Only the native run measures allocations: the Callgrind run skips allocation tracking, so it does not add to the instruction counts.
 - **Instruction counts** come from the Callgrind run, with its own call counts, which can differ slightly from the timing section's for a workload that is not deterministic.
 - **Elapsed time** is the native run's on the timing and allocation sections, and never shown for the instruction counts, which were measured under Valgrind.
 
