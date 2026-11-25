@@ -16,9 +16,12 @@
 //! the local report is written; skips never fail. A report without a policy
 //! fails before a token is minted.
 //!
-//! No retries yet: a retry is only safe once the server insert is idempotent
-//! per run, otherwise a timed-out upload that was in fact stored would be
-//! duplicated.
+//! The OIDC token request is retried like `@actions/core`'s `getIDToken`
+//! (10 retries on 502, 503 and 504, exponential backoff from 10ms), and also on
+//! timeouts and connection errors, which that client covers with a 3 minute
+//! socket timeout instead. Minting another token has no side effect. The upload is not
+//! retried: a retry is only safe once the server insert is idempotent per run,
+//! otherwise a timed-out upload that was in fact stored would be duplicated.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -36,6 +39,8 @@ use crate::json::JsonReport;
 
 const AUDIENCE: &str = "hotpath.rs";
 const MINT_TIMEOUT: Duration = Duration::from_secs(10);
+/// As `@actions/http-client`'s `maxRetries` for the OIDC client.
+const MINT_MAX_RETRIES: u32 = 10;
 const UPLOAD_TIMEOUT: Duration = Duration::from_secs(30);
 /// Longest raw (unparseable) response body quoted in a message.
 const MAX_QUOTED_BODY: usize = 2000;
@@ -289,22 +294,66 @@ struct TokenResponse {
 }
 
 pub(crate) fn mint_token(request_url: &str, request_token: &str) -> Result<String, String> {
+    mint_token_with_retries(request_url, request_token, MINT_MAX_RETRIES)
+}
+
+fn mint_token_with_retries(
+    request_url: &str,
+    request_token: &str,
+    max_retries: u32,
+) -> Result<String, String> {
     let separator = if request_url.contains('?') { '&' } else { '?' };
     let url = format!("{request_url}{separator}audience={AUDIENCE}");
+    let mut retry = 0;
+    loop {
+        match mint_attempt(&url, request_token) {
+            Ok(token) => return Ok(token),
+            Err(Mint::Retryable(_)) if retry < max_retries => {
+                retry += 1;
+                std::thread::sleep(mint_backoff(retry));
+            }
+            Err(Mint::Retryable(message)) => {
+                let attempts = retry + 1;
+                return Err(format!("{message} (after {attempts} attempts)"));
+            }
+            Err(Mint::Fatal(message)) => return Err(message),
+        }
+    }
+}
+
+/// `@actions/http-client`'s `_performExponentialBackoff`: 5ms * 2^retry,
+/// the exponent capped at 10.
+fn mint_backoff(retry: u32) -> Duration {
+    Duration::from_millis(5 << retry.min(10))
+}
+
+/// How one OIDC token request failed.
+enum Mint {
+    /// A timeout, a connection error, 502, 503 or 504.
+    Retryable(String),
+    Fatal(String),
+}
+
+fn mint_attempt(url: &str, request_token: &str) -> Result<String, Mint> {
     let mut resp = agent(MINT_TIMEOUT)
-        .get(&url)
+        .get(url)
         .header("Authorization", &format!("bearer {request_token}"))
         .call()
-        .map_err(|e| format!("OIDC token request failed: {e}"))?;
+        .map_err(|e| Mint::Retryable(format!("OIDC token request failed: {e}")))?;
     let status = resp.status().as_u16();
     if status != 200 {
         let body = read_body(&mut resp);
-        return Err(format!("OIDC token request returned HTTP {status}: {body}"));
+        let message = format!("OIDC token request returned HTTP {status}: {body}");
+        return Err(if matches!(status, 502..=504) {
+            Mint::Retryable(message)
+        } else {
+            Mint::Fatal(message)
+        });
     }
     let token: TokenResponse = resp
         .body_mut()
         .read_json()
-        .map_err(|e| format!("invalid OIDC token response: {e}"))?;
+        .map_err(|e| Mint::Fatal(format!("invalid OIDC token response: {e}")))?;
     Ok(token.value)
 }
 
@@ -646,8 +695,8 @@ mod tests {
 
     use crate::json::cloud_api::{CommentOutcome, UploadCreated, Verdict};
     use crate::lib_on::cloud::{
-        benchmark_name, escape_annotation, interpret, is_truthy, render, store_response,
-        url_encode, Env, Level, Outcome, UploadMode,
+        benchmark_name, escape_annotation, interpret, is_truthy, mint_backoff, render,
+        store_response, url_encode, Env, Level, Outcome, UploadMode,
     };
 
     const DASHBOARD_URL: &str =
@@ -1231,6 +1280,18 @@ mod tests {
         assert_eq!(
             escape_annotation("100% of\r\nlines\nbreak"),
             "100%25 of%0D%0Alines%0Abreak"
+        );
+    }
+
+    /// Ten retries wait 10.23s in total, as `@actions/core` does.
+    #[test]
+    fn mint_backoff_matches_actions_http_client() {
+        let waits: Vec<u128> = (1..=11)
+            .map(|retry| mint_backoff(retry).as_millis())
+            .collect();
+        assert_eq!(
+            waits,
+            [10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 5120]
         );
     }
 }
