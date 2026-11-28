@@ -29,6 +29,7 @@ Gotchas:
 - aarch64 needs the patched Valgrind from hotpath-rs/valgrind (installed in CI by `hotpath-rs/setup-valgrind`): released versions decode `B` as a call and leave frames open after PLT calls, inflating inclusive counts.
 - Markers need a per-site constant in their body, or LLVM merges identical ones into one symbol.
 - `.github/workflows/cloud-*-benchmark.yml` pin the runner image and Valgrind package: a report with another `tool` is still compared, but under an environment-mismatch alert that cannot fail the check, so bump them deliberately.
+- `.github/workflows/benchmark-metal.yml` + `crates/test-metal-benchmarks`: hosted vs bare-metal variability experiment; the `trusted-benchmarks` runner group only serves that file on branch `bare-metal-benchmarks`, so keep its path and push-only trigger.
 
 ## CPU sampling (`hotpath-cpu`, macOS and Linux)
 

@@ -1,0 +1,13 @@
+[package]
+name = "test-metal-benchmarks"
+version = "0.0.0"
+publish = false
+edition = "2021"
+description = "Wall-clock variability benchmarks run on GitHub-hosted and bare-metal runners (benchmark-metal.yml)."
+
+[dependencies]
+hotpath = { workspace = true }
+
+[features]
+hotpath = ["hotpath/hotpath"]
+hotpath-cloud = ["hotpath", "hotpath/hotpath-cloud"]

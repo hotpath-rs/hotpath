@@ -5084,6 +5084,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-metal-benchmarks"
+version = "0.0.0"
+dependencies = [
+ "hotpath",
+]
+
+[[package]]
 name = "test-mutex-async-lock"
 version = "0.0.0"
 dependencies = [
