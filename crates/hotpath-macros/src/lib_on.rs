@@ -366,9 +366,7 @@ pub fn main_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         Some(l) => quote! { .mutexes_limit(#l) },
         None => quote! {},
     };
-    // `env!` and `file!()` expand in the user crate with the fn-name span:
-    // its package directory and its main file, relative to the build
-    // workspace root.
+    // Expands in the user crate: its package dir and workspace-relative main file.
     let source_anchor_call = quote_spanned! { fn_name.span() =>
         .__source_anchor(env!("CARGO_MANIFEST_DIR"), file!())
     };

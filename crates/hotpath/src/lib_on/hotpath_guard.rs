@@ -525,9 +525,7 @@ impl HotpathGuardBuilder {
         self
     }
 
-    /// Where `#[hotpath::main]` was compiled (`env!("CARGO_MANIFEST_DIR")`
-    /// and the main fn's `file!()`), which locates the build workspace for
-    /// `meta.source_root`. Set by the macro; not part of the public API.
+    /// Where `#[hotpath::main]` was compiled, for `meta.source_root`.
     #[doc(hidden)]
     pub fn __source_anchor(mut self, manifest_dir: &'static str, main_file: &'static str) -> Self {
         self.source_anchor = Some(crate::lib_on::report_meta::SourceAnchor {

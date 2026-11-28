@@ -229,11 +229,9 @@ fn resolve_checkout(anchor: Option<SourceAnchor>) -> Option<ResolvedCheckout> {
 }
 
 /// With an anchor, the build workspace is the ancestor of the package
-/// directory that holds the main file at its workspace-relative path, within
-/// the git checkout around `cwd`: launched from above a nested workspace, the
-/// walk up from `cwd` would never reach it. Without a match there (a binary
-/// built in another checkout), the anchor's main file is looked up from `cwd`
-/// upwards; without an anchor, the smallest registered relative file is.
+/// directory holding the main file at its workspace-relative path, within the
+/// git checkout around `cwd`. Otherwise the probe file is looked up from `cwd`
+/// upwards.
 fn resolve_checkout_at(cwd: &Path, anchor: Option<SourceAnchor>) -> Option<ResolvedCheckout> {
     let probe = match anchor {
         Some(anchor) => {
