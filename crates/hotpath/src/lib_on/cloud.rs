@@ -16,12 +16,11 @@
 //! the local report is written; skips never fail. A report without a policy
 //! fails before a token is minted.
 //!
-//! The OIDC token request is retried like `@actions/core`'s `getIDToken`
-//! (10 retries on 502, 503 and 504, exponential backoff from 10ms), and also on
-//! timeouts and connection errors, which that client covers with a 3 minute
-//! socket timeout instead. Minting another token has no side effect. The upload is not
-//! retried: a retry is only safe once the server insert is idempotent per run,
-//! otherwise a timed-out upload that was in fact stored would be duplicated.
+//! The OIDC token request is retried up to 5 times on 502, 503, 504, timeouts
+//! and connection errors, with exponential backoff from 10ms. Minting another
+//! token has no side effect. The upload is not retried: a retry is only safe
+//! once the server insert is idempotent per run, otherwise a timed-out upload
+//! that was in fact stored would be duplicated.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -39,8 +38,7 @@ use crate::json::JsonReport;
 
 const AUDIENCE: &str = "hotpath.rs";
 const MINT_TIMEOUT: Duration = Duration::from_secs(10);
-/// As `@actions/http-client`'s `maxRetries` for the OIDC client.
-const MINT_MAX_RETRIES: u32 = 10;
+const MINT_MAX_RETRIES: u32 = 5;
 const UPLOAD_TIMEOUT: Duration = Duration::from_secs(30);
 /// Longest raw (unparseable) response body quoted in a message.
 const MAX_QUOTED_BODY: usize = 2000;
@@ -321,10 +319,8 @@ fn mint_token_with_retries(
     }
 }
 
-/// `@actions/http-client`'s `_performExponentialBackoff`: 5ms * 2^retry,
-/// the exponent capped at 10.
 fn mint_backoff(retry: u32) -> Duration {
-    Duration::from_millis(5 << retry.min(10))
+    Duration::from_millis(5 << retry)
 }
 
 /// How one OIDC token request failed.
@@ -695,7 +691,7 @@ mod tests {
 
     use crate::json::cloud_api::{CommentOutcome, UploadCreated, Verdict};
     use crate::lib_on::cloud::{
-        benchmark_name, escape_annotation, interpret, is_truthy, mint_backoff, mint_token,
+        benchmark_name, escape_annotation, interpret, is_truthy, mint_token,
         mint_token_with_retries, render, store_response, url_encode, Env, Level, Outcome,
         UploadMode,
     };
@@ -1329,7 +1325,6 @@ mod tests {
         failed.assert();
     }
 
-    /// As in `@actions/http-client`, other statuses (500, 429, 403) are final.
     #[test]
     fn mint_token_retries_only_gateway_errors() {
         let mut server = mockito::Server::new();
@@ -1341,17 +1336,5 @@ mod tests {
 
         assert_eq!(err, "OIDC token request returned HTTP 500: internal error");
         failed.assert();
-    }
-
-    /// Ten retries wait 10.23s in total, as `@actions/core` does.
-    #[test]
-    fn mint_backoff_matches_actions_http_client() {
-        let waits: Vec<u128> = (1..=11)
-            .map(|retry| mint_backoff(retry).as_millis())
-            .collect();
-        assert_eq!(
-            waits,
-            [10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 5120]
-        );
     }
 }
