@@ -55,7 +55,9 @@ resolver = "2"
 exclude = ["crates/test-toasty"]
 
 [workspace.dependencies]
-hotpath-macros = { path = "./crates/hotpath-macros", version = "=0.33.0" }
+# Internal crates are released in lockstep. Exact requirements prevent untested
+# combinations of runtime, macros and drain implementations, so keep the `=`.
+hotpath-macros ={ path = "./crates/hotpath-macros", version = "=0.33.0" }
 hotpath-drain = { path = "./crates/hotpath-drain", version = "=0.33.0" }
 hotpath = { path = "./crates/hotpath", version = "=0.33.0" }
 hotpath-meta = { path = "./crates/hotpath-meta", version = "=0.33.0" }
