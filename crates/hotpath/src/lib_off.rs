@@ -342,6 +342,11 @@ impl HotpathGuardBuilder {
         self
     }
 
+    #[doc(hidden)]
+    pub fn __source_anchor(self, _manifest_dir: &'static str, _main_file: &'static str) -> Self {
+        self
+    }
+
     pub fn build(self) -> HotpathGuard {
         HotpathGuard
     }

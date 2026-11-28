@@ -254,6 +254,7 @@ pub struct HotpathGuardBuilder {
     time_sampling: crate::lib_on::sampling::TimeSamplingConfig,
     user_metadata: HashMap<String, String>,
     criterion: Option<crate::json::JsonCriterion>,
+    source_anchor: Option<crate::lib_on::source_checkout::SourceAnchor>,
 }
 
 impl HotpathGuardBuilder {
@@ -298,6 +299,7 @@ impl HotpathGuardBuilder {
             time_sampling: crate::lib_on::sampling::TimeSamplingConfig::default(),
             user_metadata: HashMap::new(),
             criterion: None,
+            source_anchor: None,
         }
     }
 
@@ -523,6 +525,18 @@ impl HotpathGuardBuilder {
         self
     }
 
+    /// Where `#[hotpath::main]` was compiled (`env!("CARGO_MANIFEST_DIR")`
+    /// and the main fn's `file!()`), which locates the build workspace for
+    /// `meta.source_root`. Set by the macro; not part of the public API.
+    #[doc(hidden)]
+    pub fn __source_anchor(mut self, manifest_dir: &'static str, main_file: &'static str) -> Self {
+        self.source_anchor = Some(crate::lib_on::source_checkout::SourceAnchor {
+            manifest_dir,
+            main_file,
+        });
+        self
+    }
+
     fn resolve_sections_mode(&self) -> SectionsMode {
         if let Some(env_mode) = SectionsMode::from_env() {
             return env_mode;
@@ -581,6 +595,7 @@ impl HotpathGuardBuilder {
             self.threads_limit,
             user_metadata,
             self.criterion,
+            self.source_anchor,
         )
     }
 
@@ -641,6 +656,7 @@ pub struct HotpathGuard {
     threads_limit: usize,
     user_metadata: BTreeMap<String, String>,
     criterion: Option<crate::json::JsonCriterion>,
+    source_anchor: Option<crate::lib_on::source_checkout::SourceAnchor>,
     #[cfg(feature = "hotpath-meta")]
     _meta_guard: Option<hotpath_meta::HotpathGuard>,
 }
@@ -667,6 +683,7 @@ impl HotpathGuard {
         threads_limit: usize,
         user_metadata: BTreeMap<String, String>,
         criterion: Option<crate::json::JsonCriterion>,
+        source_anchor: Option<crate::lib_on::source_checkout::SourceAnchor>,
     ) -> Self {
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
 
@@ -1026,6 +1043,7 @@ impl HotpathGuard {
             threads_limit,
             user_metadata,
             criterion,
+            source_anchor,
             #[cfg(feature = "hotpath-meta")]
             _meta_guard,
         }
@@ -1346,6 +1364,7 @@ impl Drop for HotpathGuard {
                         crate::json::JsonRun::Native
                     },
                     self.criterion.clone(),
+                    self.source_anchor,
                 ))
             };
 

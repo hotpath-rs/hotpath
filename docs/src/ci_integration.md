@@ -149,7 +149,7 @@ To block merging a pull request with a regression, make `hotpath / <benchmark>` 
 | `HOTPATH_UPLOAD_RESPONSE_PATH` | File the server's response is written to as JSON when the report is accepted. A skipped or failed upload removes it. (default: not written) |
 | `HOTPATH_POLICY_PATH` | Policy file to upload instead of `hotpath/<benchmark>-policy.toml` or `hotpath/policy.toml`. Relative to the working directory, and inside the repository. (default: not set) |
 | `HOTPATH_USER_METADATA` | Comma-separated `key=value` pairs stored with the report and shown on its page, e.g. `runner=linux-x64,profile=release`. |
-| `HOTPATH_SOURCE_ROOT` | Path of the build workspace relative to the repository root, for source links in the comment. Derived from the checkout when unset. |
+| `HOTPATH_SOURCE_ROOT` | Path of the build workspace relative to the repository root, for source links in the comment. Derived from the checkout when unset: with `#[hotpath::main]` (hotpath `0.34.0` or newer), also for a workspace in a subdirectory launched from above it, as long as the binary runs in the checkout it was built in. Set it when the binary does not use `#[hotpath::main]` and runs from above its workspace. |
 | `HOTPATH_API_URL` | Base URL of the server. (default: `https://hotpath.rs`) |
 | `HOTPATH_OUTPUT_FORMAT` | `json` in merged mode, for both runs: the native run writes the report the merge reads, the Callgrind run the merged report the `jq` check reads. In native mode, `none` keeps the local report out of the job log. The upload does not depend on it. |
 | `HOTPATH_OUTPUT_PATH` | File the JSON report is written to. Set per step in merged mode, each run to its own file. |

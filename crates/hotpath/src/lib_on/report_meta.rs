@@ -4,16 +4,22 @@
 //! provenance that makes a report self-describing, plus the policy file of
 //! the checkout, which the server judges the report under.
 
+#[cfg(feature = "hotpath-cloud")]
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 
+#[cfg(feature = "hotpath-cloud")]
 use crate::json::policy_file::find_git_root;
 
 pub(crate) fn build_meta(
     run: crate::json::JsonRun,
     criterion: Option<crate::json::JsonCriterion>,
+    source_anchor: Option<crate::lib_on::source_checkout::SourceAnchor>,
 ) -> crate::json::JsonMeta {
-    let source_root = source_root();
+    let crate::lib_on::source_checkout::SourceCheckout {
+        source_root,
+        git_root: checkout_git_root,
+    } = crate::lib_on::source_checkout::resolve(source_anchor);
 
     // Fail loudly on upload runs: broken source links would otherwise only
     // surface as dead links on the server.
@@ -23,8 +29,8 @@ pub(crate) fn build_meta(
         && crate::lib_on::locations::any_relative_file().is_some()
     {
         eprintln!(
-            "hotpath: could not resolve the source checkout from the working directory; \
-             set HOTPATH_SOURCE_ROOT to the workspace path relative to the repo root \
+            "hotpath: could not verify the source checkout of this binary from the working \
+             directory; set HOTPATH_SOURCE_ROOT to the workspace path relative to the repo root \
              (source links will be unavailable in this report)"
         );
     }
@@ -33,7 +39,7 @@ pub(crate) fn build_meta(
         if #[cfg(feature = "hotpath-cloud")] {
             let ci = crate::lib_on::ci_info::detect();
             let git_root = repository_root(
-                checkout_git_root(),
+                checkout_git_root,
                 std::env::current_dir().ok().as_deref(),
             );
             let git = report_git_info(git_root.as_deref(), ci.as_ref());
@@ -49,6 +55,7 @@ pub(crate) fn build_meta(
                 ci.is_some(),
             );
         } else {
+            let _ = checkout_git_root;
             let git: Option<crate::json::JsonGitInfo> = None;
             let ci: Option<crate::json::JsonCiInfo> = None;
             let benchmark: Option<String> = None;
@@ -67,20 +74,6 @@ pub(crate) fn build_meta(
         policy,
         run: Some(run),
         criterion,
-    }
-}
-
-/// The git root of the verified source checkout: the one the report's
-/// relative `location.file` values resolve against.
-#[cfg(feature = "hotpath-cloud")]
-fn checkout_git_root() -> Option<PathBuf> {
-    // A `HOTPATH_SOURCE_ROOT` override asserts the runtime checkout is the
-    // source checkout, so its git root is used even when checkout resolution
-    // fails.
-    if std::env::var("HOTPATH_SOURCE_ROOT").is_ok() {
-        find_git_root(&std::env::current_dir().ok()?)
-    } else {
-        Some(resolve_checkout()?.git_root)
     }
 }
 
@@ -181,54 +174,6 @@ fn merge_git_info(
         repository: repository.or_else(|| ci.repository.clone()),
         sha,
         committed_at,
-    })
-}
-
-/// Build workspace root relative to the enclosing git root: the prefix to
-/// prepend to relative `location.file` values ("" when the workspace root is
-/// the repo root). `HOTPATH_SOURCE_ROOT` overrides; `None` when the checkout
-/// cannot be resolved - an unverified value would produce broken links, so
-/// the field is omitted instead of guessed.
-fn source_root() -> Option<String> {
-    if let Ok(v) = std::env::var("HOTPATH_SOURCE_ROOT") {
-        return Some(v);
-    }
-    let checkout = resolve_checkout()?;
-    let rel = checkout
-        .workspace_root
-        .strip_prefix(&checkout.git_root)
-        .ok()?;
-    Some(rel.to_string_lossy().replace('\\', "/"))
-}
-
-/// The checkout the report's relative `location.file` values were compiled
-/// from, verified against the filesystem rather than guessed from the
-/// runtime working directory.
-struct ResolvedCheckout {
-    git_root: PathBuf,
-    workspace_root: PathBuf,
-}
-
-/// Relative `file!()` paths are relative to the directory cargo invoked rustc
-/// from (the build workspace root), not the runtime working directory. The
-/// workspace root is located as the nearest ancestor of the working directory
-/// that actually contains one of the registered relative source files, and
-/// the git root as its enclosing checkout - so both are verified to belong to
-/// the sources in the report. `None` when nothing relative is registered or
-/// no ancestor matches (a nested workspace launched from above it, running
-/// outside the checkout, deleted sources); `HOTPATH_SOURCE_ROOT` is the
-/// escape hatch for those layouts.
-fn resolve_checkout() -> Option<ResolvedCheckout> {
-    let cwd = std::env::current_dir().ok()?;
-    let probe = crate::lib_on::locations::any_relative_file()?;
-    let workspace_root = cwd
-        .ancestors()
-        .find(|dir| dir.join(probe).is_file())
-        .map(Path::to_path_buf)?;
-    let git_root = find_git_root(&workspace_root)?;
-    Some(ResolvedCheckout {
-        git_root,
-        workspace_root,
     })
 }
 

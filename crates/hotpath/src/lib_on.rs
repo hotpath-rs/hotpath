@@ -80,6 +80,7 @@ pub(crate) mod native_histograms;
 pub(crate) mod report;
 pub(crate) mod report_meta;
 pub(crate) mod sampling;
+pub(crate) mod source_checkout;
 pub(crate) mod valgrind;
 
 #[doc(hidden)]

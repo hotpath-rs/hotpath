@@ -95,16 +95,18 @@ pub(crate) fn location_for_key(key: &str) -> JsonLocation {
     })
 }
 
-/// First registered file path that is workspace-relative; used to locate the
-/// build workspace root at report time (`report_meta::source_root`). Any
-/// relative file works: they are all relative to the same workspace root.
+/// The smallest registered workspace-relative file path; locates the build
+/// workspace root at report time when the guard has no compile-time anchor
+/// (`source_checkout::resolve`). The smallest, not the first in map order, so
+/// runs that registered the same files probe the same one.
 pub(crate) fn any_relative_file() -> Option<&'static str> {
     let map = LOCATIONS.get()?;
     let guard = map.read().ok()?;
     guard
         .values()
         .map(|location| location.file)
-        .find(|file| !is_absolute_path(file))
+        .filter(|file| !is_absolute_path(file))
+        .min()
 }
 
 /// `file!()` is workspace-root-relative for workspace members and absolute
@@ -155,7 +157,7 @@ fn resolve_dot_segments(file: &str) -> String {
 /// String-based check instead of `Path::is_absolute`, which is
 /// platform-dependent: normalization must treat a path the same way
 /// regardless of the OS the report is generated on.
-fn is_absolute_path(file: &str) -> bool {
+pub(crate) fn is_absolute_path(file: &str) -> bool {
     file.starts_with('/') || file.starts_with('\\') || file.as_bytes().get(1) == Some(&b':')
 }
 

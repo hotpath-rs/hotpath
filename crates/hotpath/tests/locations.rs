@@ -154,6 +154,59 @@ mod tests {
         assert_eq!(meta.source_root.as_deref(), Some(""));
     }
 
+    const NESTED_DIR: &str = "crates/test-nested-workspace";
+
+    /// The `test-nested-workspace` example (its own workspace, not a member
+    /// of the repository workspace) run with `cwd` as its working directory.
+    ///
+    /// cargo run --manifest-path crates/test-nested-workspace/Cargo.toml --example nested_workspace --features hotpath
+    fn run_nested_workspace_from(cwd: &str) -> JsonReport {
+        let repo_root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+        Example::in_manifest(
+            &format!("{repo_root}/{NESTED_DIR}/Cargo.toml"),
+            "nested_workspace",
+        )
+        .json()
+        .env_remove("HOTPATH_SOURCE_ROOT")
+        .current_dir(std::path::Path::new(&format!("{repo_root}/{cwd}")))
+        .report()
+    }
+
+    /// `file!()` paths of a nested workspace are relative to that workspace,
+    /// so a report needs its directory as `source_root` to link them.
+    fn assert_nested_location(report: &JsonReport) {
+        let functions = report
+            .functions_timing
+            .as_ref()
+            .expect("functions_timing section");
+        let entry = functions
+            .data
+            .iter()
+            .find(|e| e.name == "nested_workspace::nested_function")
+            .expect("nested_function entry");
+        let location = entry.location.as_ref().expect("nested_function location");
+        assert_eq!(location.file, "examples/nested_workspace.rs");
+    }
+
+    /// Control: launched from inside the nested workspace, the checkout
+    /// resolves.
+    #[test]
+    fn test_source_root_nested_workspace_launched_from_inside() {
+        let report = run_nested_workspace_from(NESTED_DIR);
+        assert_nested_location(&report);
+        assert_eq!(report.meta.source_root.as_deref(), Some(NESTED_DIR));
+    }
+
+    /// The CI layout: a benchmark crate that is its own workspace in a
+    /// subdirectory, run from the repository root. The same binary must
+    /// report the same `source_root` as when launched from inside it.
+    #[test]
+    fn test_source_root_nested_workspace_launched_from_repo_root() {
+        let report = run_nested_workspace_from("");
+        assert_nested_location(&report);
+        assert_eq!(report.meta.source_root.as_deref(), Some(NESTED_DIR));
+    }
+
     #[test]
     fn test_source_root_env_override() {
         let report = run_example(Some("crates/test-tokio-async"));
