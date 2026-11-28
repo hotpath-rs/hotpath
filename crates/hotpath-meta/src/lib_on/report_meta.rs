@@ -9,11 +9,21 @@ use time::OffsetDateTime;
 
 use crate::json::policy_file::find_git_root;
 
+/// Where `#[hotpath_meta::main]` was compiled: the user package's
+/// `CARGO_MANIFEST_DIR` and the main fn's `file!()`, which cargo makes
+/// relative to the build workspace root.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SourceAnchor {
+    pub(crate) manifest_dir: &'static str,
+    pub(crate) main_file: &'static str,
+}
+
 pub(crate) fn build_meta(
     run: crate::json::JsonRun,
     criterion: Option<crate::json::JsonCriterion>,
+    anchor: Option<SourceAnchor>,
 ) -> crate::json::JsonMeta {
-    let source_root = source_root();
+    let source_root = source_root(anchor);
 
     // Fail loudly on upload runs: broken source links would otherwise only
     // surface as dead links on the server.
@@ -33,7 +43,7 @@ pub(crate) fn build_meta(
         if #[cfg(feature = "hotpath-cloud-meta")] {
             let ci = crate::lib_on::ci_info::detect();
             let git_root = repository_root(
-                checkout_git_root(),
+                checkout_git_root(anchor),
                 std::env::current_dir().ok().as_deref(),
             );
             let git = report_git_info(git_root.as_deref(), ci.as_ref());
@@ -73,14 +83,14 @@ pub(crate) fn build_meta(
 /// The git root of the verified source checkout: the one the report's
 /// relative `location.file` values resolve against.
 #[cfg(feature = "hotpath-cloud-meta")]
-fn checkout_git_root() -> Option<PathBuf> {
+fn checkout_git_root(anchor: Option<SourceAnchor>) -> Option<PathBuf> {
     // A `HOTPATH_META_SOURCE_ROOT` override asserts the runtime checkout is the
     // source checkout, so its git root is used even when checkout resolution
     // fails.
     if std::env::var("HOTPATH_META_SOURCE_ROOT").is_ok() {
         find_git_root(&std::env::current_dir().ok()?)
     } else {
-        Some(resolve_checkout()?.git_root)
+        Some(resolve_checkout(anchor)?.git_root)
     }
 }
 
@@ -189,11 +199,11 @@ fn merge_git_info(
 /// the repo root). `HOTPATH_META_SOURCE_ROOT` overrides; `None` when the
 /// checkout cannot be resolved - an unverified value would produce broken
 /// links, so the field is omitted instead of guessed.
-fn source_root() -> Option<String> {
+fn source_root(anchor: Option<SourceAnchor>) -> Option<String> {
     if let Ok(v) = std::env::var("HOTPATH_META_SOURCE_ROOT") {
         return Some(v);
     }
-    let checkout = resolve_checkout()?;
+    let checkout = resolve_checkout(anchor)?;
     let rel = checkout
         .workspace_root
         .strip_prefix(&checkout.git_root)
@@ -210,17 +220,52 @@ struct ResolvedCheckout {
 }
 
 /// Relative `file!()` paths are relative to the directory cargo invoked rustc
-/// from (the build workspace root), not the runtime working directory. The
-/// workspace root is located as the nearest ancestor of the working directory
-/// that actually contains one of the registered relative source files, and
-/// the git root as its enclosing checkout - so both are verified to belong to
-/// the sources in the report. `None` when nothing relative is registered or
-/// no ancestor matches (a nested workspace launched from above it, running
-/// outside the checkout, deleted sources); `HOTPATH_META_SOURCE_ROOT` is the
-/// escape hatch for those layouts.
-fn resolve_checkout() -> Option<ResolvedCheckout> {
-    let cwd = std::env::current_dir().ok()?;
-    let probe = crate::lib_on::locations::any_relative_file()?;
+/// from (the build workspace root), not the runtime working directory.
+/// `None` when the checkout cannot be verified (running outside the checkout,
+/// deleted sources, an ambiguous anchor); `HOTPATH_META_SOURCE_ROOT` is the escape
+/// hatch for those layouts.
+fn resolve_checkout(anchor: Option<SourceAnchor>) -> Option<ResolvedCheckout> {
+    resolve_checkout_at(&std::env::current_dir().ok()?, anchor)
+}
+
+/// With an anchor, the build workspace is the ancestor of the package
+/// directory that holds the main file at its workspace-relative path, within
+/// the git checkout around `cwd`: launched from above a nested workspace, the
+/// walk up from `cwd` would never reach it. Without a match there (a binary
+/// built in another checkout), the anchor's main file is looked up from `cwd`
+/// upwards; without an anchor, the smallest registered relative file is.
+fn resolve_checkout_at(cwd: &Path, anchor: Option<SourceAnchor>) -> Option<ResolvedCheckout> {
+    let probe = match anchor {
+        Some(anchor) => {
+            let main_file = Path::new(anchor.main_file);
+            // An absolute path joined onto any directory matches it.
+            if !main_file.is_relative() {
+                return None;
+            }
+            if let Some(git_root) = find_git_root(cwd) {
+                let manifest_dir = Path::new(anchor.manifest_dir);
+                let mut workspaces = manifest_dir.ancestors().filter(|dir| {
+                    manifest_dir
+                        .strip_prefix(dir)
+                        .is_ok_and(|package| main_file.starts_with(package))
+                        && dir.join(main_file).is_file()
+                        && find_git_root(dir).as_ref() == Some(&git_root)
+                });
+                if let Some(workspace_root) = workspaces.next() {
+                    // Two candidates: either could be the wrong root.
+                    if workspaces.next().is_some() {
+                        return None;
+                    }
+                    return Some(ResolvedCheckout {
+                        git_root,
+                        workspace_root: workspace_root.to_path_buf(),
+                    });
+                }
+            }
+            anchor.main_file
+        }
+        None => crate::lib_on::locations::any_relative_file()?,
+    };
     let workspace_root = cwd
         .ancestors()
         .find(|dir| dir.join(probe).is_file())
@@ -240,8 +285,71 @@ fn now_whole_seconds() -> OffsetDateTime {
 
 #[cfg(test)]
 mod tests {
-    use crate::lib_on::report_meta::now_whole_seconds;
+    use std::path::{Path, PathBuf};
+
+    use crate::lib_on::report_meta::{now_whole_seconds, resolve_checkout_at, SourceAnchor};
     use time::format_description::well_known::Rfc3339;
+
+    /// A checkout under the temp dir with `.git` and empty `files`.
+    fn checkout(name: &str, files: &[&str]) -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("hotpath-report-meta-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join(".git")).unwrap();
+        for file in files {
+            let path = root.join(file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, "").unwrap();
+        }
+        root
+    }
+
+    fn anchor(package: &Path, main_file: &'static str) -> SourceAnchor {
+        SourceAnchor {
+            manifest_dir: Box::leak(package.to_str().unwrap().into()),
+            main_file,
+        }
+    }
+
+    fn workspace_root(cwd: &Path, anchor: SourceAnchor) -> Option<PathBuf> {
+        resolve_checkout_at(cwd, Some(anchor)).map(|c| c.workspace_root)
+    }
+
+    /// The anchor names the build workspace, not the package directory, for a
+    /// root package, a workspace member and a nested workspace sharing the
+    /// root crate's `src/main.rs`, all launched from the repository root.
+    #[test]
+    fn anchor_resolves_the_build_workspace() {
+        let root = checkout(
+            "anchor",
+            &["src/main.rs", "crates/app/src/main.rs", "bench/src/main.rs"],
+        );
+        let cases = [
+            (anchor(&root, "src/main.rs"), root.clone()),
+            (
+                anchor(&root.join("crates/app"), "crates/app/src/main.rs"),
+                root.clone(),
+            ),
+            (
+                anchor(&root.join("bench"), "src/main.rs"),
+                root.join("bench"),
+            ),
+        ];
+        for (anchor, expected) in cases {
+            assert_eq!(workspace_root(&root, anchor), Some(expected), "{anchor:?}");
+        }
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Two candidate workspaces resolve nothing, even though the walk up
+    /// from the working directory would find one.
+    #[test]
+    fn ambiguous_anchor_omits_the_checkout() {
+        let root = checkout("ambiguous", &["x/x/src/main.rs", "x/x/x/src/main.rs"]);
+        let ambiguous = anchor(&root.join("x/x"), "x/src/main.rs");
+        assert_eq!(workspace_root(&root.join("x"), ambiguous), None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn created_at_is_utc_whole_seconds() {
