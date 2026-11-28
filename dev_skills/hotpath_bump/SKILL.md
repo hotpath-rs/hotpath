@@ -25,18 +25,18 @@ Update the `version` field in the `[package]` section of each crate:
 - `crates/hotpath-drain/Cargo.toml`
 - `crates/hotpath-drain-meta/Cargo.toml`
 
-Update the `version` in the six `[workspace.dependencies]` entries in the root `Cargo.toml`:
+Update the `version` in the six `[workspace.dependencies]` entries in the root `Cargo.toml`, keeping the `=` exact requirement:
 
 ```toml
-hotpath-macros = { path = "./crates/hotpath-macros", version = "X.Y.Z" }
-hotpath-drain = { path = "./crates/hotpath-drain", version = "X.Y.Z" }
-hotpath = { path = "./crates/hotpath", version = "X.Y.Z" }
-hotpath-meta = { path = "./crates/hotpath-meta", version = "X.Y.Z" }
-hotpath-macros-meta = { path = "./crates/hotpath-macros-meta", version = "X.Y.Z" }
-hotpath-drain-meta = { path = "./crates/hotpath-drain-meta", version = "X.Y.Z" }
+hotpath-macros = { path = "./crates/hotpath-macros", version = "=X.Y.Z" }
+hotpath-drain = { path = "./crates/hotpath-drain", version = "=X.Y.Z" }
+hotpath = { path = "./crates/hotpath", version = "=X.Y.Z" }
+hotpath-meta = { path = "./crates/hotpath-meta", version = "=X.Y.Z" }
+hotpath-macros-meta = { path = "./crates/hotpath-macros-meta", version = "=X.Y.Z" }
+hotpath-drain-meta = { path = "./crates/hotpath-drain-meta", version = "=X.Y.Z" }
 ```
 
-All six crates always share the same version; never bump one without the others. This matters for the drain crates even when their code is unchanged: published `hotpath-drain` depends on `hotpath-meta`, so a drain left on an older release keeps pulling a stale `hotpath-meta` copy into downstream lockfiles (and splits meta profiling across two versions). All six are published together via `just cargo-publish`, which lists them in dependency order.
+All six crates always share the same version and require each other exactly (`=X.Y.Z`), so a published `hotpath` never resolves against a different `hotpath-macros` or `hotpath-drain`; never bump one without the others. This matters for the drain crates even when their code is unchanged: published `hotpath-drain` depends on `hotpath-meta`, so a drain left on an older release keeps pulling a stale `hotpath-meta` copy into downstream lockfiles (and splits meta profiling across two versions). All six are published together via `just cargo-publish`, which lists them in dependency order.
 
 ## 2. Other references - major.minor `X.Y`
 
