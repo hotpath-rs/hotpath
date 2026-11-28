@@ -118,7 +118,7 @@ What each part is for:
 - **One build, two runs.** The benchmark is built once and the same binary runs natively, then under Valgrind. Never `valgrind cargo run`, which would instrument Cargo. For a binary target the path is `target/release/<name>`.
 - **Shared settings in the job's `env`.** The benchmark name, the metadata and the JSON output must be the same for both runs, so they are set once for the job, with static values: job-level `env` cannot read the `runner` context, and the metadata describes the pinned environment anyway. `HOTPATH_UPLOAD`, `HOTPATH_MERGE_REPORT` and the output paths belong to their step. Set on the native step, `HOTPATH_UPLOAD` would upload a second, native-only report, and `HOTPATH_MERGE_REPORT` fails it, since that run is not under Valgrind.
 - **The merge.** `HOTPATH_MERGE_REPORT` names the native run's report. The Callgrind run takes it as the base, adds its own instruction counts and uploads the result. It checks that both runs come from the same build, checkout, benchmark and CI run first. A failed merge fails the step whatever `HOTPATH_UPLOAD` says, writes no JSON and uploads nothing. [Timing and instruction counts in one report](callgrind.md#timing-and-instruction-counts-in-one-report) describes what a merged report carries.
-- **Run both runs from the same directory inside the checkout**, so the git information and the policy file are found and the two reports describe the same checkout. For a build workspace in a subdirectory (its own `[workspace]`, e.g. a standalone benchmark crate), run from that directory or set `HOTPATH_SOURCE_ROOT`, so the source links in the comment resolve. The native report goes outside the checkout (`runner.temp`), to a different file than the merged one.
+- **Run both runs from the same directory inside the checkout**, so the git information and the policy file are found and the two reports describe the same checkout. The repository root is the recommended working directory; a Cargo workspace below it is covered in [Cargo workspaces below the repository root](#cargo-workspaces-below-the-repository-root). The native report goes outside the checkout (`runner.temp`), to a different file than the merged one.
 - **Pinned environment.** Instruction counts depend on the Valgrind version, the Rust toolchain and the OS (including the architecture). When the two reports differ in any of them, hotpath.rs still compares the counts, but the comment and every view carry an alert (`functions_icount: environment mismatch (...); compared anyway, changes may come from the environment and never fail the check`), and the section's regressions never fail the pull request check. Such a comparison is not a clean verdict: the changes it shows may come from the environment, not the code. So pin the runner label, the Valgrind package and the toolchain instead of `ubuntu-latest` and `stable`, and bump them deliberately: the first push to the default branch after a bump uploads the new baseline, and pull requests compared with the old one show the alert until then. A runner label is not an immutable image, so system libraries can still change under it; the pins make reports comparable, not identical.
 - **`--instr-atstart=no`** keeps Callgrind's instrumentation off until hotpath turns it on at guard creation. That cuts the cost of startup, but the program still runs under Valgrind the whole time. It changes speed, not counts; [Callgrind options](callgrind.md#callgrind-options) explains it and the options not to pass.
 - **`HOTPATH_CALLGRIND_OUT_FILE`** names the same file as `--callgrind-out-file`, here outside the checkout. Without it hotpath looks for `callgrind.out.<pid>` in the working directory.
@@ -149,7 +149,7 @@ To block merging a pull request with a regression, make `hotpath / <benchmark>` 
 | `HOTPATH_UPLOAD_RESPONSE_PATH` | File the server's response is written to as JSON when the report is accepted. A skipped or failed upload removes it. (default: not written) |
 | `HOTPATH_POLICY_PATH` | Policy file to upload instead of `hotpath/<benchmark>-policy.toml` or `hotpath/policy.toml`. Relative to the working directory, and inside the repository. (default: not set) |
 | `HOTPATH_USER_METADATA` | Comma-separated `key=value` pairs stored with the report and shown on its page, e.g. `runner=linux-x64,profile=release`. |
-| `HOTPATH_SOURCE_ROOT` | Path of the build workspace relative to the repository root, for source links in the comment. Derived from the checkout when unset: with `#[hotpath::main]` (hotpath `0.34.0` or newer), also for a workspace in a subdirectory launched from above it, as long as the binary runs in the checkout it was built in. Set it when the binary does not use `#[hotpath::main]` and runs from above its workspace. |
+| `HOTPATH_SOURCE_ROOT` | Path of the Cargo workspace root relative to the repository root, for source links in the comment. Derived from the checkout when unset; set it when that is not possible, see [Cargo workspaces below the repository root](#cargo-workspaces-below-the-repository-root). |
 | `HOTPATH_API_URL` | Base URL of the server. (default: `https://hotpath.rs`) |
 | `HOTPATH_OUTPUT_FORMAT` | `json` in merged mode, for both runs: the native run writes the report the merge reads, the Callgrind run the merged report the `jq` check reads. In native mode, `none` keeps the local report out of the job log. The upload does not depend on it. |
 | `HOTPATH_OUTPUT_PATH` | File the JSON report is written to. Set per step in merged mode, each run to its own file. |
@@ -318,7 +318,7 @@ Pin the action to an exact version, such as `{{RELAY_RELEASE_TAG}}`. Its version
 | `benchmark` | Name of the benchmark series, as in `HOTPATH_BENCHMARK`. Required. |
 | `artifact_name` | Name of the artifact the benchmark job uploaded. (default: `hotpath-report`) |
 | `report_file` | Path of the JSON report inside the artifact, relative, without `..`. (default: `report.json`) |
-| `source_root` | Path of the build workspace relative to the repository root, `""` when they are the same. Set it when the benchmark is built in a workspace in a subdirectory: the relay writes this value into the report it uploads. (default: `""`) |
+| `source_root` | Path of the Cargo workspace root relative to the repository root, `""` when they are the same. The relay writes it into the report it uploads, replacing the value hotpath derived, so set it for a workspace below the repository root, see [Cargo workspaces below the repository root](#cargo-workspaces-below-the-repository-root). (default: `""`) |
 
 Things to know about `workflow_run`:
 
@@ -343,6 +343,23 @@ In the pull request job, which writes the report:
 | `HOTPATH_USER_METADATA` | Comma-separated `key=value` pairs stored with the report. |
 
 The push job takes the variables of the [same-repository setup](#environment-variables).
+
+## Cargo workspaces below the repository root
+
+Source links in reports and pull request comments require the path of the Cargo workspace inside the repository:
+
+- **A workspace at the repository root** needs no configuration, also when its members live in subdirectories such as `crates/*`.
+- **An independent workspace below the root**, such as `backend/` in a polyglot monorepo or a benchmark crate with its own `[workspace]`, is detected automatically by hotpath `0.33.1` or newer when the benchmark uses `#[hotpath::main]` and its binary runs in the checkout it was compiled in. For direct uploads, set `HOTPATH_SOURCE_ROOT` (e.g. `HOTPATH_SOURCE_ROOT: backend`) on the benchmark steps when that does not apply.
+- **Uploads through the relay** always need the relay's `source_root` input for such a workspace: the relay replaces the value the report carries with that input, whose default is the repository root.
+
+```yaml
+      - uses: hotpath-rs/hotpath-relay@{{RELAY_RELEASE_TAG}}
+        with:
+          benchmark: my_benchmark
+          source_root: backend
+```
+
+`backend` is the directory of the Cargo workspace root (the `Cargo.toml` that holds `[workspace]`, or the crate's own when it has none) relative to the git repository root, not necessarily the directory of the benchmark crate: a benchmark crate in `backend/benches/` of the workspace in `backend/` still takes `backend`.
 
 <a id="instruction-counts-with-callgrind"></a>
 
