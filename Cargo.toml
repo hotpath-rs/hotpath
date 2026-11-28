@@ -53,7 +53,8 @@ resolver = "2"
 # test-toasty: toasty's rusqlite and sqlx-sqlite pull conflicting
 # `links = "sqlite3"` versions. Build it via --manifest-path.
 # test-nested-workspace: deliberately its own workspace (source_root tests).
-exclude = ["crates/test-toasty", "crates/test-nested-workspace"]
+# test-brrr-criterion: needs nightly Rust. Build it via --manifest-path.
+exclude = ["crates/test-toasty", "crates/test-nested-workspace", "crates/test-brrr-criterion"]
 
 [workspace.dependencies]
 # Internal crates are released in lockstep. Exact requirements prevent untested

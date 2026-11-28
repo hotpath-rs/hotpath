@@ -1,0 +1,22 @@
+# Policy for the `brrr-criterion-hetzner` benchmark: brrr, a One Billion Row
+# Challenge solution, run five times through Criterion over generated rows. A
+# parallel workload with little cross-thread communication, measured for its
+# run-to-run timing variability.
+
+[functions]
+min_percent_total = 0.5
+
+[[functions.budgets]]
+match = "hotpath_meta::criterion::routine"
+calls = { min = 5, max = 5 }
+
+[[functions.budgets]]
+match = "brrr::brrr::run"
+calls = { min = 5, max = 5 }
+
+# Listed so the spread shows as context; this benchmark exists to measure it.
+[functions.timing]
+judged = false
+min_percent_change = 50
+metrics = ["avg", "total"]
+min_calls = 1

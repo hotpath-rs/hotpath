@@ -1,0 +1,30 @@
+# Not a workspace member: brrr needs nightly Rust (portable SIMD and other
+# unstable features) and the workspace builds on stable. Build with:
+#   crates/test-brrr-criterion/fetch.sh
+#   cargo +nightly bench --manifest-path crates/test-brrr-criterion/Cargo.toml --bench brrr
+[package]
+name = "test-brrr-criterion"
+version = "0.0.0"
+publish = false
+edition = "2024"
+description = "Criterion benchmark of brrr, Jon Gjengset's One Billion Row Challenge solution, profiled by hotpath-meta through its Criterion adapter."
+
+[workspace]
+
+[dependencies]
+hotpath-meta = { path = "../hotpath-meta", features = ["criterion-0-8"] }
+criterion = { version = "0.8", default-features = false }
+libc = "0.2"
+
+[features]
+hotpath-meta = ["hotpath-meta/hotpath-meta"]
+hotpath-alloc-meta = ["hotpath-meta", "hotpath-meta/hotpath-alloc-meta"]
+hotpath-cloud-meta = ["hotpath-meta", "hotpath-meta/hotpath-cloud-meta"]
+
+[[bench]]
+name = "brrr"
+harness = false
+
+# brrr's own release profile.
+[profile.bench]
+lto = "fat"

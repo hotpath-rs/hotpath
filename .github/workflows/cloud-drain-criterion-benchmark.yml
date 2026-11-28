@@ -2,8 +2,9 @@ name: Cloud drain criterion benchmark
 
 # Every push to `main` and every pull request push runs on the Hetzner
 # bare-metal runner, including empty commits, so repeated runs sample the
-# machine's run-to-run variability. Both benchmarks run one after the other in
-# one job, and the concurrency group keeps one job at a time on the machine.
+# machine's run-to-run variability. All benchmarks are built first, then run
+# one after the other in one job, and the concurrency group keeps one job at a
+# time on the machine.
 on:
   push:
     branches: [main]
@@ -15,8 +16,11 @@ on:
 # Cargo's runner, which merges the native report into its own. A regression fails
 # the `hotpath / drain-criterion-hetzner` check run, not the job. Then the
 # single-threaded `fib` benchmark runs natively only: its instruction count is
-# deterministic, and its timing spread is the control for `drain`'s. Reports
-# upload in process with the job's OIDC token.
+# deterministic, and its timing spread is the control for `drain`'s. Last, the
+# `brrr` One Billion Row Challenge solution (`test-brrr-criterion`, nightly,
+# source fetched from jonhoo/brrr) runs natively: parallel work with little
+# cross-thread communication. Reports upload in process with the job's OIDC
+# token.
 jobs:
   hetzner:
     name: cloud criterion benchmarks (hetzner)
@@ -34,7 +38,7 @@ jobs:
       group: hetzner-bare-metal
       cancel-in-progress: false
     # Shared by both `drain` runs, so their reports describe one benchmark; the
-    # `fib` step overrides the benchmark name and policy.
+    # `fib` and `brrr` steps override the benchmark name and policy.
     env:
       # Its own series, so it never shares a baseline with GitHub-hosted runs;
       # the policy path keeps the drain criterion policy.
@@ -45,6 +49,9 @@ jobs:
       # Identical features in every `cargo bench`, so all runs use the one build.
       BENCH_ARGS: -p test-drain-criterion --bench drain --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
       FIB_ARGS: -p test-drain-criterion --bench fib --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
+      BRRR_ARGS: --manifest-path crates/test-brrr-criterion/Cargo.toml --bench brrr --features hotpath-alloc-meta,hotpath-cloud-meta
+      # brrr's own build flags; identical in its build and run, so it builds once.
+      BRRR_RUSTFLAGS: -Ctarget-cpu=native
     steps:
       - uses: actions/checkout@v4
         with:
@@ -84,6 +91,18 @@ jobs:
         run: |
           cargo bench $BENCH_ARGS --no-run
           cargo bench $FIB_ARGS --no-run
+      # Nightly is installed next to stable without becoming the default, so
+      # the other benchmarks stay on stable.
+      - name: Fetch and build brrr criterion benchmark
+        id: build_brrr
+        if: ${{ !cancelled() }}
+        env:
+          RUSTFLAGS: ${{ env.BRRR_RUSTFLAGS }}
+        run: |
+          rustup toolchain install nightly --profile minimal --no-self-update
+          echo "version=$(rustc +nightly --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+          crates/test-brrr-criterion/fetch.sh
+          cargo +nightly bench $BRRR_ARGS --no-run
       # Cargo starts the benchmark in the package directory; hotpath finds the
       # git root above it. No upload: this report is merged into the Callgrind
       # run's.
@@ -124,4 +143,19 @@ jobs:
           cargo bench $FIB_ARGS -- --test --exact fib/recursive
           test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
           jq -e '(.functions_timing.data | length > 0) and .meta.criterion.benchmark == "fib/recursive"' \
+            "$HOTPATH_META_OUTPUT_PATH" > /dev/null
+      - name: Run brrr criterion benchmark natively and upload the report
+        if: ${{ !cancelled() && steps.build_brrr.outcome == 'success' }}
+        env:
+          RUSTFLAGS: ${{ env.BRRR_RUSTFLAGS }}
+          HOTPATH_META_BENCHMARK: brrr-criterion-hetzner
+          HOTPATH_META_POLICY_PATH: ${{ github.workspace }}/hotpath/brrr-criterion-policy.toml
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=nightly,rustc=${{ steps.build_brrr.outputs.version }},profile=bench
+          HOTPATH_META_UPLOAD: fail-on-error
+          HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/brrr-upload-response.json
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/brrr.json
+        run: |
+          cargo +nightly bench $BRRR_ARGS -- --test --exact brrr/rows
+          test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
+          jq -e '(.functions_timing.data | length > 0) and .meta.criterion.benchmark == "brrr/rows"' \
             "$HOTPATH_META_OUTPUT_PATH" > /dev/null
