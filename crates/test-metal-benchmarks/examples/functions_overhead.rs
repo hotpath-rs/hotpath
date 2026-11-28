@@ -1,8 +1,7 @@
 //! Instrumented function calls: `instrumented_op` is a `#[hotpath::measure]`
 //! function doing fixed integer work (not a time-based spin, which would hide
 //! CPU frequency changes). The measured `phase` calls it `OPS` times, `REPS`
-//! times, after one unmeasured warm-up loop. The phase rows hold exactly `REPS`
-//! calls; `instrumented_op` also counts its `OPS` warm-up calls.
+//! times, with no warm-up. Every phase must return the same result.
 //!
 //! Run with:
 //!   cargo run --release -p test-metal-benchmarks --example functions_overhead --features hotpath
@@ -31,7 +30,8 @@ fn instrumented_op(x: u64) -> u64 {
     work(x)
 }
 
-fn run_loop() -> u64 {
+#[hotpath::measure]
+fn phase() -> u64 {
     let mut acc = 0;
     for i in 0..OPS {
         acc ^= instrumented_op(i);
@@ -39,15 +39,10 @@ fn run_loop() -> u64 {
     black_box(acc)
 }
 
-#[hotpath::measure]
-fn phase() -> u64 {
-    run_loop()
-}
-
 #[hotpath::main(percentiles = [50, 95])]
 fn main() {
-    let expected = run_loop();
-    for _ in 0..REPS {
+    let expected = phase();
+    for _ in 1..REPS {
         assert_eq!(phase(), expected);
     }
 }

@@ -29,12 +29,11 @@ type Map<'a> = HashMap<&'a [u8], Stats, BuildHasherDefault<DefaultHasher>>;
 /// merging, sorting and formatting. Excludes reading the input.
 #[hotpath::measure]
 pub fn run(data: &[u8]) -> String {
-    solve(data, THREADS, true)
+    solve(data, THREADS)
 }
 
-/// Solves `data` on `threads` threads. With `measured` false no measured
-/// function is called, so warm-up runs add nothing to the report.
-pub fn solve(data: &[u8], threads: usize, measured: bool) -> String {
+/// Solves `data` on `threads` threads.
+pub fn solve(data: &[u8], threads: usize) -> String {
     let chunks = split(data, threads);
     let maps: Vec<Map> = thread::scope(|s| {
         let handles: Vec<_> = chunks
@@ -43,13 +42,7 @@ pub fn solve(data: &[u8], threads: usize, measured: bool) -> String {
             .map(|(i, chunk)| {
                 thread::Builder::new()
                     .name(format!("1brc-worker-{i}"))
-                    .spawn_scoped(s, move || {
-                        if measured {
-                            process_chunk_measured(chunk)
-                        } else {
-                            process_chunk(chunk)
-                        }
-                    })
+                    .spawn_scoped(s, move || process_chunk(chunk))
                     .expect("spawn 1brc worker")
             })
             .collect();
@@ -58,12 +51,7 @@ pub fn solve(data: &[u8], threads: usize, measured: bool) -> String {
             .map(|h| h.join().expect("1brc worker panicked"))
             .collect()
     });
-    let merged = if measured {
-        merge_measured(maps)
-    } else {
-        merge(maps)
-    };
-    format(&merged)
+    format(&merge(maps))
 }
 
 /// Splits `data` into at most `parts` chunks, each ending at a newline.
@@ -89,10 +77,6 @@ fn split(data: &[u8], parts: usize) -> Vec<&[u8]> {
 }
 
 #[hotpath::measure]
-fn process_chunk_measured(chunk: &[u8]) -> Map<'_> {
-    process_chunk(chunk)
-}
-
 fn process_chunk(chunk: &[u8]) -> Map<'_> {
     let mut map = Map::default();
     for line in chunk.split(|&b| b == b'\n') {
@@ -142,10 +126,6 @@ fn parse_tenths(s: &[u8]) -> i16 {
 }
 
 #[hotpath::measure]
-fn merge_measured(maps: Vec<Map<'_>>) -> BTreeMap<&[u8], Stats> {
-    merge(maps)
-}
-
 fn merge(maps: Vec<Map<'_>>) -> BTreeMap<&[u8], Stats> {
     let mut merged: BTreeMap<&[u8], Stats> = BTreeMap::new();
     for map in maps {

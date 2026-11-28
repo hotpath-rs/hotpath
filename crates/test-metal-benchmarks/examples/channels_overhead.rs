@@ -1,8 +1,7 @@
 //! Instrumented channel traffic: each op sends a value through a
 //! `hotpath::channel!`-wrapped `std::sync::mpsc` channel, does fixed integer
 //! work and receives it. The measured `phase` runs `OPS` ops, `REPS` times,
-//! after one unmeasured warm-up loop, so the phase row holds exactly `REPS`
-//! calls; the channel statistics include the warm-up messages.
+//! with no warm-up. Every phase must return the same result.
 //!
 //! Run with:
 //!   cargo run --release -p test-metal-benchmarks --example channels_overhead --features hotpath
@@ -29,8 +28,8 @@ fn work(x: u64) -> u64 {
 
 /// `OPS` x (send, fixed work, recv). Takes closures because the instrumented
 /// channel has its own `Sender`/`Receiver` types when `hotpath` is enabled.
-#[inline(never)]
-fn run_loop(send: &dyn Fn(u64), recv: &dyn Fn() -> u64) -> u64 {
+#[hotpath::measure]
+fn phase(send: &dyn Fn(u64), recv: &dyn Fn() -> u64) -> u64 {
     let mut acc = 0;
     for i in 0..OPS {
         send(i);
@@ -40,19 +39,14 @@ fn run_loop(send: &dyn Fn(u64), recv: &dyn Fn() -> u64) -> u64 {
     black_box(acc)
 }
 
-#[hotpath::measure]
-fn phase(send: &dyn Fn(u64), recv: &dyn Fn() -> u64) -> u64 {
-    run_loop(send, recv)
-}
-
 #[hotpath::main(percentiles = [50, 95])]
 fn main() {
     let (tx, rx) = hotpath::channel!(channel::<u64>(), label = "instrumented");
     let send = |v: u64| tx.send(v).expect("send");
     let recv = || rx.recv().expect("recv");
 
-    let expected = run_loop(&send, &recv);
-    for _ in 0..REPS {
+    let expected = phase(&send, &recv);
+    for _ in 1..REPS {
         assert_eq!(phase(&send, &recv), expected);
     }
 }

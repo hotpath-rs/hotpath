@@ -34,7 +34,7 @@ fn check(input: &str) {
     let expected = reference(input);
     for threads in [1, 2, 3, 4, 7] {
         assert_eq!(
-            solve(input.as_bytes(), threads, false),
+            solve(input.as_bytes(), threads),
             expected,
             "{threads} threads"
         );
