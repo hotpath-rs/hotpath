@@ -95,10 +95,10 @@ pub(crate) fn location_for_key(key: &str) -> JsonLocation {
     })
 }
 
-/// The smallest registered workspace-relative file path; locates the build
-/// workspace root at report time when the guard has no compile-time anchor
-/// (`source_checkout::resolve`). The smallest, not the first in map order, so
-/// runs that registered the same files probe the same one.
+/// Smallest registered file path that is workspace-relative; used to locate
+/// the build workspace root at report time when `#[hotpath::main]` gave no
+/// anchor (`report_meta::resolve_checkout`). The smallest rather than the
+/// first in map order, so every run probes the same file.
 pub(crate) fn any_relative_file() -> Option<&'static str> {
     let map = LOCATIONS.get()?;
     let guard = map.read().ok()?;
@@ -157,7 +157,7 @@ fn resolve_dot_segments(file: &str) -> String {
 /// String-based check instead of `Path::is_absolute`, which is
 /// platform-dependent: normalization must treat a path the same way
 /// regardless of the OS the report is generated on.
-pub(crate) fn is_absolute_path(file: &str) -> bool {
+fn is_absolute_path(file: &str) -> bool {
     file.starts_with('/') || file.starts_with('\\') || file.as_bytes().get(1) == Some(&b':')
 }
 

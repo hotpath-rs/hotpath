@@ -22,7 +22,7 @@ Where things are defined, plus gotchas the code site can't show. The code is the
 
 ## hotpath-cloud
 
-- `hotpath-cloud` upload: `lib_on/cloud.rs`, called from `HotpathGuard::drop`. Report provenance: `lib_on/report_meta.rs`, `lib_on/git_info.rs`, `lib_on/ci_info.rs`; `meta.source_root` and the checkout: `lib_on/source_checkout.rs` (anchored by `#[hotpath::main]`). Policy file lookup: `json/policy_file.rs`.
+- `hotpath-cloud` upload: `lib_on/cloud.rs`, called from `HotpathGuard::drop`. Report provenance: `lib_on/report_meta.rs`, `lib_on/git_info.rs`, `lib_on/ci_info.rs`. Policy file lookup: `json/policy_file.rs`.
 - User docs: the "hotpath-cloud" pages in `docs/src/SUMMARY.md`.
 - MCP Registry listing of the hosted MCP server: root `server.json`, published by hand (see `docs/mcp_registry.md`); its `version` is independent of the crates.
 - `cloud` CLI: `bin/hotpath/cmd/cloud.rs`, one file per command under `cmd/cloud/`, shared HTTP plumbing in `cmd/cloud/api.rs`.

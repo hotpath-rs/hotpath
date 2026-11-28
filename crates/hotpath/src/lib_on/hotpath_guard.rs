@@ -254,7 +254,7 @@ pub struct HotpathGuardBuilder {
     time_sampling: crate::lib_on::sampling::TimeSamplingConfig,
     user_metadata: HashMap<String, String>,
     criterion: Option<crate::json::JsonCriterion>,
-    source_anchor: Option<crate::lib_on::source_checkout::SourceAnchor>,
+    source_anchor: Option<crate::lib_on::report_meta::SourceAnchor>,
 }
 
 impl HotpathGuardBuilder {
@@ -530,7 +530,7 @@ impl HotpathGuardBuilder {
     /// `meta.source_root`. Set by the macro; not part of the public API.
     #[doc(hidden)]
     pub fn __source_anchor(mut self, manifest_dir: &'static str, main_file: &'static str) -> Self {
-        self.source_anchor = Some(crate::lib_on::source_checkout::SourceAnchor {
+        self.source_anchor = Some(crate::lib_on::report_meta::SourceAnchor {
             manifest_dir,
             main_file,
         });
@@ -656,7 +656,7 @@ pub struct HotpathGuard {
     threads_limit: usize,
     user_metadata: BTreeMap<String, String>,
     criterion: Option<crate::json::JsonCriterion>,
-    source_anchor: Option<crate::lib_on::source_checkout::SourceAnchor>,
+    source_anchor: Option<crate::lib_on::report_meta::SourceAnchor>,
     #[cfg(feature = "hotpath-meta")]
     _meta_guard: Option<hotpath_meta::HotpathGuard>,
 }
@@ -683,7 +683,7 @@ impl HotpathGuard {
         threads_limit: usize,
         user_metadata: BTreeMap<String, String>,
         criterion: Option<crate::json::JsonCriterion>,
-        source_anchor: Option<crate::lib_on::source_checkout::SourceAnchor>,
+        source_anchor: Option<crate::lib_on::report_meta::SourceAnchor>,
     ) -> Self {
         let _suspend = crate::lib_on::SuspendAllocTracking::new();
 
