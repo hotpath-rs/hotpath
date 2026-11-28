@@ -16,8 +16,12 @@
 //! the local report is written; skips never fail. A report without a policy
 //! fails before a token is minted.
 //!
-//! No retries yet: a retry is only safe once the server insert is idempotent
-//! per run, otherwise a timed-out upload that was in fact stored would be
+//! The OIDC token request is retried up to 5 times, with exponential backoff
+//! from 250ms, on any request error, a transport error while reading the
+//! response body, 502, 503 or 504. Other statuses and malformed JSON are
+//! final. Minting another token has no side effect. The upload is not
+//! retried: a retry is only safe once the server insert is idempotent per
+//! run, otherwise a timed-out upload that was in fact stored would be
 //! duplicated.
 
 use std::io::Write;
@@ -36,6 +40,13 @@ use crate::json::JsonReport;
 
 const AUDIENCE: &str = "hotpath.rs";
 const MINT_TIMEOUT: Duration = Duration::from_secs(10);
+const MINT_MAX_RETRIES: u32 = 5;
+/// Wait before the first retry, doubled for each next one.
+const MINT_BACKOFF: Duration = if cfg!(test) {
+    Duration::from_millis(1)
+} else {
+    Duration::from_millis(250)
+};
 const UPLOAD_TIMEOUT: Duration = Duration::from_secs(30);
 /// Longest raw (unparseable) response body quoted in a message.
 const MAX_QUOTED_BODY: usize = 2000;
@@ -289,22 +300,62 @@ struct TokenResponse {
 }
 
 pub(crate) fn mint_token(request_url: &str, request_token: &str) -> Result<String, String> {
+    mint_token_with_retries(request_url, request_token, MINT_MAX_RETRIES)
+}
+
+fn mint_token_with_retries(
+    request_url: &str,
+    request_token: &str,
+    max_retries: u32,
+) -> Result<String, String> {
     let separator = if request_url.contains('?') { '&' } else { '?' };
     let url = format!("{request_url}{separator}audience={AUDIENCE}");
+    let mut retry = 0;
+    loop {
+        match mint_attempt(&url, request_token) {
+            Ok(token) => return Ok(token),
+            Err(Mint::Retryable(_)) if retry < max_retries => {
+                std::thread::sleep(MINT_BACKOFF * (1 << retry));
+                retry += 1;
+            }
+            Err(Mint::Retryable(message)) => {
+                let attempts = retry + 1;
+                return Err(format!("{message} (after {attempts} attempts)"));
+            }
+            Err(Mint::Fatal(message)) => return Err(message),
+        }
+    }
+}
+
+/// How one OIDC token request failed.
+enum Mint {
+    /// A request error, a body transport error, 502, 503 or 504.
+    Retryable(String),
+    Fatal(String),
+}
+
+fn mint_attempt(url: &str, request_token: &str) -> Result<String, Mint> {
     let mut resp = agent(MINT_TIMEOUT)
-        .get(&url)
+        .get(url)
         .header("Authorization", &format!("bearer {request_token}"))
         .call()
-        .map_err(|e| format!("OIDC token request failed: {e}"))?;
+        .map_err(|e| Mint::Retryable(format!("OIDC token request failed: {e}")))?;
     let status = resp.status().as_u16();
     if status != 200 {
         let body = read_body(&mut resp);
-        return Err(format!("OIDC token request returned HTTP {status}: {body}"));
+        let message = format!("OIDC token request returned HTTP {status}: {body}");
+        return Err(if matches!(status, 502..=504) {
+            Mint::Retryable(message)
+        } else {
+            Mint::Fatal(message)
+        });
     }
-    let token: TokenResponse = resp
-        .body_mut()
-        .read_json()
-        .map_err(|e| format!("invalid OIDC token response: {e}"))?;
+    let token: TokenResponse = resp.body_mut().read_json().map_err(|e| match e {
+        ureq::Error::Json(e) if !e.is_io() => {
+            Mint::Fatal(format!("invalid OIDC token response: {e}"))
+        }
+        e => Mint::Retryable(format!("OIDC token response failed: {e}")),
+    })?;
     Ok(token.value)
 }
 
@@ -646,8 +697,9 @@ mod tests {
 
     use crate::json::cloud_api::{CommentOutcome, UploadCreated, Verdict};
     use crate::lib_on::cloud::{
-        benchmark_name, escape_annotation, interpret, is_truthy, render, store_response,
-        url_encode, Env, Level, Outcome, UploadMode,
+        benchmark_name, escape_annotation, interpret, is_truthy, mint_token,
+        mint_token_with_retries, render, store_response, url_encode, Env, Level, Outcome,
+        UploadMode,
     };
 
     const DASHBOARD_URL: &str =
@@ -1232,5 +1284,102 @@ mod tests {
             escape_annotation("100% of\r\nlines\nbreak"),
             "100%25 of%0D%0Alines%0Abreak"
         );
+    }
+
+    fn token_mock(server: &mut mockito::Server, status: usize, body: &str) -> mockito::Mock {
+        server
+            .mock("GET", "/token")
+            .match_query(mockito::Matcher::UrlEncoded(
+                "audience".into(),
+                "hotpath.rs".into(),
+            ))
+            .match_header("authorization", "bearer request-token")
+            .with_status(status)
+            .with_body(body)
+    }
+
+    /// mockito serves the first mock still missing hits, so the 503 comes first.
+    #[test]
+    fn mint_token_retries_a_gateway_error() {
+        let mut server = mockito::Server::new();
+        let failed = token_mock(&mut server, 503, "busy").expect(1).create();
+        let minted = token_mock(&mut server, 200, r#"{"value":"oidc-token"}"#)
+            .expect(1)
+            .create();
+
+        let token = mint_token(&format!("{}/token", server.url()), "request-token");
+
+        assert_eq!(token.as_deref(), Ok("oidc-token"));
+        failed.assert();
+        minted.assert();
+    }
+
+    #[test]
+    fn mint_token_gives_up_after_the_last_retry() {
+        let mut server = mockito::Server::new();
+        let failed = token_mock(&mut server, 502, "bad gateway")
+            .expect(3)
+            .create();
+
+        let err = mint_token_with_retries(&format!("{}/token", server.url()), "request-token", 2)
+            .unwrap_err();
+
+        assert_eq!(
+            err,
+            "OIDC token request returned HTTP 502: bad gateway (after 3 attempts)"
+        );
+        failed.assert();
+    }
+
+    #[test]
+    fn mint_token_retries_only_gateway_errors() {
+        let mut server = mockito::Server::new();
+        let failed = token_mock(&mut server, 500, "internal error")
+            .expect(1)
+            .create();
+
+        let err = mint_token(&format!("{}/token", server.url()), "request-token").unwrap_err();
+
+        assert_eq!(err, "OIDC token request returned HTTP 500: internal error");
+        failed.assert();
+    }
+
+    /// A raw listener, as mockito cannot drop a connection mid-body.
+    #[test]
+    fn mint_token_retries_a_dropped_body() {
+        use std::io::{Read, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/token", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            for response in [
+                "HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n{\"val",
+                "HTTP/1.1 200 OK\r\nContent-Length: 22\r\n\r\n{\"value\":\"oidc-token\"}",
+            ] {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0; 1024];
+                let _ = stream.read(&mut request).unwrap();
+                stream.write_all(response.as_bytes()).unwrap();
+            }
+        });
+
+        let token = mint_token(&url, "request-token");
+
+        assert_eq!(token.as_deref(), Ok("oidc-token"));
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn mint_token_does_not_retry_malformed_json() {
+        let mut server = mockito::Server::new();
+        let malformed = token_mock(&mut server, 200, "garbage").expect(1).create();
+
+        let err = mint_token(&format!("{}/token", server.url()), "request-token").unwrap_err();
+
+        assert_eq!(
+            err,
+            "invalid OIDC token response: expected value at line 1 column 1"
+        );
+        malformed.assert();
     }
 }

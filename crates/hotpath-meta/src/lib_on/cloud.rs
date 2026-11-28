@@ -16,8 +16,12 @@
 //! the local report is written; skips never fail. A report without a policy
 //! fails before a token is minted.
 //!
-//! No retries yet: a retry is only safe once the server insert is idempotent
-//! per run, otherwise a timed-out upload that was in fact stored would be
+//! The OIDC token request is retried up to 5 times, with exponential backoff
+//! from 250ms, on any request error, a transport error while reading the
+//! response body, 502, 503 or 504. Other statuses and malformed JSON are
+//! final. Minting another token has no side effect. The upload is not
+//! retried: a retry is only safe once the server insert is idempotent per
+//! run, otherwise a timed-out upload that was in fact stored would be
 //! duplicated.
 
 use std::io::Write;
@@ -36,6 +40,13 @@ use crate::json::JsonReport;
 
 const AUDIENCE: &str = "hotpath.rs";
 const MINT_TIMEOUT: Duration = Duration::from_secs(10);
+const MINT_MAX_RETRIES: u32 = 5;
+/// Wait before the first retry, doubled for each next one.
+const MINT_BACKOFF: Duration = if cfg!(test) {
+    Duration::from_millis(1)
+} else {
+    Duration::from_millis(250)
+};
 const UPLOAD_TIMEOUT: Duration = Duration::from_secs(30);
 /// Longest raw (unparseable) response body quoted in a message.
 const MAX_QUOTED_BODY: usize = 2000;
@@ -289,22 +300,62 @@ struct TokenResponse {
 }
 
 pub(crate) fn mint_token(request_url: &str, request_token: &str) -> Result<String, String> {
+    mint_token_with_retries(request_url, request_token, MINT_MAX_RETRIES)
+}
+
+fn mint_token_with_retries(
+    request_url: &str,
+    request_token: &str,
+    max_retries: u32,
+) -> Result<String, String> {
     let separator = if request_url.contains('?') { '&' } else { '?' };
     let url = format!("{request_url}{separator}audience={AUDIENCE}");
+    let mut retry = 0;
+    loop {
+        match mint_attempt(&url, request_token) {
+            Ok(token) => return Ok(token),
+            Err(Mint::Retryable(_)) if retry < max_retries => {
+                std::thread::sleep(MINT_BACKOFF * (1 << retry));
+                retry += 1;
+            }
+            Err(Mint::Retryable(message)) => {
+                let attempts = retry + 1;
+                return Err(format!("{message} (after {attempts} attempts)"));
+            }
+            Err(Mint::Fatal(message)) => return Err(message),
+        }
+    }
+}
+
+/// How one OIDC token request failed.
+enum Mint {
+    /// A request error, a body transport error, 502, 503 or 504.
+    Retryable(String),
+    Fatal(String),
+}
+
+fn mint_attempt(url: &str, request_token: &str) -> Result<String, Mint> {
     let mut resp = agent(MINT_TIMEOUT)
-        .get(&url)
+        .get(url)
         .header("Authorization", &format!("bearer {request_token}"))
         .call()
-        .map_err(|e| format!("OIDC token request failed: {e}"))?;
+        .map_err(|e| Mint::Retryable(format!("OIDC token request failed: {e}")))?;
     let status = resp.status().as_u16();
     if status != 200 {
         let body = read_body(&mut resp);
-        return Err(format!("OIDC token request returned HTTP {status}: {body}"));
+        let message = format!("OIDC token request returned HTTP {status}: {body}");
+        return Err(if matches!(status, 502..=504) {
+            Mint::Retryable(message)
+        } else {
+            Mint::Fatal(message)
+        });
     }
-    let token: TokenResponse = resp
-        .body_mut()
-        .read_json()
-        .map_err(|e| format!("invalid OIDC token response: {e}"))?;
+    let token: TokenResponse = resp.body_mut().read_json().map_err(|e| match e {
+        ureq::Error::Json(e) if !e.is_io() => {
+            Mint::Fatal(format!("invalid OIDC token response: {e}"))
+        }
+        e => Mint::Retryable(format!("OIDC token response failed: {e}")),
+    })?;
     Ok(token.value)
 }
 
