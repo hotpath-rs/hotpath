@@ -1,43 +1,41 @@
 name: Cloud drain criterion benchmark
 
+# Every push to `main` and every pull request push runs on the Hetzner
+# bare-metal runner, including empty commits, so repeated runs sample the
+# machine's run-to-run variability.
 on:
   push:
     branches: [main]
-    # Changes only to these paths cannot affect the build, so they skip CI.
-    paths-ignore: &paths-ignore
-      - "**.md"
-      - "docs/**"
-      - "dev_docs/**"
-      - "dev_skills/**"
-      - "skills/**"
-      - "media/**"
-      - "LICENSE.txt"
-      - "cliff.toml"
-      - "context7.json"
   pull_request:
-    paths-ignore: *paths-ignore
 
 # The `drain` lockstep scenario as a Criterion benchmark (`test-drain-criterion`),
 # profiled by `hotpath-meta` with a fixed iteration count. One build runs twice
 # through `cargo bench`: natively for timing, then under Valgrind Callgrind as
-# Cargo's runner, which merges the native report into its own. A regression fails the `hotpath / drain-criterion` check
-# run, not the job.
-#
-# Pushes and same-repository pull requests upload in process with the job's
-# OIDC token. Fork pull requests get no `id-token: write`, so they write the
-# merged report to an artifact and `cloud-benchmark-relay.yml` uploads it.
+# Cargo's runner, which merges the native report into its own. A regression fails
+# the `hotpath / drain-criterion-hetzner` check run, not the job. The report
+# uploads in process with the job's OIDC token.
 jobs:
-  upload:
-    name: cloud drain criterion benchmark (upload)
+  hetzner:
+    name: cloud drain criterion benchmark (hetzner)
+    # Fork pull requests get no OIDC token, so they cannot upload. This is not a
+    # security boundary: a fork can edit this file, so fork workflow runs must
+    # stay behind manual approval while a self-hosted runner is registered.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-26.04-arm
+    runs-on: [self-hosted, linux, x64, hetzner]
     timeout-minutes: 20
     permissions:
       contents: read
       id-token: write
+    # One benchmark at a time on the Hetzner machine.
+    concurrency:
+      group: hetzner-bare-metal
+      cancel-in-progress: false
     # Shared by both runs, so their reports describe one benchmark.
     env:
-      HOTPATH_META_BENCHMARK: drain-criterion
+      # Its own series, so it never shares a baseline with GitHub-hosted runs;
+      # the policy path keeps the drain criterion policy.
+      HOTPATH_META_BENCHMARK: drain-criterion-hetzner
+      HOTPATH_META_POLICY_PATH: ${{ github.workspace }}/hotpath/drain-criterion-policy.toml
       HOTPATH_META_OUTPUT_FORMAT: json
       HOTPATH_META_CRITERION_ITERATIONS: 5
       # Identical in every `cargo bench`, so both runs use the one build.
@@ -53,25 +51,34 @@ jobs:
         run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
       - name: Record runner CPU and image
         id: host
-        # Commas would split the user metadata, so they are stripped.
+        # Commas would split the user metadata, so they are stripped. Self-hosted
+        # runners have no image variables, so the runner name and OS stand in.
         run: |
           echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
-          echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: cloud-drain-criterion-benchmark
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-          cache-on-failure: true
-      # Released Valgrind misattributes inclusive instruction counts on arm64;
-      # this build fixes it (unofficial fork, hotpath-rs/valgrind).
-      - uses: hotpath-rs/setup-valgrind@v1.1.0
-        with:
-          version: 3.28.0.hotpath-rs-2
+          echo "image=$RUNNER_NAME-ubuntu$(. /etc/os-release && echo "$VERSION_ID")" >> "$GITHUB_OUTPUT"
+      # The runner has no sudo, so the hotpath-rs Valgrind build
+      # (unofficial fork, hotpath-rs/valgrind) is preinstalled at /opt/valgrind.
+      - name: Use the preinstalled Valgrind
+        run: |
+          test "$(/opt/valgrind/bin/valgrind --version)" = valgrind-3.28.0.hotpath-rs-2
+          echo /opt/valgrind/bin >> "$GITHUB_PATH"
+      # The machine persists between runs: do not benchmark while package
+      # maintenance or a RAID check runs on it.
+      - name: Check the bare-metal host is idle
+        run: |
+          if systemctl is-active --quiet apt-daily.service apt-daily-upgrade.service; then
+            echo "::error::APT maintenance is running on the runner host"
+            exit 1
+          fi
+          if grep -qE '(resync|check|recovery) *=' /proc/mdstat; then
+            echo "::error::a RAID resync or check is running on the runner host"
+            exit 1
+          fi
       - name: Build drain criterion benchmark
         run: cargo bench $BENCH_ARGS --no-run
       # Cargo starts the benchmark in the package directory; hotpath finds the
-      # git root and the policy file above it. No upload: this report is merged
-      # into the Callgrind run's.
+      # git root above it. No upload: this report is merged into the Callgrind
+      # run's.
       - name: Run drain criterion benchmark natively
         env:
           HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=bench,valgrind=3.28.0.hotpath-rs-2
@@ -89,75 +96,9 @@ jobs:
           HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/merged.json
           HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
           HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=${{ runner.temp }}/callgrind.out.%p
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=${{ runner.temp }}/callgrind.out.%p
         run: |
           cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
           test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
           jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .meta.criterion.benchmark == "drain/lockstep"' \
             "$HOTPATH_META_OUTPUT_PATH" > /dev/null
-
-  report:
-    name: cloud drain criterion benchmark (fork pull request)
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-26.04-arm
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    env:
-      HOTPATH_META_BENCHMARK: drain-criterion
-      HOTPATH_META_OUTPUT_FORMAT: json
-      HOTPATH_META_CRITERION_ITERATIONS: 5
-      # Identical in every `cargo bench`, so both runs use the one build.
-      BENCH_ARGS: -p test-drain-criterion --bench drain --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # The pull request's head commit, not the default merge commit.
-          ref: ${{ github.event.pull_request.head.sha }}
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Record rustc version
-        id: rustc
-        run: echo "version=$(rustc --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
-      - name: Record runner CPU and image
-        id: host
-        # Commas would split the user metadata, so they are stripped.
-        run: |
-          echo "cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1 | tr -d ',')" >> "$GITHUB_OUTPUT"
-          echo "image=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: cloud-drain-criterion-benchmark
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-          cache-on-failure: true
-      # Released Valgrind misattributes inclusive instruction counts on arm64;
-      # this build fixes it (unofficial fork, hotpath-rs/valgrind).
-      - uses: hotpath-rs/setup-valgrind@v1.1.0
-        with:
-          version: 3.28.0.hotpath-rs-2
-      - name: Build drain criterion benchmark
-        run: cargo bench $BENCH_ARGS --no-run
-      - name: Run drain criterion benchmark natively
-        env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=bench,valgrind=3.28.0.hotpath-rs-2
-          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/native.json
-        run: cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
-      # A failed merge fails the job before the artifact upload, so the relay
-      # never posts a report that is not merged.
-      - name: Run drain criterion benchmark under Callgrind and write the merged report
-        env:
-          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=bench,valgrind=3.28.0.hotpath-rs-2
-          HOTPATH_META_OUTPUT_PATH: ${{ github.workspace }}/report.json
-          HOTPATH_META_MERGE_REPORT: ${{ runner.temp }}/native.json
-          HOTPATH_META_CALLGRIND_OUT_FILE: ${{ runner.temp }}/callgrind.out.%p
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: valgrind -q --tool=callgrind --instr-atstart=no --callgrind-out-file=${{ runner.temp }}/callgrind.out.%p
-        run: |
-          cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
-          test -s "$HOTPATH_META_OUTPUT_PATH"
-          jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .meta.criterion.benchmark == "drain/lockstep"' \
-            "$HOTPATH_META_OUTPUT_PATH" > /dev/null
-      - uses: actions/upload-artifact@v4
-        with:
-          name: hotpath-report
-          path: report.json
-          retention-days: 1
-          if-no-files-found: error
