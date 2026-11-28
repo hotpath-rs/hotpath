@@ -1,0 +1,63 @@
+name: Cloud nested workspace benchmark
+
+on:
+  pull_request:
+
+# Reproduces broken source links for a benchmark crate that is its own Cargo
+# workspace below the repository root (`crates/test-nested-workspace`), built
+# and run from the repository root without `HOTPATH_SOURCE_ROOT`, as
+# `docs/src/ci_integration.md` describes. The client cannot resolve the
+# checkout from that working directory and omits `meta.source_root`; the
+# server then links `examples/nested_workspace.rs` at the repository root,
+# which 404s. The policy breaks a calls budget on purpose, so the pull request
+# comment always lists a finding with a source link.
+#
+# Same-repository pull requests only: they upload in process with the job's
+# OIDC token, the path `agg-bench` took.
+jobs:
+  upload:
+    name: cloud nested workspace benchmark (upload)
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull request's head commit, not the default merge commit.
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cloud-nested-workspace-benchmark
+          workspaces: crates/test-nested-workspace
+          save-if: false
+          cache-on-failure: true
+      - name: Build nested workspace benchmark
+        run: |
+          cargo build -q --release --manifest-path crates/test-nested-workspace/Cargo.toml \
+            --example nested_workspace --features hotpath-cloud
+      # Run from the repository root, with no `HOTPATH_SOURCE_ROOT`. The
+      # response file exists only after an accepted upload, so `test -s` also
+      # fails a skipped one.
+      - name: Run nested workspace benchmark from the repository root and upload
+        env:
+          HOTPATH_UPLOAD: fail-on-error
+          HOTPATH_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/upload-response.json
+          HOTPATH_BENCHMARK: nested-workspace
+          HOTPATH_EXCLUDE_WRAPPER: "true"
+          HOTPATH_OUTPUT_FORMAT: json
+          HOTPATH_OUTPUT_PATH: ${{ runner.temp }}/report.json
+        run: |
+          crates/test-nested-workspace/target/release/examples/nested_workspace
+          test -s "$HOTPATH_UPLOAD_RESPONSE_PATH"
+      - name: Print the uploaded source location and source root
+        if: always()
+        run: |
+          jq '{source_root: (.meta.source_root // "<missing>"), locations: [.functions_timing.data[] | {name, location}]}' \
+            "${{ runner.temp }}/report.json"
+          if [ -s upload-response.json ]; then
+            jq '{verdict, dashboard_url}' upload-response.json
+          fi

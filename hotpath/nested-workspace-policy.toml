@@ -1,0 +1,17 @@
+# Policy for the `nested-workspace` benchmark: `test-nested-workspace`, a crate
+# that is its own Cargo workspace, run from the repository root. The calls
+# budget is broken on purpose (the example calls `nested_function` 100 times),
+# so every pull request comment lists a finding with a source link.
+
+[functions]
+min_percent_total = 0.5
+
+[[functions.budgets]]
+match = "nested_workspace::nested_function"
+calls = { max = 10 }
+
+[functions.timing]
+judged = false
+min_percent_change = 50
+metrics = ["avg", "total"]
+min_calls = 1
