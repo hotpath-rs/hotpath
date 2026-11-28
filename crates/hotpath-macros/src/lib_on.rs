@@ -366,8 +366,13 @@ pub fn main_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
         Some(l) => quote! { .mutexes_limit(#l) },
         None => quote! {},
     };
+    // Expands in the user crate: its package dir and workspace-relative main file.
+    let source_anchor_call = quote_spanned! { fn_name.span() =>
+        .__source_anchor(env!("CARGO_MANIFEST_DIR"), file!())
+    };
     let builder_chain = quote! {
         hotpath::HotpathGuardBuilder::new(caller_name)
+            #source_anchor_call
             .percentiles(#percentiles_array)
             #global_limit_call
             #functions_limit_call

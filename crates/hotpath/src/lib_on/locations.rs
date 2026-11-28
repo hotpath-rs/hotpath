@@ -95,16 +95,18 @@ pub(crate) fn location_for_key(key: &str) -> JsonLocation {
     })
 }
 
-/// First registered file path that is workspace-relative; used to locate the
-/// build workspace root at report time (`report_meta::source_root`). Any
-/// relative file works: they are all relative to the same workspace root.
+/// Smallest registered workspace-relative file path; locates the build
+/// workspace root when `#[hotpath::main]` gave no anchor
+/// (`report_meta::resolve_checkout`). Deterministic only across runs that
+/// registered the same set of paths.
 pub(crate) fn any_relative_file() -> Option<&'static str> {
     let map = LOCATIONS.get()?;
     let guard = map.read().ok()?;
     guard
         .values()
         .map(|location| location.file)
-        .find(|file| !is_absolute_path(file))
+        .filter(|file| !is_absolute_path(file))
+        .min()
 }
 
 /// `file!()` is workspace-root-relative for workspace members and absolute

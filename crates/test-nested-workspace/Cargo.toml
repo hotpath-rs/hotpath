@@ -1,0 +1,19 @@
+# Its own workspace, not a member of the repository workspace: the layout of a
+# standalone benchmark crate in a subdirectory of the repository. Build with:
+#   cargo run --manifest-path crates/test-nested-workspace/Cargo.toml --example nested_workspace --features hotpath
+[package]
+name = "test-nested-workspace"
+version = "0.0.0"
+publish = false
+edition = "2021"
+description = "Tests source_root resolution for a nested workspace run from the repository root."
+
+[workspace]
+
+[dependencies]
+hotpath = { path = "../hotpath" }
+
+[features]
+hotpath = ["hotpath/hotpath"]
+hotpath-callgrind = ["hotpath/hotpath-callgrind"]
+hotpath-cloud = ["hotpath/hotpath-cloud"]

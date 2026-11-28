@@ -420,6 +420,45 @@ pub mod tests {
         assert_eq!(calls, 2);
     }
 
+    /// A benchmark crate that is its own workspace in a subdirectory, run
+    /// natively and under Callgrind from the repository root: both runs
+    /// resolve the same `source_root` from the binary's compile-time anchor,
+    /// so the merge passes its identity check and keeps the value.
+    // cd <repo root> && HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=native.json cargo run --release --manifest-path crates/test-nested-workspace/Cargo.toml --example nested_workspace --features hotpath,hotpath-callgrind,hotpath-cloud
+    // cd <repo root> && CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind -q --tool=callgrind" HOTPATH_OUTPUT_FORMAT=json HOTPATH_OUTPUT_PATH=out.json HOTPATH_MERGE_REPORT=native.json cargo run --release --manifest-path crates/test-nested-workspace/Cargo.toml --example nested_workspace --features hotpath,hotpath-callgrind,hotpath-cloud
+    #[test]
+    fn test_nested_workspace_merge_keeps_its_source_root() {
+        if !valgrind_available() {
+            return;
+        }
+        const NESTED_DIR: &str = "crates/test-nested-workspace";
+        let repo_root = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
+        let nested = || {
+            let manifest = format!("{}/{NESTED_DIR}/Cargo.toml", repo_root.display());
+            Example::in_manifest(&manifest, "nested_workspace")
+                .features(MERGE_FEATURES)
+                .release()
+                .env_remove("HOTPATH_SOURCE_ROOT")
+                .current_dir(repo_root)
+        };
+        let dir = RunDir::new();
+        let (native, out) = (dir.path("native.json"), dir.path("out.json"));
+        assert_success(&merge_example(nested(), &native).output());
+
+        let output = merge_example(nested().callgrind(&dir.path("cg.%p")), &out)
+            .env("HOTPATH_MERGE_REPORT", &native)
+            .output();
+        assert_success(&output);
+
+        let read = |path: &str| -> JsonReport {
+            serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+        };
+        let (native, merged) = (read(&native), read(&out));
+        assert_eq!(native.meta.source_root.as_deref(), Some(NESTED_DIR));
+        assert_eq!(merged.meta.run, Some(hotpath::json::JsonRun::Merged));
+        assert_eq!(merged.meta.source_root.as_deref(), Some(NESTED_DIR));
+    }
+
     /// Under Callgrind with an out-file hotpath cannot find: no counts, so
     /// the merge is refused with the dump's reason.
     #[test]

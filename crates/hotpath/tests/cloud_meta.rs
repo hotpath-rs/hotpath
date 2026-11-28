@@ -360,6 +360,25 @@ mod tests {
         }
     }
 
+    /// A binary run in a checkout that does not hold its sources (built in
+    /// another one): no `source_root`, but the commit and the policy still
+    /// come from the checkout it runs in, not from the one it was built in.
+    #[test]
+    fn unresolved_source_root_keeps_the_runtime_checkouts_git_and_policy() {
+        let checkout = Checkout::new("unresolved-source-root");
+        checkout
+            .write(".git/HEAD", format!("{OTHER_SHA}\n").as_bytes())
+            .write("hotpath/policy.toml", SHARED_POLICY.as_bytes());
+
+        let (meta, _) = run_example_in(Some(&checkout.root), &[]);
+
+        assert_eq!(meta.source_root, None);
+        assert_eq!(meta.git.expect("git info").sha, OTHER_SHA);
+        let policy = meta.policy.expect("policy");
+        assert_eq!(policy.path, "hotpath/policy.toml");
+        assert_eq!(policy.source, SHARED_POLICY);
+    }
+
     #[test]
     fn policy_of_the_benchmark_wins_over_the_shared_one() {
         let checkout = Checkout::new("benchmark-file");

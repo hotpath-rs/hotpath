@@ -1,6 +1,7 @@
 /target
 crates/hotpath/target
 crates/test-toasty/target
+crates/test-nested-workspace/target
 /target-linux
 rust-project.json
 hotpath_report.csv
