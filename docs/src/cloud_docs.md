@@ -2,9 +2,9 @@
 
 `hotpath-cloud` requires `hotpath` version `0.30.0` or newer.
 
-## Install the GitHub App (recommended for public repositories)
+## Install the GitHub App
 
-Install the GitHub App and select a public Rust repository. We'll personally prepare a ready-to-merge PR with `hotpath-cloud` configured. All you need to do is review and merge.
+Start by installing the GitHub App on your repository. It posts the performance comments on your pull requests.
 
 <div class="cloud-install">
   <a class="agent-pill cta-link" href="https://github.com/apps/hotpath-rs/installations/new" target="_blank" rel="noopener" onclick="hotpathTrack('github_app_install_click', 'getting_started')">
@@ -25,27 +25,21 @@ function hotpathTrack(name, placement) {
 
 The GitHub App asks for minimal permissions: **no access to your source code**, only pull request write access to post comments, and checks to optionally report the status of each benchmark. The only data it gets from your CI is the benchmark reports your workflow uploads.
 
-## Prefer to configure it yourself?
-
-You can also set up `hotpath-cloud` with your AI coding agent or by following the manual integration guide. Our hands-on setup covers public Rust repositories; for a private repository, use one of these self-service setups. Both still need the [GitHub App installed](https://github.com/apps/hotpath-rs/installations/new).
-
-### AI setup
+## AI setup (recommended)
 
 Paste this prompt into your coding agent, inside your project repo:
 
 ```text
-Set up hotpath-cloud CI in this Rust project using the instructions at https://hotpath.rs/agent/init_cloud
+Set up hotpath-cloud CI integration in this Rust project using the instructions at https://hotpath.rs/agent/init_cloud
 ```
 
 If the project does not use hotpath yet, the agent sets up profiling first. It then picks a benchmark with a fixed workload (asking you when the choice is not obvious), adds the `hotpath-cloud` feature, a [regression policy](regression_policy.md), a GitHub Actions workflow, and runs the benchmark locally to verify the report. For public repositories, it asks whether to benchmark pull requests from forks, which need a [separate setup](ci_integration.md#pull-requests-from-forks).
 
-The agent does not commit, install the GitHub App or upload anything for you. [Install the hotpath GitHub App](https://github.com/apps/hotpath-rs/installations/new) and merge the workflow: the first push to the default branch uploads the baseline, and from then on every pull request gets a performance comment.
+Your agent remains in control: you review and approve edits through its regular permission prompts. It does not commit or upload anything for you. Merge the workflow: the first push to the default branch uploads the baseline, and from then on every pull request gets a performance comment.
 
-Your agent remains in control: you review and approve edits through its regular permission prompts.
+## Manual setup
 
-### Manual setup
-
-Follow the [CI integration](ci_integration.md) guide to add the benchmark workflow by hand.
+Prefer to configure it without an agent? Follow the [CI integration](ci_integration.md) guide to add the benchmark workflow by hand, with the GitHub App installed as above.
 
 ## README badge
 

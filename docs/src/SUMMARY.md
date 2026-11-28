@@ -27,7 +27,6 @@
 - [CI integration](./ci_integration.md)
 - [Regression policy](./regression_policy.md)
 - [Performance budgets](./performance_budgets.md)
-- [Metrics history](./metrics_history.md)
 - [API & MCP](./mcp_api.md)
 - [AI Agents CLI](./agents_cli.md)
 - [FAQ](./cloud_faq.md)

@@ -68,13 +68,9 @@
     margin: 0;
 }
 
-.content .cloud-install .cloud-cta-meta {
-    margin-left: 0;
-}
-
 /* Compact pricing and permissions reassurance under the install button */
 .content .cloud-cta-meta {
-    margin: 1rem 0 0 calc(3px + 1.2rem);
+    margin: 1rem 0 0 0;
     font-size: 0.9em;
     color: var(--fg);
     opacity: 0.75;
