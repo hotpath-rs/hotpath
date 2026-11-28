@@ -19,3 +19,8 @@ hotpath-callgrind-meta = ["hotpath-meta", "hotpath-drain/hotpath-callgrind-meta"
 [[bench]]
 name = "drain"
 harness = false
+
+# Single-threaded control for run-to-run timing variability.
+[[bench]]
+name = "fib"
+harness = false

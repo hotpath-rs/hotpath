@@ -1,0 +1,17 @@
+# Policy for the `fib-criterion-hetzner` benchmark: a single-threaded recursive
+# Fibonacci run five times through Criterion, the control for run-to-run timing
+# variability without cross-thread communication.
+
+[functions]
+min_percent_total = 0.5
+
+[[functions.budgets]]
+match = "hotpath_meta::criterion::routine"
+calls = { min = 5, max = 5 }
+
+# Listed so the spread shows as context; this benchmark exists to measure it.
+[functions.timing]
+judged = false
+min_percent_change = 50
+metrics = ["avg", "total"]
+min_calls = 1

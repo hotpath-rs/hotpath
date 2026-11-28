@@ -2,7 +2,8 @@ name: Cloud drain criterion benchmark
 
 # Every push to `main` and every pull request push runs on the Hetzner
 # bare-metal runner, including empty commits, so repeated runs sample the
-# machine's run-to-run variability.
+# machine's run-to-run variability. Both benchmarks run one after the other in
+# one job, and the concurrency group keeps one job at a time on the machine.
 on:
   push:
     branches: [main]
@@ -12,11 +13,13 @@ on:
 # profiled by `hotpath-meta` with a fixed iteration count. One build runs twice
 # through `cargo bench`: natively for timing, then under Valgrind Callgrind as
 # Cargo's runner, which merges the native report into its own. A regression fails
-# the `hotpath / drain-criterion-hetzner` check run, not the job. The report
-# uploads in process with the job's OIDC token.
+# the `hotpath / drain-criterion-hetzner` check run, not the job. Then the
+# single-threaded `fib` benchmark runs natively only: its instruction count is
+# deterministic, and its timing spread is the control for `drain`'s. Reports
+# upload in process with the job's OIDC token.
 jobs:
   hetzner:
-    name: cloud drain criterion benchmark (hetzner)
+    name: cloud criterion benchmarks (hetzner)
     # Fork pull requests get no OIDC token, so they cannot upload. This is not a
     # security boundary: a fork can edit this file, so fork workflow runs must
     # stay behind manual approval while a self-hosted runner is registered.
@@ -30,7 +33,8 @@ jobs:
     concurrency:
       group: hetzner-bare-metal
       cancel-in-progress: false
-    # Shared by both runs, so their reports describe one benchmark.
+    # Shared by both `drain` runs, so their reports describe one benchmark; the
+    # `fib` step overrides the benchmark name and policy.
     env:
       # Its own series, so it never shares a baseline with GitHub-hosted runs;
       # the policy path keeps the drain criterion policy.
@@ -38,8 +42,9 @@ jobs:
       HOTPATH_META_POLICY_PATH: ${{ github.workspace }}/hotpath/drain-criterion-policy.toml
       HOTPATH_META_OUTPUT_FORMAT: json
       HOTPATH_META_CRITERION_ITERATIONS: 5
-      # Identical in every `cargo bench`, so both runs use the one build.
+      # Identical features in every `cargo bench`, so all runs use the one build.
       BENCH_ARGS: -p test-drain-criterion --bench drain --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
+      FIB_ARGS: -p test-drain-criterion --bench fib --features hotpath-alloc-meta,hotpath-cloud-meta,hotpath-callgrind-meta
     steps:
       - uses: actions/checkout@v4
         with:
@@ -74,8 +79,11 @@ jobs:
             echo "::error::a RAID resync or check is running on the runner host"
             exit 1
           fi
-      - name: Build drain criterion benchmark
-        run: cargo bench $BENCH_ARGS --no-run
+      - name: Build criterion benchmarks
+        id: build
+        run: |
+          cargo bench $BENCH_ARGS --no-run
+          cargo bench $FIB_ARGS --no-run
       # Cargo starts the benchmark in the package directory; hotpath finds the
       # git root above it. No upload: this report is merged into the Callgrind
       # run's.
@@ -101,4 +109,19 @@ jobs:
           cargo bench $BENCH_ARGS -- --test --exact drain/lockstep
           test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
           jq -e '.meta.run == "merged" and (.functions_icount.data | length > 0) and (.functions_timing.data | length > 0) and .meta.criterion.benchmark == "drain/lockstep"' \
+            "$HOTPATH_META_OUTPUT_PATH" > /dev/null
+      # Runs even when `drain` failed, so every sample has its control.
+      - name: Run fib criterion benchmark natively and upload the report
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          HOTPATH_META_BENCHMARK: fib-criterion-hetzner
+          HOTPATH_META_POLICY_PATH: ${{ github.workspace }}/hotpath/fib-criterion-policy.toml
+          HOTPATH_META_USER_METADATA: runner=${{ runner.os }}-${{ runner.arch }},cpu=${{ steps.host.outputs.cpu }},image=${{ steps.host.outputs.image }},toolchain=stable,rustc=${{ steps.rustc.outputs.version }},profile=bench
+          HOTPATH_META_UPLOAD: fail-on-error
+          HOTPATH_META_UPLOAD_RESPONSE_PATH: ${{ github.workspace }}/fib-upload-response.json
+          HOTPATH_META_OUTPUT_PATH: ${{ runner.temp }}/fib.json
+        run: |
+          cargo bench $FIB_ARGS -- --test --exact fib/recursive
+          test -s "$HOTPATH_META_UPLOAD_RESPONSE_PATH"
+          jq -e '(.functions_timing.data | length > 0) and .meta.criterion.benchmark == "fib/recursive"' \
             "$HOTPATH_META_OUTPUT_PATH" > /dev/null
