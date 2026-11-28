@@ -93,7 +93,12 @@ jobs:
               [ "$(cat /sys/devices/system/cpu/cpufreq/boost)" = 1 ] && echo on || echo off
             fi
           }
-          apt_running() { pgrep -x 'apt|apt-get|dpkg|unattended-upgr' > /dev/null && echo yes || echo no; }
+          # The idle `unattended-upgrade-shutdown` process is always present, so
+          # updates are detected by the apt-daily services and apt/dpkg instead.
+          apt_running() {
+            if systemctl is-active --quiet apt-daily.service apt-daily-upgrade.service \
+              || pgrep -x 'apt|apt-get|dpkg' > /dev/null; then echo yes; else echo no; fi
+          }
           meta="env=${{ matrix.env }}"
           meta+=",runner=$(val echo "$RUNNER_NAME")"
           meta+=",cpu=$(val lscpu_field 'Model name')"
