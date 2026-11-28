@@ -142,6 +142,18 @@ cargo run --release -p test-all-features --example benchmark_measure --features 
 
 CI runs the hotpath-cloud benchmarks on x86_64 runners under Ubuntu's pinned `valgrind` package, except `drain-criterion`, which runs on an ARM64 runner (`ubuntu-26.04-arm`) under the experimental patched Valgrind that `hotpath-rs/setup-valgrind` installs. It measures the same functions as `drain`, so the two show whether ARM64 counts look plausible. Instruction counts only compare within one architecture, so reproduce a CI count on the runner's architecture.
 
+### Bare-metal variability benchmarks
+
+`.github/workflows/benchmark-metal.yml` (branch `bare-metal-benchmarks` only) runs five benchmarks on every push, on the self-hosted `metal` runner and on `ubuntu-24.04`, and uploads them to the `metal-*` and `hosted-*` hotpath-cloud series to compare wall-clock variability: `fib`, `functions_overhead`, `channels_overhead` and `onebrc` from `crates/test-metal-benchmarks`, plus the `drain-criterion` workload (Criterion as a workload harness only, measured by `hotpath-meta`). Locally:
+
+```bash
+cargo run --release -p test-metal-benchmarks --example fib --features hotpath
+cargo run --release -p test-metal-benchmarks --example functions_overhead --features hotpath
+cargo run --release -p test-metal-benchmarks --example channels_overhead --features hotpath
+cargo run --release -p test-metal-benchmarks --example generate_1brc -- /tmp/measurements.txt
+cargo run --release -p test-metal-benchmarks --example onebrc --features hotpath -- /tmp/measurements.txt crates/test-metal-benchmarks/data/expected-100M.txt
+```
+
 ### Samply traces 
 
 Analyze [Samply](https://github.com/mstange/samply) traces by running the instrumented benchmarks:

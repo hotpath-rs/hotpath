@@ -1,0 +1,160 @@
+name: Bare-metal benchmarks
+
+on:
+  push:
+    branches:
+      - bare-metal-benchmarks
+
+permissions: {}
+
+# Wall-clock variability experiment: every push runs the same five benchmarks
+# on the untuned Hetzner runner (`metal-*` series) and on a standard
+# GitHub-hosted runner (`hosted-*` series), one after another in a fixed
+# order, natively only (no Callgrind). Each run uploads its reports to
+# hotpath-cloud. The `trusted-benchmarks` runner group serves only this file
+# on this branch, so keep the path and the push-only trigger.
+#
+# drain-criterion uses Criterion only as a workload harness (`--test` runs a
+# fixed number of iterations); hotpath-meta takes the measurements, Criterion's
+# statistics are not run.
+jobs:
+  bench:
+    name: bench (${{ matrix.env }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: metal
+            runs_on:
+              group: trusted-benchmarks
+              labels: metal
+          - env: hosted
+            runs_on: ubuntu-24.04
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RUST_TOOLCHAIN: "1.100.1"
+      # `pilot` until the benchmark implementation is frozen, then `final`.
+      PHASE: pilot
+      ROWS: "100000000"
+      CRATE_DIR: crates/test-metal-benchmarks
+      BENCH_ARGS: -p test-drain-criterion --bench drain --features hotpath-alloc-meta,hotpath-cloud-meta
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master, 2026-11-15
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      # The metal runner keeps its build and dataset between runs, outside the
+      # workspace that checkout cleans; the hosted VM starts empty every time.
+      - name: Set paths
+        run: |
+          if [ "${{ matrix.env }}" = metal ]; then base="$HOME"; else base="$RUNNER_TEMP"; fi
+          echo "CARGO_TARGET_DIR=$base/metal-target" >> "$GITHUB_ENV"
+          echo "DATA_DIR=$base/metal-data" >> "$GITHUB_ENV"
+          echo "REPORT_DIR=$RUNNER_TEMP/reports" >> "$GITHUB_ENV"
+      - name: Build
+        run: |
+          cargo build --locked --release -p test-metal-benchmarks --examples --features hotpath-cloud
+          cargo bench --locked $BENCH_ARGS --no-run
+      - name: Prepare 1BRC dataset
+        run: |
+          mkdir -p "$DATA_DIR"
+          data="$DATA_DIR/measurements-100M.txt"
+          hash="$(cat "$CRATE_DIR/data/measurements-100M.sha256")"
+          check() { echo "$hash  $data" | sha256sum -c --quiet; }
+          if [ ! -f "$data" ] || ! check; then
+            rm -f "$data"
+            "$CARGO_TARGET_DIR/release/examples/generate_1brc" "$data" "$ROWS"
+            check
+          fi
+          echo "DATA=$data" >> "$GITHUB_ENV"
+          echo "DATASET_SHA=${hash:0:16}" >> "$GITHUB_ENV"
+      - name: Settle
+        run: sleep 30
+      # Recorded right before the measurements. Values that cannot be read are
+      # `unavailable`; nothing here fails the job. Commas and `=` would split
+      # the metadata, so they are stripped.
+      - name: Record environment
+        run: |
+          clean() { tr -d ',=\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | cut -c1-80; }
+          val() { local v; v="$("$@" 2>/dev/null | clean)" || true; echo "${v:-unavailable}"; }
+          lscpu_field() { lscpu | sed -n "s/^$1:[[:space:]]*//p" | head -n1; }
+          cores() { echo $(( $(lscpu_field 'Core(s) per socket') * $(lscpu_field 'Socket(s)') )); }
+          os() { . /etc/os-release && echo "$PRETTY_NAME"; }
+          temp() { cat /sys/class/thermal/thermal_zone*/temp | sort -n | tail -n1 | awk '{ printf "%.1f", $1 / 1000 }'; }
+          turbo() {
+            if [ -r /sys/devices/system/cpu/intel_pstate/no_turbo ]; then
+              [ "$(cat /sys/devices/system/cpu/intel_pstate/no_turbo)" = 0 ] && echo on || echo off
+            elif [ -r /sys/devices/system/cpu/cpufreq/boost ]; then
+              [ "$(cat /sys/devices/system/cpu/cpufreq/boost)" = 1 ] && echo on || echo off
+            fi
+          }
+          # The idle `unattended-upgrade-shutdown` process is always present, so
+          # updates are detected by the apt-daily services and apt/dpkg instead.
+          apt_running() {
+            if systemctl is-active --quiet apt-daily.service apt-daily-upgrade.service \
+              || pgrep -x 'apt|apt-get|dpkg' > /dev/null; then echo yes; else echo no; fi
+          }
+          meta="env=${{ matrix.env }}"
+          meta+=",runner=$(val echo "$RUNNER_NAME")"
+          meta+=",cpu=$(val lscpu_field 'Model name')"
+          meta+=",cpus=$(val nproc)"
+          meta+=",cores=$(val cores)"
+          meta+=",tpc=$(val lscpu_field 'Thread(s) per core')"
+          meta+=",os=$(val os)"
+          meta+=",kernel=$(val uname -r)"
+          meta+=",rustc=$(val rustc --version)"
+          meta+=",governor=$(val cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)"
+          meta+=",smt=$(val cat /sys/devices/system/cpu/smt/control)"
+          meta+=",turbo=$(val turbo)"
+          meta+=",temp_c=$(val temp)"
+          meta+=",load1=$(val cut -d' ' -f1 /proc/loadavg)"
+          meta+=",apt_running=$(val apt_running)"
+          meta+=",run_attempt=$GITHUB_RUN_ATTEMPT"
+          meta+=",tree=$(val git rev-parse HEAD^{tree})"
+          meta+=",dataset_sha=$DATASET_SHA"
+          meta+=",profile=release"
+          meta+=",phase=$PHASE"
+          echo "META=$meta" >> "$GITHUB_ENV"
+          { echo '### Environment'; echo "$meta" | tr ',' '\n' | sed 's/^/- /'; } >> "$GITHUB_STEP_SUMMARY"
+      # Sequential, fixed order. Each benchmark is its own process and series,
+      # uploads with fail-on-error and must report its primary function with the
+      # expected call count. Both variable sets are set for every command:
+      # drain-criterion reads `HOTPATH_META_*`, the others `HOTPATH_*`.
+      - name: Run benchmarks
+        run: |
+          mkdir -p "$REPORT_DIR"
+          echo '### Primary measurements' >> "$GITHUB_STEP_SUMMARY"
+          bench() {
+            local name="$1" fn="$2" calls="$3"; shift 3
+            local series="${{ matrix.env }}-$name"
+            local out="$REPORT_DIR/$name.json" resp="$REPORT_DIR/$name.upload.json"
+            echo "::group::$series"
+            HOTPATH_BENCHMARK="$series" HOTPATH_META_BENCHMARK="$series" \
+            HOTPATH_OUTPUT_FORMAT=json HOTPATH_META_OUTPUT_FORMAT=json \
+            HOTPATH_OUTPUT_PATH="$out" HOTPATH_META_OUTPUT_PATH="$out" \
+            HOTPATH_UPLOAD=fail-on-error HOTPATH_META_UPLOAD=fail-on-error \
+            HOTPATH_UPLOAD_RESPONSE_PATH="$resp" HOTPATH_META_UPLOAD_RESPONSE_PATH="$resp" \
+            HOTPATH_USER_METADATA="$META" HOTPATH_META_USER_METADATA="$META" \
+            HOTPATH_META_CRITERION_ITERATIONS=5 \
+              "$@"
+            test -s "$resp"
+            jq -e --arg fn "$fn" --argjson calls "$calls" \
+              '[.functions_timing.data[] | select(.name == $fn and .calls == $calls)] | length == 1' \
+              "$out" > /dev/null
+            jq -r --arg fn "$fn" --arg series "$series" \
+              '.functions_timing.data[] | select(.name == $fn) | "- `\($series)` `\(.name)`: avg \(.avg) over \(.calls) calls"' \
+              "$out" >> "$GITHUB_STEP_SUMMARY"
+            echo "::endgroup::"
+          }
+          ex="$CARGO_TARGET_DIR/release/examples"
+          bench fib fib::fib_round 20 "$ex/fib"
+          bench functions-overhead functions_overhead::phase 10 "$ex/functions_overhead"
+          bench channels-overhead channels_overhead::phase 10 "$ex/channels_overhead"
+          bench 1brc test_metal_benchmarks::onebrc::run 5 "$ex/onebrc" "$DATA" "$CRATE_DIR/data/expected-100M.txt"
+          bench drain-criterion hotpath_meta::criterion::routine 5 \
+            cargo bench --locked $BENCH_ARGS -- --test --exact drain/lockstep
