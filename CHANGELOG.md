@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.33.1] - 2026-11-28
+
+### 🐛 Bug Fixes
+
+- Shorten trait-qualified function names for display
+
+- Adjust max report size limit
+
+- Add OIDC token retries
+
+- Strict version requirements
+
+- Resolve source_root of nested workspaces from the main anchor
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.33.1
+
+
 ## [0.33.0] - 2026-11-22
 
 ### 🚀 Features
