@@ -346,10 +346,12 @@ fn mint_attempt(url: &str, request_token: &str) -> Result<String, Mint> {
             Mint::Fatal(message)
         });
     }
-    let token: TokenResponse = resp
-        .body_mut()
-        .read_json()
-        .map_err(|e| Mint::Fatal(format!("invalid OIDC token response: {e}")))?;
+    let token: TokenResponse = resp.body_mut().read_json().map_err(|e| match e {
+        ureq::Error::Json(e) if !e.is_io() => {
+            Mint::Fatal(format!("invalid OIDC token response: {e}"))
+        }
+        e => Mint::Retryable(format!("OIDC token response failed: {e}")),
+    })?;
     Ok(token.value)
 }
 
@@ -1336,5 +1338,30 @@ mod tests {
 
         assert_eq!(err, "OIDC token request returned HTTP 500: internal error");
         failed.assert();
+    }
+
+    /// A raw listener, as mockito cannot drop a connection mid-body.
+    #[test]
+    fn mint_token_retries_a_dropped_body() {
+        use std::io::{Read, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/token", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            for response in [
+                "HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n{\"val",
+                "HTTP/1.1 200 OK\r\nContent-Length: 22\r\n\r\n{\"value\":\"oidc-token\"}",
+            ] {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0; 1024];
+                let _ = stream.read(&mut request).unwrap();
+                stream.write_all(response.as_bytes()).unwrap();
+            }
+        });
+
+        let token = mint_token(&url, "request-token");
+
+        assert_eq!(token.as_deref(), Ok("oidc-token"));
+        server.join().unwrap();
     }
 }

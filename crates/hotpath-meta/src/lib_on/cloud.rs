@@ -346,10 +346,12 @@ fn mint_attempt(url: &str, request_token: &str) -> Result<String, Mint> {
             Mint::Fatal(message)
         });
     }
-    let token: TokenResponse = resp
-        .body_mut()
-        .read_json()
-        .map_err(|e| Mint::Fatal(format!("invalid OIDC token response: {e}")))?;
+    let token: TokenResponse = resp.body_mut().read_json().map_err(|e| match e {
+        ureq::Error::Json(e) if !e.is_io() => {
+            Mint::Fatal(format!("invalid OIDC token response: {e}"))
+        }
+        e => Mint::Retryable(format!("OIDC token response failed: {e}")),
+    })?;
     Ok(token.value)
 }
 
