@@ -4,7 +4,7 @@
 //! provenance that makes a report self-describing, plus the policy file of
 //! the checkout, which the server judges the report under.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use time::OffsetDateTime;
 
 use crate::json::policy_file::find_git_root;
@@ -238,8 +238,13 @@ fn resolve_checkout_at(cwd: &Path, anchor: Option<SourceAnchor>) -> Option<Resol
     let probe = match anchor {
         Some(anchor) => {
             let main_file = Path::new(anchor.main_file);
-            // An absolute path joined onto any directory matches it.
-            if !main_file.is_relative() {
+            // Only a plain relative path can anchor: `..`, a root or a drive
+            // prefix leaves the workspace, and an absolute path joined onto
+            // any directory matches it.
+            let plain = main_file
+                .components()
+                .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
+            if !plain || main_file.as_os_str().is_empty() {
                 return None;
             }
             if let Some(git_root) = find_git_root(cwd) {
@@ -348,6 +353,19 @@ mod tests {
         let root = checkout("ambiguous", &["x/x/src/main.rs", "x/x/x/src/main.rs"]);
         let ambiguous = anchor(&root.join("x/x"), "x/src/main.rs");
         assert_eq!(workspace_root(&root.join("x"), ambiguous), None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A main file that is empty, absolute or leaves the workspace anchors
+    /// nothing, even where the file exists and a walk would match.
+    #[test]
+    fn unsupported_anchor_paths_omit_the_checkout() {
+        let root = checkout("unsupported", &["src/main.rs"]);
+        let absolute: &'static str = Box::leak(root.join("src/main.rs").to_str().unwrap().into());
+        for main_file in ["", absolute, "../src/main.rs", "src/../../src/main.rs"] {
+            let unsupported = anchor(&root.join("src"), main_file);
+            assert_eq!(workspace_root(&root, unsupported), None, "{main_file}");
+        }
         let _ = std::fs::remove_dir_all(&root);
     }
 
